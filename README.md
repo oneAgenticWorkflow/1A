@@ -1,4 +1,4 @@
-# EB-1A Profile Portal
+# OneA Pathway Portal
 
 A private workflow application, fully outside Claude's website.
 
