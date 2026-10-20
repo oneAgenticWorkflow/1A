@@ -131,9 +131,9 @@ select{width:auto;max-width:100%;padding:5px 8px}
 .own-Candidate{background:var(--gate-bg);color:var(--gate)}
 .own-Advisor{background:var(--ok-bg);color:var(--ok)}
 .own-Attorney{background:var(--mid-bg);color:var(--mid)}
-.own-Claude{background:#e3edf9;color:var(--accent)}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .own-Claude{background:#1b2c40}}
-:root[data-theme="dark"] .own-Claude{background:#1b2c40}
+.own-Analysis{background:#e3edf9;color:var(--accent)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .own-Analysis{background:#1b2c40}}
+:root[data-theme="dark"] .own-Analysis{background:#1b2c40}
 .stagebox{padding:6px 14px}
 .stagebox.now{border-color:var(--accent)}
 .sthead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%;background:none;border:0;text-align:left;padding:8px 0}
