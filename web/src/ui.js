@@ -12,7 +12,7 @@ function chip(t,c){return '<span class="chip'+(c?' '+c:'')+'">'+esc(t)+'</span>'
 function statCls(s){return s==='Done'?'ok':s==='In progress'?'mid':s==='Blocked'?'bad':s==='Skipped'?'':s==='Not started'?'':'gate'}
 function dueCls(t){if(isDone(t.status)||!t.due)return '';var d=daysUntil(t.due);return d<0?'bad':d<=7?'gate':''}
 function dueTxt(t){if(!t.due)return '';var d=daysUntil(t.due);return fmtDate(t.due).replace(/, \d{4}$/,'')+(isDone(t.status)?'':(d<0?' ('+(-d)+'d late)':d===0?' (today)':''))}
-function kindChip(t){return t.kind==='form'?chip('FORM'):t.kind==='review'?chip('REVIEW'):t.kind==='ai'?chip('CLAUDE'):t.kind==='gate'?chip('GATE','gate'):''}
+function kindChip(t){return t.kind==='form'?chip('FORM'):t.kind==='review'?chip('REVIEW'):t.kind==='ai'?chip('ANALYSIS'):t.kind==='gate'?chip('GATE','gate'):''}
 function ownerChip(o){return '<span class="own own-'+esc(o)+'">'+esc(o)+'</span>'}
 function options(arr,sel,blank){return (blank!==undefined?'<option value="">'+esc(blank)+'</option>':'')+arr.map(function(x){return '<option'+(x===sel?' selected':'')+'>'+esc(x)+'</option>'}).join('')}
 function caseProgress(c){if(S.locked&&c.progress!=null)return c.progress;var ts=tasksOf(c.id).filter(function(t){return t.req!==false});if(!ts.length)return 0;return Math.round(ts.filter(function(t){return isDone(t.status)}).length/ts.length*100)}
@@ -28,7 +28,7 @@ function render(){
   if(!S.ready){app.innerHTML='<p class="small">Loading cases…</p>';return}
   h+=topbar();
   if(S.msg)h+='<div class="banner '+S.msgKind+'" role="status">'+esc(S.msg)+' <button class="link" data-a="dismiss">Dismiss</button></div>';
-  if(S.busy)h+='<div class="banner busy" role="status">Claude is working: '+esc(S.busy)+'… <button class="btn sm" data-a="cancel">Stop</button></div>';
+  if(S.busy)h+='<div class="banner busy" role="status">Analysis is running: '+esc(S.busy)+'… <button class="btn sm" data-a="cancel">Stop</button></div>';
   if(S.setup)h+='<div class="banner busy" role="status">'+esc(S.setup)+'</div>';
   var c=cur();
   if(S.locked)h+=c?candidateView(c):'<div class="panel"><h2>No case yet</h2><p>This email is not linked to a case. Ask your advisor to add it, then sign in again.</p></div>';
@@ -149,7 +149,7 @@ function taskRow(c,t){
   var h='<div class="task'+(isDone(t.status)?' done':'')+(locked?' locked':'')+'">';
   if(t.kind==='task'&&!locked&&!t.draft)h+='<button class="chk'+(isDone(t.status)?' on':'')+'" data-a="check" data-id="'+t.id+'" aria-label="Mark '+(isDone(t.status)?'not done':'done')+'"></button>';
   else h+='<span class="chk dis'+(isDone(t.status)?' on':'')+'" aria-hidden="true"></span>';
-  h+='<button class="tt" data-a="tog" data-id="'+t.id+'" aria-expanded="'+open+'"><b>'+esc(t.title)+'</b><small>'+(locked&&w.length?'Waiting for: '+esc(w.map(function(x){return x.title}).slice(0,2).join('; '))+(w.length>2?' +'+(w.length-2):''):esc(t.status))+(t.draft?' · AI draft, not yet approved':'')+(t.req===false?' · optional':'')+'</small></button>';
+  h+='<button class="tt" data-a="tog" data-id="'+t.id+'" aria-expanded="'+open+'"><b>'+esc(t.title)+'</b><small>'+(locked&&w.length?'Waiting for: '+esc(w.map(function(x){return x.title}).slice(0,2).join('; '))+(w.length>2?' +'+(w.length-2):''):esc(t.status))+(t.draft?' · Draft, not yet approved':'')+(t.req===false?' · optional':'')+'</small></button>';
   h+=kindChip(t)+ownerChip(t.owner)+'<span class="chip '+dueCls(t)+'">'+esc(dueTxt(t)||'no date')+'</span>';
   if(open)h+='<div class="detail">'+taskDetail(c,t)+'</div>';
   return h+'</div>';
@@ -165,7 +165,7 @@ function taskDetail(c,t){
   if(!locked&&!isDone(t.status)||t.kind!=='task'){
     if(t.kind==='form')h+='<div class="addrow"><button class="btn pri sm" data-a="openform" data-id="'+t.form+'">Open '+esc(formDef(t.form).n)+'</button></div>';
     if(t.kind==='review'&&!locked){var r=getResp(c.id,t.form);h+='<p class="small">Form status: '+esc(r.status)+'</p><div class="addrow"><button class="btn sm" data-a="openform" data-id="'+t.form+'">Read the answers</button>'+(!isDone(t.status)?'<button class="btn pri sm" data-a="reviewed" data-id="'+t.id+'">Mark reviewed</button>':'')+(r.status==='Submitted'||r.status==='Reviewed'?'<button class="btn sm" data-a="reopenform" data-id="'+t.form+'">Send back for edits</button>':'')+'</div>'}
-    if(t.kind==='ai'&&!locked){var why=aiReady(c,t);h+='<div class="addrow"><button class="btn pri sm" data-a="runai" data-id="'+t.id+'"'+(why||S.busy?' disabled':'')+'>'+(isDone(t.status)?'Run again':'Run Claude')+'</button>'+(why?'<span class="small">'+esc(why)+'</span>':'')+'</div>'}
+    if(t.kind==='ai'&&!locked){var why=aiReady(c,t);h+='<div class="addrow"><button class="btn pri sm" data-a="runai" data-id="'+t.id+'"'+(why||S.busy?' disabled':'')+'>'+(isDone(t.status)?'Run again':'Run analysis')+'</button>'+(why?'<span class="small">'+esc(why)+'</span>':'')+'</div>'}
     if(t.kind==='gate'&&!locked)h+=gateUi(c,t);
   }
   var notes=S.log.filter(function(l){return l.tid===t.id&&l.kind==='note'}).sort(function(a,b){return a.ts<b.ts?-1:1});
@@ -282,7 +282,7 @@ function formEditor(c,fid){
       for(var i=0;i<n;i++){
         var e=arr[i]||{};
         h+='<div class="entry"><div class="ph"><b>'+esc(p.repeat.label)+' '+(i+1)+(e[p.repeat.title]?': '+esc(String(e[p.repeat.title]).slice(0,60)):'')+'</b>'+(!ro&&i>=p.repeat.min?'<button class="link" data-a="entry-del" data-fp="'+esc(def.id+'|'+p.id+'|'+i)+'">Remove</button>':'')+'</div>'+renderFields(def,p,i,e,ro);
-        if(e._screen&&S.role==='Advisor'){var sc=e._screen;h+='<div class="opt"><b>Claude screen: '+sc.total+'/100, '+esc(sc.verdict)+'</b><p>'+esc(sc.note)+'</p><p class="small">Venue types to look for: '+esc((sc.venueTypes||[]).join('; '))+'. Verify real venues yourself.</p></div>'}
+        if(e._screen&&S.role==='Advisor'){var sc=e._screen;h+='<div class="opt"><b>Screen: '+sc.total+'/100, '+esc(sc.verdict)+'</b><p>'+esc(sc.note)+'</p><p class="small">Venue types to look for: '+esc((sc.venueTypes||[]).join('; '))+'. Verify real venues yourself.</p></div>'}
         h+='</div>';
       }
       if(!ro&&n<p.repeat.max)h+='<button class="btn sm" data-a="entry-add" data-fp="'+esc(def.id+'|'+p.id)+'">Add '+esc(p.repeat.label.toLowerCase())+'</button> <span class="small">'+n+' of up to '+p.repeat.max+'</span>';
@@ -456,7 +456,7 @@ document.addEventListener('click',async function(e){
         await db.collection('tasks').add({cid:c.id,key:'m'+Date.now().toString(36),stage:c.stage||0,title:title,detail:'',owner:S.draft.to||'Advisor',kind:'task',form:'',gate:'',deps:[],req:false,status:'To do',due:S.draft.td||addDays(today(),14),source:'You',createdAt:nowIso()});
         S.draft.tt='';S.draft.td='';break}
       case 'task-del':await db.doc('tasks/'+id).delete();break;
-      case 'draft-ok':await db.doc('tasks/'+id).update({draft:false});await log(c.id,'You approved an AI-drafted task for the candidate.','task',id);break;
+      case 'draft-ok':await db.doc('tasks/'+id).update({draft:false});await log(c.id,'You approved a drafted task for the candidate.','task',id);break;
       case 'note':{var txt=(S.draft['nt'+id]||'').trim();if(txt){await db.collection('log').add({cid:c.id,tid:id,ts:nowIso(),text:txt,kind:'note',by:'Admin',shared:!!S.draft['ns'+id]});S.draft['nt'+id]='';S.draft['ns'+id]=false}break}
       case 'runai':{var tr=S.tasks.find(function(x){return x.id===id});if(tr&&!S.busy)runAi(tr);return}
       case 'openform':S.form=id;S.openForm=true;S.errs=null;S.tab='forms';break;
@@ -497,7 +497,7 @@ document.addEventListener('drop',async function(e){
   var col=e.target.closest&&e.target.closest('[data-drop]');if(!col)return;e.preventDefault();col.classList.remove('over');
   var tk=S.tasks.find(function(x){return x.id===e.dataTransfer.getData('text/plain')});
   var to=col.dataset.drop;if(!tk||to==='Not started'||tk.status===to||(to==='Done'&&isDone(tk.status)))return;
-  if(tk.kind!=='task'&&to==='Done'){say('This step finishes by itself: '+(tk.kind==='form'?'when the candidate submits the form.':tk.kind==='review'?'use Mark reviewed.':tk.kind==='ai'?'when Claude runs.':'when the gate is approved.'),'err');return}
+  if(tk.kind!=='task'&&to==='Done'){say('This step finishes by itself: '+(tk.kind==='form'?'when the candidate submits the form.':tk.kind==='review'?'use Mark reviewed.':tk.kind==='ai'?'when the analysis runs.':'when the gate is approved.'),'err');return}
   try{await setStatus(tk,to);await log(tk.cid,tk.title+' moved to '+to+'.','task',tk.id)}catch(err){fail(err)}
 });
 document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target.dataset&&e.target.dataset.drag!==undefined){e.preventDefault();e.target.click()}});
