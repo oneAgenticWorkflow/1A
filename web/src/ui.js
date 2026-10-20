@@ -429,7 +429,7 @@ document.addEventListener('click',async function(e){
     switch(a){
       case 'dismiss':S.msg=null;break;
       case 'signout':await db.signOut();return;
-      case 'invite':{var site=location.href.split('#')[0];S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour OneA Pathway workspace is ready: '+site+'\nSign in with this email address ('+(c.email||'your email')+'). You will get a one-time sign-in link by email; no password needed.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
+      case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour OneA Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
       case 'getfile':{var url=await db.signedUrl(el.dataset.path);window.open(url,'_blank','noopener');return}
       case 'file-del':{var fd0=S.docs.find(function(x){return x.id===id});if(fd0){await db.doc('docs/'+id).delete();if(fd0.path)await db.removeFiles([fd0.path])}break}
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
