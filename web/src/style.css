@@ -187,3 +187,11 @@ select{width:auto;max-width:100%;padding:5px 8px}
 label.up{cursor:pointer;display:inline-block}
 code{font-family:var(--mono);font-size:12px}
 .plan{margin-top:6px}.plan h4{margin:8px 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;opacity:.7}.plan ul{margin:0 0 4px 18px;padding:0}.plan details{margin-top:4px}.plan summary{cursor:pointer;font-size:13px}
+
+.lanes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:12px 0}
+.lane{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--surface);min-width:0}
+.lane h4{margin:0 0 2px;display:flex;gap:8px;align-items:center}
+.laner{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.laner .link{text-align:left;min-width:0}
+.feas h4{margin:12px 0 4px}
+.feas ul{margin:4px 0 8px;padding-left:20px}
