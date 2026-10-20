@@ -195,3 +195,4 @@ code{font-family:var(--mono);font-size:12px}
 .laner .link{text-align:left;min-width:0}
 .feas h4{margin:12px 0 4px}
 .feas ul{margin:4px 0 8px;padding-left:20px}
+.cols3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}@media(max-width:720px){.cols3{grid-template-columns:1fr}}
