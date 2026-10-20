@@ -1,4 +1,4 @@
--- EB-1A portal schema. Admins control everything; a candidate sees and edits only their own case.
+-- OneA Pathway schema. Admins control everything; a candidate sees and edits only their own case.
 -- Every table stores one JSON document per row so the web app can keep a simple document model.
 
 create table if not exists public.profiles (
