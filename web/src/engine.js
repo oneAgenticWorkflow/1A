@@ -182,18 +182,40 @@ function cleanPlan(p,k){
 }
 async function runScore(t){
   var c=cur();if(!c)return;
-  var ok=await ai('Baseline scoring',async function(signal){
-    var prompt=RULES+'\n\nRate each of the 10 regulatory criteria for the candidate below. Ratings: High, Medium, Low, Not met, N/A. Criteria: c1 Awards (national or international only; company or fee-based awards are weak), c2 Memberships (must require outstanding achievement judged by experts), c3 Published media (must be ABOUT the candidate, in professional or major trade media, candidate named), c4 Judging (completed reviews with proof), c5 Original contributions of major significance (needs independent proof), c6 Scholarly articles, c7 Exhibitions (artistic only; N/A unless the candidate works in the arts), c8 Leading or critical role at a distinguished organization (needs third-party proof of distinction), c9 High remuneration versus peers, c10 Commercial success in the performing arts (N/A unless performing arts). For each give "evidence" (what is in the data) and "gaps" (what is missing to reach High). Also list red flags an officer could raise at the final merits step (self-citation, company-only awards or media, vendor-platform-only expertise, fee-only memberships, pay-to-publish venues, unproven employer distinction, unmeasured or round-number metrics, date overlaps or inconsistent titles).\n\nThen follow the internal playbook section on enhancement plans. For every criterion add a "plan": "call" is Invest, Maintain or Skip for this candidate (no more than 4 Invest; Skip anything this person cannot realistically win, such as high remuneration when pay is not clearly above the top decile, or memberships with experience-based bylaws); "why" one or two sentences; "effort" hours per month, cost band and months to result; "actions" concrete steps; "evidenceToRequest" documents to ask the candidate for; and, where relevant, "articleTopics" (tied to the candidate\'s own domain and projects), "venueTypes" (kinds of venue, never named journals), "judgingRoutes" and "letterIdeas" (kinds of independent writers and the facts each letter should contain). Leave lists empty for Skip. Also add "meritsRisk": {"level":"Low|Medium|High","drivers":["..."],"advice":"say plainly if waiting and building a longer record is the better plan"}.\n\nReply with only JSON: {"summary":"3 sentences","feasibility":"Strong|Possible|Weak","criteria":{"c1":{"rating":"","evidence":"","gaps":"","plan":{"call":"","why":"","effort":"","actions":[""],"evidenceToRequest":[""],"articleTopics":[""],"venueTypes":[""],"judgingRoutes":[""],"letterIdeas":[""]}},...,"c10":{...}},"meritsRisk":{"level":"","drivers":[""],"advice":""},"redFlags":["..."]}\n\n'+candidateText(c);
-    var r=await sampleFn.json(prompt,{modelTier:'complex',signal:signal,cache:false});
-    var upd={criteria:{},summary:String(r.summary||''),feasibility:String(r.feasibility||''),scoredAt:nowIso()},old=c.criteria||{};
+  var pre=!!(t&&t.key==='score'),ok=await ai(pre?'Quick screen':'Baseline scoring',async function(signal){
+    var prompt=RULES+(pre?'\n\nThis is a PRELIMINARY quick screen from the resume and Form 1 only. Most evidence has not been collected yet, so rate conservatively, say in each "gaps" field what must be collected, and do not treat missing evidence as a weakness of the person.':'\n\nThis is the FULL baseline from every reviewed form and the documents on file.')+'\n\nRate each of the 10 regulatory criteria for the candidate below. Ratings: High, Medium, Low, Not met, N/A. Criteria: c1 Awards (national or international only; company or fee-based awards are weak), c2 Memberships (must require outstanding achievement judged by experts), c3 Published media (must be ABOUT the candidate, in professional or major trade media, candidate named), c4 Judging (completed reviews with proof), c5 Original contributions of major significance (needs independent proof), c6 Scholarly articles, c7 Exhibitions (artistic only; N/A unless the candidate works in the arts), c8 Leading or critical role at a distinguished organization (needs third-party proof of distinction), c9 High remuneration versus peers, c10 Commercial success in the performing arts (N/A unless performing arts). For each give "evidence" (what is in the data) and "gaps" (what is missing to reach High). Also list red flags an officer could raise at the final merits step (self-citation, company-only awards or media, vendor-platform-only expertise, fee-only memberships, pay-to-publish venues, unproven employer distinction, unmeasured or round-number metrics, date overlaps or inconsistent titles).\n\nThen follow the internal playbook section on enhancement plans. For every criterion add a "plan": "call" is Invest, Maintain or Skip for this candidate (no more than 4 Invest; Skip anything this person cannot realistically win, such as high remuneration when pay is not clearly above the top decile, or memberships with experience-based bylaws); "why" one or two sentences; "effort" hours per month, cost band and months to result; "actions" concrete steps; "evidenceToRequest" documents to ask the candidate for; and, where relevant, "articleTopics" (tied to the candidate\'s own domain and projects), "venueTypes" (kinds of venue, never named journals), "judgingRoutes" and "letterIdeas" (kinds of independent writers and the facts each letter should contain). Leave lists empty for Skip. Also add "meritsRisk": {"level":"Low|Medium|High","drivers":["..."],"advice":"say plainly if waiting and building a longer record is the better plan"}.\n\nReply with only JSON: {"summary":"3 sentences","feasibility":"Strong|Possible|Weak","criteria":{"c1":{"rating":"","evidence":"","gaps":"","plan":{"call":"","why":"","effort":"","actions":[""],"evidenceToRequest":[""],"articleTopics":[""],"venueTypes":[""],"judgingRoutes":[""],"letterIdeas":[""]}},...,"c10":{...}},"meritsRisk":{"level":"","drivers":[""],"advice":""},"redFlags":["..."]}\n\n'+candidateText(c);
+    var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false});
+    var upd={criteria:{},summary:String(r.summary||''),feasibility:String(r.feasibility||''),scoredAt:nowIso(),scoreKind:pre?'quick':'baseline'},old=c.criteria||{};if(!pre)upd.baselineAt=nowIso();
     CRIT.forEach(function(k){var x=(r.criteria&&r.criteria[k.id])||{},rt=RATINGS.indexOf(x.rating)>=0?x.rating:(k.na?'N/A':'Low');upd.criteria[k.id]={rating:rt,evidence:String(x.evidence||''),gaps:String(x.gaps||''),prev:(old[k.id]&&old[k.id].rating)||null,plan:cleanPlan(x.plan,k)}});
     var mr=r.meritsRisk||{};upd.meritsRisk={level:['Low','Medium','High'].indexOf(mr.level)>=0?mr.level:'',drivers:strList(mr.drivers,6),advice:String(mr.advice||'')};
     var pf=c.redFlags||[];upd.redFlags=(Array.isArray(r.redFlags)?r.redFlags:[]).map(function(x){x=String(x);var p=pf.find(function(f){return f.t===x});return {t:x,done:!!(p&&p.done)}});
     await candRef(c.id).update(upd);
     var n=counts(Object.assign({},c,upd));
-    await log(c.id,'Analysis scored the case: '+n.High+' High, '+n.Medium+' Medium, '+n.Low+' Low or not met, '+upd.redFlags.length+' red flags, '+CRIT.filter(function(k){return upd.criteria[k.id].plan.call==='Invest'}).length+' criteria to invest in.','score');
+    await log(c.id,(pre?'Quick screen done (preliminary): ':'Baseline scored: ')+n.High+' High, '+n.Medium+' Medium, '+n.Low+' Low or not met, '+upd.redFlags.length+' red flags, '+CRIT.filter(function(k){return upd.criteria[k.id].plan.call==='Invest'}).length+' criteria to invest in.','score');
   });
   if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
+}
+async function runFeas(t){
+  var c=cur();if(!c)return;
+  var ok=await ai('Feasibility summary',async function(signal){
+    var g=CRIT.map(function(k){var x=(c.criteria||{})[k.id];return x?k.n+': '+x.rating+(x.plan&&x.plan.call?' ('+x.plan.call+')':''):''}).filter(Boolean).join('; ');
+    var prompt=RULES+'\n\nWrite a short feasibility summary that the candidate will read. Write directly to the candidate as "you", in warm, plain, honest language. It must not contain criterion numbers or names of rating levels, scores, percentages, approval chances, comparisons with other people, pass or fail wording, or any guarantee. Do not mention analysis tools, software or how this was produced. Do not list internal risks or red flags. Frame weak areas as what you will build together. If the honest outlook is poor, say so gently and constructively. "outlook" must be exactly one of: "Strong foundation", "Promising, with work needed", "Needs substantial building". "strengths": 2 to 4 short sentences about real strengths. "focus": 2 to 3 short sentences about areas to build. "timeline": a rough preparation range such as "6 to 12 months", stated as an estimate. "note": 2 or 3 sentences of encouragement and what happens next.\n\nInternal scorecard (do not reveal): '+g+'\nInternal summary (do not reveal): '+(c.summary||'')+'\nInternal merits risk (do not reveal): '+((c.meritsRisk&&c.meritsRisk.level)||'')+'\n\nReply with only JSON: {"outlook":"","strengths":[""],"focus":[""],"timeline":"","note":""}\n\n'+candidateText(c);
+    var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false});
+    var OUT=['Strong foundation','Promising, with work needed','Needs substantial building'];
+    var d={outlook:OUT.indexOf(r.outlook)>=0?r.outlook:'Promising, with work needed',strengths:strList(r.strengths,4),focus:strList(r.focus,3),timeline:String(r.timeline||''),note:String(r.note||''),updatedAt:nowIso()};
+    await candRef(c.id).update({feasibilityDraft:d});
+    await log(c.id,'Feasibility summary drafted. Review and release it from the Feasibility tab; the candidate sees nothing until you do.','score');
+  });
+  if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
+}
+async function releaseFeas(){
+  var c=cur();if(!c||!c.feasibilityDraft){say('Nothing to release yet.','err');return}
+  var d=c.feasibilityDraft,prev=c.feasibilityReleased;
+  if(!d.outlook||!(d.strengths||[]).length){say('Add an outlook and at least one strength before releasing.','err');return}
+  var rel=Object.assign({},d,{releasedAt:nowIso(),releasedBy:(S.me&&S.me.email)||'',version:((prev&&prev.version)||0)+1});
+  await candRef(c.id).update({feasibilityReleased:rel});
+  await log(c.id,'Feasibility summary released to the candidate (version '+rel.version+').','score');
+  await completeKey(c.id,'feas','Feasibility summary released.');
 }
 async function runFoe(t){
   var c=cur();if(!c)return;
@@ -238,13 +260,23 @@ async function runScreen(t){
   if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
 }
 function runAi(t){
-  if(t.key==='score'||t.key==='rescore')return runScore(t);
+  if(t.key==='score'||t.key==='rescore'||t.key==='baseline')return runScore(t);
+  if(t.key==='feas-draft')return runFeas(t);
   if(t.key==='foe-ai')return runFoe(t);
   if(t.key==='tasks-ai')return runTasks(t);
   if(t.key==='screen')return runScreen(t);
 }
+function baselineGaps(c){
+  var g=[];
+  if(!hasCv(c))g.push('CV text in Form 1');
+  FORMS.forEach(function(f){var r=getResp(c.id,f.id);if(r.status!=='Reviewed')g.push(f.n+' reviewed ('+r.status.toLowerCase()+')')});
+  if(!S.docs.some(function(d){return d.cid===c.id&&d.kind==='file'})&&!c.docsChecked)g.push('at least one document uploaded, or tick "No documents available" below');
+  return g;
+}
 function aiReady(c,t){
   if(!sampleFn)return 'Analysis is not available in this view.';
+  if(t.key==='baseline'){var bg=baselineGaps(c);if(bg.length)return 'Not ready. Still needed: '+bg.join('; ')+'.'}
+  if(t.key==='feas-draft'&&!c.baselineAt)return 'Needs the full baseline score.';
   if(t.key==='score'||t.key==='rescore'||t.key==='foe-ai'||t.key==='tasks-ai'){if(!hasCv(c))return 'Needs the CV text from Form 1.'}
   if(t.key==='foe-ai'||t.key==='tasks-ai'){if(!c.scoredAt)return 'Needs the baseline score.'}
   if(t.key==='screen'){var r=getResp(c.id,'f3');if(!(r.data.ideas||[]).length)return 'Needs the article ideas in Form 3.'}
