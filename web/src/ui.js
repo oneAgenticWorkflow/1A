@@ -357,8 +357,7 @@ function candidateView(c){
      (t.kind==='form'?'<button class="btn pri sm" data-a="openform" data-id="'+t.form+'">Open form</button>':'<span class="small">Send files or a message below</span>')+'</div>';
   });
   h+='</div>'+docsPanel(c,false)+messagesPanel(c,false);
-  if(later.length)h+='<div class="panel"><h3>Coming up</h3>'+later.map(function(t){return '<div class="task locked"><span class="chk dis"></span><div class="tt"><b>'+esc(t.title)+'</b></div><span class="chip">'+esc(dueTxt(t))+'</span></div>'}).join('')+'</div>';
-  if(done.length)h+='<div class="panel"><h3>Done</h3>'+done.map(function(t){return '<div class="task done"><span class="chk dis on"></span><div class="tt"><b>'+esc(t.title)+'</b></div></div>'}).join('')+'</div>';
+  h+='<div class="panel"><h3>Your journey</h3><p class="small">Nine phases from start to filing. Your advisor moves you from one phase to the next.</p>'+STAGES.map(function(s,i){var st=c.stage||0,cls=i<st?'done':i===st?'now':'',mine=ts.filter(function(t){return t.stage===i}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});return '<div style="border-top:1px solid var(--line);padding:10px 0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="step '+cls+(s.gate?' g':'')+'"><i>'+(i+1)+'</i>'+esc(s.n)+'</span><span class="chip">'+(i<st?'Complete':i===st?'You are here':'Upcoming')+'</span></div><p class="small">'+esc(s.d)+'</p>'+mine.map(function(t){var dn=isDone(t.status);return '<div class="task'+(dn?' done':t.status==='Not started'?' locked':'')+'"><span class="chk dis'+(dn?' on':'')+'"></span><div class="tt"><b>'+esc(t.title)+'</b></div><span class="chip">'+(dn?'Done':esc(dueTxt(t)))+'</span></div>'}).join('')+'</div>'}).join('')+'</div>';
   return h;
 }
 
