@@ -2,7 +2,7 @@
 (function(){
   var cfg=window.PORTAL_CONFIG||{};
   var app=document.getElementById('app');
-  function shell(html){app.innerHTML='<div class="panel newcase" style="margin-top:48px"><h2>EB-1A Profile Program</h2>'+html+'</div>'}
+  function shell(html){app.innerHTML='<div class="panel newcase" style="margin-top:48px"><h2>OneA Pathway</h2>'+html+'</div>'}
   function esc2(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY||cfg.SUPABASE_URL.indexOf('YOUR-')>=0){shell('<p>This site is not configured yet. Fill in <code>config.js</code> (see the README).</p>');return}
   var sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
