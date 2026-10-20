@@ -295,6 +295,13 @@ function formEditor(c,fid){
   return h+'<button class="btn" data-a="closeform">Close</button></div></div>';
 }
 
+function planHtml(p){
+  if(!p||!p.call)return '';
+  function ul(t,a){return a&&a.length?'<h4>'+t+'</h4><ul>'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':''}
+  var cls=p.call==='Invest'?'ok':p.call==='Maintain'?'mid':'';
+  var det=p.call==='Skip'?'':ul('Actions',p.actions)+ul('Documents to request',p.evidenceToRequest)+ul('Article topics',p.articleTopics)+ul('Venue types (verify real venues)',p.venueTypes)+ul('Judging routes',p.judgingRoutes)+ul('Letter ideas',p.letterIdeas);
+  return '<div class="plan"><div class="chips">'+chip(p.call,cls)+(p.effort?'<span class="small">'+esc(p.effort)+'</span>':'')+'</div>'+(p.why?'<p class="small">'+esc(p.why)+'</p>':'')+(det?'<details><summary>Plan details</summary>'+det+'</details>':'')+'</div>';
+}
 /* ----- scorecard ----- */
 function scoreTab(c){
   var n=counts(c),rd=readiness(c);
@@ -304,10 +311,12 @@ function scoreTab(c){
     if(c.summary)h+='<p>'+esc(c.summary)+'</p>';
     CRIT.forEach(function(k){
       var x=(c.criteria||{})[k.id];if(!x)return;
-      h+='<div class="row"><div class="nm">'+esc(k.n)+'<small>'+k.id.toUpperCase()+(x.prev&&x.prev!==x.rating?' · was '+esc(x.prev):'')+'</small></div><div><select data-rate="'+k.id+'" aria-label="Rating for '+esc(k.n)+'">'+options(RATINGS,x.rating)+'</select>'+(x.evidence?'<p>'+esc(x.evidence)+'</p>':'')+(x.gaps?'<p class="g">Gap: '+esc(x.gaps)+'</p>':'')+'</div></div>';
+      h+='<div class="row"><div class="nm">'+esc(k.n)+'<small>'+k.id.toUpperCase()+(x.prev&&x.prev!==x.rating?' · was '+esc(x.prev):'')+'</small></div><div><select data-rate="'+k.id+'" aria-label="Rating for '+esc(k.n)+'">'+options(RATINGS,x.rating)+'</select>'+(x.evidence?'<p>'+esc(x.evidence)+'</p>':'')+(x.gaps?'<p class="g">Gap: '+esc(x.gaps)+'</p>':'')+planHtml(x.plan)+'</div></div>';
     });
   }
   h+='</div>';
+  var mr=c.meritsRisk;
+  if(mr&&mr.level){h+='<div class="panel"><div class="ph"><h3>Final-merits risk</h3><div class="chips">'+chip(mr.level,mr.level==='Low'?'ok':mr.level==='Medium'?'mid':'bad')+'</div></div>'+(mr.drivers&&mr.drivers.length?'<ul>'+mr.drivers.map(function(d){return '<li>'+esc(d)+'</li>'}).join('')+'</ul>':'')+(mr.advice?'<p>'+esc(mr.advice)+'</p>':'')+'<p class="small">Internal view for advisors. Not shown to candidates.</p></div>'}
   var fl=c.redFlags||[];
   if(fl.length){h+='<div class="panel"><h3>Final-merits red flags</h3>'+fl.map(function(f,i){return '<label class="flag'+(f.done?' done':'')+'"><input type="checkbox" data-flag="'+i+'"'+(f.done?' checked':'')+'><span>'+esc(f.t)+'</span></label>'}).join('')+'<p class="small">Tick a flag when resolved or knowingly accepted.</p></div>'}
   h+='<div class="panel"><h3>Gates</h3><p>FOE lock: '+chip(gateState(c,'foe'),gateState(c,'foe')==='approved'?'ok':'gate')+' Attorney approval: '+chip(gateState(c,'attorney'),gateState(c,'attorney')==='approved'?'ok':'gate')+'</p></div>';
