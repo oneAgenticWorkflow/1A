@@ -113,17 +113,28 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['score','Scorecard'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['score','Scorecard'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
+  else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='score')h+=scoreTab(c);
   else if(S.tab==='feas')h+=feasTab(c);
   else h+=activityTab(c);
   return h;
 }
 
+function profileTab(c){
+  var p=c.profile;
+  var h='<div class="panel"><div class="ph"><h3>Profile and eligibility screen</h3><div class="chips">'+(p?chip(p.outlook,p.outlook==='Promising'?'ok':p.outlook==='Possible with a longer build'?'mid':p.outlook==='Unlikely in the near term'?'bad':''):chip('Not run','gate'))+'</div></div><p class="small">A first read from the resume and Form 1 only. It does not rate criteria. Internal view for advisors; not shown to candidates.</p>';
+  if(!p)return h+'<p class="empty">Not run yet. It runs after Form 1 is reviewed.</p></div>';
+  function ul(a){return a&&a.length?'<ul>'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':'<p class="small">None listed.</p>'}
+  h+='<div class="row"><div class="nm">Domain</div><div><p>'+esc(p.domain)+'</p></div></div><div class="row"><div class="nm">Experience</div><div><p>'+esc(p.experience)+'</p><p class="small">Seniority: '+esc(p.seniority)+'</p></div></div>';
+  h+='<div class="row"><div class="nm">Outlook</div><div><p>'+esc(p.rationale)+'</p></div></div>';
+  h+='<h4>Strengths to build on</h4>'+ul(p.strengths)+'<h4>Concerns</h4>'+ul(p.concerns)+'<h4>Ask in the deep intake</h4>'+ul(p.askNext)+'<h4>Documents to request</h4>'+ul(p.docsNext);
+  return h+'<p class="small">Run '+esc(fmt(p.ranAt))+'. A screening aid, not legal advice.</p></div>';
+}
 function laneRow(t){
   var c0=S.cands.find(function(x){return x.id===t.cid});
   return '<div class="laner"><button class="link" data-a="gotask" data-id="'+t.id+'">'+esc(t.title)+'</button><span class="chip '+dueCls(t)+'">'+esc(dueTxt(t)||'no date')+'</span></div>';
@@ -139,7 +150,7 @@ function feasTab(c){
   var d=c.feasibilityDraft,rel=c.feasibilityReleased;
   var h='<div class="panel"><div class="ph"><h3>Feasibility summary for the candidate</h3><div class="chips">'+(rel?chip('Released v'+rel.version+' · '+fmt(rel.releasedAt),'ok'):chip('Not released','gate'))+'</div></div>';
   h+='<p class="small">This is the only analysis result the candidate ever sees. It is written separately from the scorecard, so internal ratings, risks and plans never reach them. Edit freely, then release.</p>';
-  if(!d){return h+'<p class="empty">No draft yet. Run "Draft the feasibility summary" after the full baseline score.</p></div>'}
+  if(!d){return h+'<p class="empty">No draft yet. It is drafted after the criteria strategy and your choice of target criteria.</p></div>'}
   function val(k,fallback){return S.draft['fz_'+k]!==undefined?S.draft['fz_'+k]:fallback}
   h+='<label class="f" for="fzo">Outlook</label><select id="fzo" data-draft="fz_outlook">'+options(['Strong foundation','Promising, with work needed','Needs substantial building'],val('outlook',d.outlook))+'</select>'+
    '<label class="f" for="fzs">Strengths (one per line)</label><textarea id="fzs" class="tall" data-draft="fz_strengths">'+esc(val('strengths',(d.strengths||[]).join('\n')))+'</textarea>'+
@@ -209,7 +220,7 @@ function taskDetail(c,t){
   if(!locked&&!isDone(t.status)||t.kind!=='task'){
     if(t.kind==='form')h+='<div class="addrow"><button class="btn pri sm" data-a="openform" data-id="'+t.form+'">Open '+esc(formDef(t.form).n)+'</button></div>';
     if(t.kind==='review'&&!locked){var r=getResp(c.id,t.form);h+='<p class="small">Form status: '+esc(r.status)+'</p><div class="addrow"><button class="btn sm" data-a="openform" data-id="'+t.form+'">Read the answers</button>'+(!isDone(t.status)?'<button class="btn pri sm" data-a="reviewed" data-id="'+t.id+'">Mark reviewed</button>':'')+(r.status==='Submitted'||r.status==='Reviewed'?'<button class="btn sm" data-a="reopenform" data-id="'+t.form+'">Send back for edits</button>':'')+'</div>'}
-    if(t.key==='baseline'&&!locked)h+='<label class="chk-l"><input type="checkbox" data-docschk="1"'+(c.docsChecked?' checked':'')+'> No documents available beyond what is uploaded (confirmed with the candidate)</label>';
+    if(t.key==='analysis'&&!locked)h+='<label class="chk-l"><input type="checkbox" data-docschk="1"'+(c.docsChecked?' checked':'')+'> No documents available beyond what is uploaded (confirmed with the candidate)</label>';
     if(t.kind==='ai'&&!locked){var why=aiReady(c,t);h+='<div class="addrow"><button class="btn pri sm" data-a="runai" data-id="'+t.id+'"'+(why||S.busy?' disabled':'')+'>'+(isDone(t.status)?'Run again':'Run analysis')+'</button>'+(why?'<span class="small">'+esc(why)+'</span>':'')+'</div>'}
     if(t.kind==='gate'&&!locked)h+=gateUi(c,t);
   }
@@ -353,9 +364,9 @@ function planHtml(p){
 function scoreTab(c){
   var n=counts(c),rd=readiness(c);
   var h='<div class="panel"><div class="ph"><h3>Criteria scorecard</h3><div class="chips">'+chip(n.High+' High','ok')+chip(n.Medium+' Medium','mid')+chip(n.Low+' Low or not met','bad')+chip(rd.k,rd.cls)+'</div></div>';
-  if(!c.scoredAt)h+='<p class="empty">Not scored yet. The quick screen runs after Form 1 is reviewed; the full baseline runs after every form is reviewed.</p>';
+  if(!c.scoredAt)h+='<p class="empty">Not scored yet. The full analysis runs after the deep intake: every form reviewed and documents checked.</p>';
   else{
-    h+='<p class="small">'+(c.scoreKind==='quick'?'<b>Preliminary quick screen</b> from the resume and Form 1 only. The full baseline replaces this once every form is reviewed.':'<b>Full baseline</b> from the reviewed forms and documents.')+'</p>';
+    h+='<p class="small">'+(c.scoreKind==='analysis'?'<b>Full analysis</b> from the reviewed forms and documents.':c.scoreKind==='rescore'?'<b>Re-score</b> after evidence was gathered.':'<b>Earlier resume-only run.</b> Replaced by the full analysis after the deep intake.')+'</p>';
     if(c.summary)h+='<p>'+esc(c.summary)+'</p>';
     CRIT.forEach(function(k){
       var x=(c.criteria||{})[k.id];if(!x)return;
@@ -363,6 +374,7 @@ function scoreTab(c){
     });
   }
   h+='</div>';
+  if(c.targets&&c.targets.length)h+='<div class="panel"><h3>Suggested target criteria</h3><div class="chips">'+c.targets.map(function(id){var k=CRIT.find(function(x){return x.id===id});return chip(k?k.n:id,'ok')}).join('')+'</div>'+(c.targetNote?'<p>'+esc(c.targetNote)+'</p>':'')+'<p class="small">A suggestion for your decision in "Choose the 3 to 4 target criteria".</p></div>';
   var mr=c.meritsRisk;
   if(mr&&mr.level){h+='<div class="panel"><div class="ph"><h3>Final-merits risk</h3><div class="chips">'+chip(mr.level,mr.level==='Low'?'ok':mr.level==='Medium'?'mid':'bad')+'</div></div>'+(mr.drivers&&mr.drivers.length?'<ul>'+mr.drivers.map(function(d){return '<li>'+esc(d)+'</li>'}).join('')+'</ul>':'')+(mr.advice?'<p>'+esc(mr.advice)+'</p>':'')+'<p class="small">Internal view for advisors. Not shown to candidates.</p></div>'}
   var fl=c.redFlags||[];
@@ -582,4 +594,5 @@ function startApp(opts){
   }
   sub('candidates','cands');sub('tasks','tasks');sub('responses','resp');sub('log','log');sub('docs','docs');
   render();
+  if(window.__db)window.__t={S:S,runAi:runAi,taskByKey:taskByKey,aiReady:aiReady,cur:cur,STAGES:STAGES,FORMS:FORMS};
 }
