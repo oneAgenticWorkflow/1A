@@ -10,7 +10,7 @@ var STAGES=[
  {n:'Attorney review',d:'Legal review before filing',gate:true},
  {n:'Filing',d:'Attorney files; RFE support'}
 ];
-var OWNERS=['Candidate','Advisor','Attorney','Claude'];
+var OWNERS=['Candidate','Advisor','Attorney','Analysis'];
 var TSTAT=['Not started','To do','In progress','Blocked','Done','Skipped'];
 var PICK=['To do','In progress','Blocked','Done','Skipped'];
 
@@ -18,12 +18,12 @@ var TEMPLATE=[
  {k:'welcome',s:0,t:'Welcome call and consent',o:'Advisor',off:0,d:'Explain the program, the no-guarantee policy and how data is handled. Record the signed engagement and consent.'},
  {k:'f1',s:0,t:'Complete Form 1: Getting started',o:'Candidate',kind:'form',form:'f1',deps:['welcome'],off:5},
  {k:'r1',s:0,t:'Review Form 1 and the CV',o:'Advisor',kind:'review',form:'f1',deps:['f1'],off:7},
- {k:'score',s:1,t:'Run the baseline score',o:'Claude',kind:'ai',deps:['r1'],off:8,d:'Rates all 10 criteria from the forms, lists evidence and gaps, flags final-merits risks.'},
+ {k:'score',s:1,t:'Run the baseline score',o:'Analysis',kind:'ai',deps:['r1'],off:8,d:'Rates all 10 criteria from the forms, lists evidence and gaps, flags final-merits risks.'},
  {k:'f6',s:1,t:'Complete Form 6: Compensation',o:'Candidate',kind:'form',form:'f6',deps:['r1'],off:14},
  {k:'r6',s:1,t:'Review Form 6 and documents received',o:'Advisor',kind:'review',form:'f6',deps:['f6'],off:16},
  {k:'review',s:1,t:'Review the scorecard and red flags',o:'Advisor',deps:['score'],off:10,d:'Correct any rating you disagree with. Resolve or accept each red flag.'},
  {k:'targets',s:1,t:'Choose the 3 to 4 target criteria',o:'Advisor',deps:['review'],off:12,d:'Build the case on the criteria that are most achievable, not all ten.'},
- {k:'foe-ai',s:2,t:'Draft field of endeavor options',o:'Claude',kind:'ai',deps:['targets'],off:13,d:'Three options: primary, industry, research. Each lists the US growth evidence you must verify.'},
+ {k:'foe-ai',s:2,t:'Draft field of endeavor options',o:'Analysis',kind:'ai',deps:['targets'],off:13,d:'Three options: primary, industry, research. Each lists the US growth evidence you must verify.'},
  {k:'foe',s:2,t:'FOE lock: approve the field of endeavor',o:'Advisor',kind:'gate',gate:'foe',deps:['foe-ai'],off:16,d:'Approve only after the statement is backed by US growth and impact evidence you have checked. Every later step uses it.'},
  {k:'f2',s:3,t:'Complete Form 2: Projects',o:'Candidate',kind:'form',form:'f2',deps:['foe'],off:30},
  {k:'f3',s:3,t:'Complete Form 3: Scholarly record and 10 article ideas',o:'Candidate',kind:'form',form:'f3',deps:['foe'],off:35},
@@ -39,8 +39,8 @@ var TEMPLATE=[
  {k:'r7',s:3,t:'Review Form 7',o:'Advisor',kind:'review',form:'f7',deps:['f7'],off:35},
  {k:'r8',s:3,t:'Review Form 8',o:'Advisor',kind:'review',form:'f8',deps:['f8'],off:31},
  {k:'r9',s:3,t:'Review Form 9',o:'Advisor',kind:'review',form:'f9',deps:['f9'],off:38},
- {k:'tasks-ai',s:3,t:'Draft enhancement tasks from the gaps',o:'Claude',kind:'ai',deps:['foe'],off:18,d:'Drafts tasks for the target criteria. You approve each draft before the candidate sees it.'},
- {k:'screen',s:3,t:'Screen the article ideas',o:'Claude',kind:'ai',deps:['f3'],off:36,d:'Scores each idea against the FOE and suggests venue types. It never names journals.'},
+ {k:'tasks-ai',s:3,t:'Draft enhancement tasks from the gaps',o:'Analysis',kind:'ai',deps:['foe'],off:18,d:'Drafts tasks for the target criteria. You approve each draft before the candidate sees it.'},
+ {k:'screen',s:3,t:'Screen the article ideas',o:'Analysis',kind:'ai',deps:['f3'],off:36,d:'Scores each idea against the FOE and suggests venue types. It never names journals.'},
  {k:'venues',s:3,t:'Verify journals and venues for shortlisted articles',o:'Advisor',deps:['screen'],off:42,d:'Check scope, indexing, review quality, fees and predatory status. Record the verified venue on each idea (Forms, Form 3).'},
  {k:'judging',s:4,t:'Apply to review for 5 qualifying venues',o:'Candidate',deps:['r8'],off:45,d:'Use the drafted outreach email. Send it from your own address.'},
  {k:'judging-proof',s:4,t:'Collect proof of every completed review',o:'Candidate',deps:['judging'],off:80,d:'Receipts, thank-you emails, certificates or program listings. An invitation alone is not proof.'},
@@ -53,7 +53,7 @@ var TEMPLATE=[
  {k:'role',s:4,t:'Get a signed org chart and employer distinction proof',o:'Candidate',deps:['r7'],off:50},
  {k:'comp',s:4,t:'Compare compensation with DOL OES and survey data',o:'Advisor',deps:['r6'],off:35,d:'Total compensation versus the 90th percentile for the same occupation and area. Save source and date.'},
  {k:'verify',s:5,t:'Evidence verification: every claim has proof',o:'Advisor',deps:['judging-proof','contrib','role','comp'],off:105},
- {k:'rescore',s:5,t:'Re-score the case',o:'Claude',kind:'ai',deps:['verify'],off:107},
+ {k:'rescore',s:5,t:'Re-score the case',o:'Analysis',kind:'ai',deps:['verify'],off:107},
  {k:'decide',s:5,t:'Filing-ready decision, or fall back to NIW or O-1',o:'Advisor',deps:['rescore'],off:110,d:'Internal rule of thumb: at least 4 criteria High and no open red flags.'},
  {k:'indep',s:6,t:'Verify recommender independence',o:'Advisor',deps:['r9','decide'],off:113},
  {k:'letters-out',s:6,t:'Send recommender briefs and requests',o:'Advisor',deps:['indep'],off:118},
