@@ -113,27 +113,72 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['score','Scorecard'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['score','Scorecard'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='score')h+=scoreTab(c);
+  else if(S.tab==='plan')h+=planTab(c);
   else if(S.tab==='feas')h+=feasTab(c);
   else h+=activityTab(c);
   return h;
 }
 
+function profileSummary(c){
+  var p=c.profile;if(!p)return '<p class="empty">Run the profile screen first.</p>';
+  function ul(a){return a&&a.length?'<ul>'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':'<p class="small">None listed.</p>'}
+  return '<div class="row"><div class="nm">Domain</div><div><p>'+esc(p.domain)+'</p></div></div><div class="cols3"><div><h4>Positives</h4>'+ul(p.positives)+'</div><div><h4>Risks</h4>'+ul(p.risks)+'</div><div><h4>Improvements</h4>'+ul(p.improvements)+'</div></div>';
+}
+function decisionUi(c){
+  var d=c.decision,t=taskByKey(c.id,'proceed');
+  var h='<div class="gatebox"><b>Your decision</b>';
+  if(d)h+='<p>'+chip(d.choice==='proceed'?'Proceed':d.choice==='hold'?'On hold':'Declined',d.choice==='proceed'?'ok':d.choice==='hold'?'mid':'bad')+' <span class="small">'+esc(fmt(d.at))+(d.note?' · '+esc(d.note):'')+'</span></p>';
+  h+='<label class="f" for="decn">Note (optional)</label><input type="text" id="decn" data-draft="decn" value="'+esc(S.draft.decn||'')+'">'+
+   '<div class="addrow"><button class="btn pri sm" data-a="dec-proceed"'+(c.profile?'':' disabled')+'>Proceed to deep intake</button><button class="btn sm" data-a="dec-hold">Hold</button><button class="btn sm danger" data-a="dec-decline">Decline</button></div>'+
+   '<p class="small">Proceed opens the working field of endeavor step. Hold or Decline keeps the later steps locked and records why.</p></div>';
+  return h;
+}
 function profileTab(c){
   var p=c.profile;
-  var h='<div class="panel"><div class="ph"><h3>Profile and eligibility screen</h3><div class="chips">'+(p?chip(p.outlook,p.outlook==='Promising'?'ok':p.outlook==='Possible with a longer build'?'mid':p.outlook==='Unlikely in the near term'?'bad':''):chip('Not run','gate'))+'</div></div><p class="small">A first read from the resume and Form 1 only. It does not rate criteria. Internal view for advisors; not shown to candidates.</p>';
+  var h='<div class="panel"><div class="ph"><h3>Profile screen</h3><div class="chips">'+(p?chip(p.outlook,p.outlook==='Promising'?'ok':p.outlook==='Possible with a longer build'?'mid':p.outlook==='Unlikely in the near term'?'bad':''):chip('Not run','gate'))+(c.decision?chip(c.decision.choice==='proceed'?'Proceed':c.decision.choice==='hold'?'On hold':'Declined',c.decision.choice==='proceed'?'ok':'mid'):'')+'</div></div><p class="small">A quick read from the resume and Form 1 only. It does not rate criteria. Internal view; not shown to candidates.</p>';
   if(!p)return h+'<p class="empty">Not run yet. It runs after Form 1 is reviewed.</p></div>';
-  function ul(a){return a&&a.length?'<ul>'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':'<p class="small">None listed.</p>'}
-  h+='<div class="row"><div class="nm">Domain</div><div><p>'+esc(p.domain)+'</p></div></div><div class="row"><div class="nm">Experience</div><div><p>'+esc(p.experience)+'</p><p class="small">Seniority: '+esc(p.seniority)+'</p></div></div>';
-  h+='<div class="row"><div class="nm">Outlook</div><div><p>'+esc(p.rationale)+'</p></div></div>';
-  h+='<h4>Strengths to build on</h4>'+ul(p.strengths)+'<h4>Concerns</h4>'+ul(p.concerns)+'<h4>Ask in the deep intake</h4>'+ul(p.askNext)+'<h4>Documents to request</h4>'+ul(p.docsNext);
+  h+=profileSummary(c)+decisionUi(c);
   return h+'<p class="small">Run '+esc(fmt(p.ranAt))+'. A screening aid, not legal advice.</p></div>';
+}
+/* ----- plan tab ----- */
+function pw(c){return S.planWork||c.plan||null}
+function pwEdit(c){if(!S.planWork&&c.plan)S.planWork=JSON.parse(JSON.stringify(c.plan));return S.planWork}
+function planTab(c){
+  var p=pw(c);
+  var h='<div class="panel"><div class="ph"><h3>Plan: articles, memberships, judging</h3><div class="chips">'+(p?chip(p.released?'Released':p.status==='approved'?'Approved, held back':'Draft',p.released?'ok':p.status==='approved'?'mid':'gate'):chip('Not drafted','gate'))+'</div></div><p class="small">Built around the locked field of endeavor. Journal and association names come from the model and are unverified. Check each before approving. Candidates see only the tasks you release.</p>';
+  if(!p)return h+'<p class="empty">Not drafted yet. It is drafted after the target criteria are chosen.</p></div>';
+  var ro=!!p.released,dis=ro?' disabled':'';
+  h+='<h4>Articles ('+(p.articles||[]).length+')</h4>';
+  (p.articles||[]).forEach(function(a,i){
+    h+='<div class="opt"><label class="f">Title</label><input type="text" data-pl="articles|'+i+'|title" value="'+esc(a.title)+'"'+dis+'><label class="f">Abstract</label><textarea class="tall" data-pl="articles|'+i+'|abstract"'+dis+'>'+esc(a.abstract)+'</textarea><label class="f">Possible journals (one per line, unverified)</label><textarea data-pl="articles|'+i+'|journals"'+dis+'>'+esc((a.journals||[]).join('\n'))+'</textarea>'+(a.note?'<p class="small">Note: '+esc(a.note)+'</p>':'')+(ro?'':'<button class="btn sm danger" data-a="pl-del" data-id="articles|'+i+'">Remove</button>')+'</div>';
+  });
+  if(!ro)h+='<div class="addrow"><button class="btn sm" data-a="pl-add" data-id="articles">Add an article</button></div>';
+  h+='<h4>Memberships ('+(p.memberships||[]).length+')</h4>';
+  (p.memberships||[]).forEach(function(m,i){
+    h+='<div class="opt"><label class="f">Association and grade (unverified)</label><input type="text" data-pl="memberships|'+i+'|name" value="'+esc(m.name)+'"'+dis+'><label class="f">Why it fits</label><textarea data-pl="memberships|'+i+'|why"'+dis+'>'+esc(m.why)+'</textarea><label class="f">What to verify</label><input type="text" data-pl="memberships|'+i+'|note" value="'+esc(m.note)+'"'+dis+'>'+(ro?'':'<button class="btn sm danger" data-a="pl-del" data-id="memberships|'+i+'">Remove</button>')+'</div>';
+  });
+  if(!ro)h+='<div class="addrow"><button class="btn sm" data-a="pl-add" data-id="memberships">Add a membership</button></div>';
+  var j=p.judging||{count:0,types:[],note:''};
+  h+='<h4>Judging and review</h4><div class="opt"><label class="f">How many roles</label><input type="number" min="0" data-pl="judging|count" value="'+esc(j.count)+'"'+dis+'><label class="f">Kinds of role (one per line)</label><textarea data-pl="judging|types"'+dis+'>'+esc((j.types||[]).join('\n'))+'</textarea><label class="f">Note</label><input type="text" data-pl="judging|note" value="'+esc(j.note||'')+'"'+dis+'></div>';
+  if(!ro){
+    var gok=gateState(c,'plan')==='approved';
+    h+='<div class="addrow"><button class="btn pri sm" data-a="plan-approve">'+(gok?'Approve again (rebuild held tasks)':'Approve and create tasks')+'</button></div><p class="small">Approving creates one task per item, held back from the candidate. Release them from the review step after you have gone through the plan together.</p>';
+    if(p.status==='approved')h+='<div class="addrow"><button class="btn pri sm" data-a="plan-release">Release tasks to the candidate</button></div>';
+  }
+  return h+'</div>';
+}
+function setPlanField(path,val){
+  var c=cur(),p=c&&pwEdit(c);if(!p)return;var q=path.split('|');
+  var multi=function(v){return String(v).split('\n').map(function(x){return x.trim()}).filter(Boolean)};
+  if(q[0]==='judging'){p.judging=p.judging||{count:0,types:[],note:''};p.judging[q[1]]=q[1]==='count'?Math.max(0,parseInt(val,10)||0):q[1]==='types'?multi(val):val;return}
+  var it=(p[q[0]]||[])[+q[1]];if(!it)return;it[q[2]]=q[2]==='journals'?multi(val):val;
 }
 function laneRow(t){
   var c0=S.cands.find(function(x){return x.id===t.cid});
@@ -222,6 +267,8 @@ function taskDetail(c,t){
     if(t.kind==='review'&&!locked){var r=getResp(c.id,t.form);h+='<p class="small">Form status: '+esc(r.status)+'</p><div class="addrow"><button class="btn sm" data-a="openform" data-id="'+t.form+'">Read the answers</button>'+(!isDone(t.status)?'<button class="btn pri sm" data-a="reviewed" data-id="'+t.id+'">Mark reviewed</button>':'')+(r.status==='Submitted'||r.status==='Reviewed'?'<button class="btn sm" data-a="reopenform" data-id="'+t.form+'">Send back for edits</button>':'')+'</div>'}
     if(t.key==='analysis'&&!locked)h+='<label class="chk-l"><input type="checkbox" data-docschk="1"'+(c.docsChecked?' checked':'')+'> No documents available beyond what is uploaded (confirmed with the candidate)</label>';
     if(t.kind==='ai'&&!locked){var why=aiReady(c,t);h+='<div class="addrow"><button class="btn pri sm" data-a="runai" data-id="'+t.id+'"'+(why||S.busy?' disabled':'')+'>'+(isDone(t.status)?'Run again':'Run analysis')+'</button>'+(why?'<span class="small">'+esc(why)+'</span>':'')+'</div>'}
+    if(t.key==='proceed'&&!locked)h+=profileSummary(c)+decisionUi(c);
+    if(t.key==='review-cand'&&!locked)h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="plan">Open Plan tab</button><button class="btn pri sm" data-a="plan-release">Release plan tasks to the candidate</button></div>';
     if(t.kind==='gate'&&!locked)h+=gateUi(c,t);
   }
   var notes=S.log.filter(function(l){return l.tid===t.id&&l.kind==='note'}).sort(function(a,b){return a.ts<b.ts?-1:1});
@@ -232,12 +279,24 @@ function taskDetail(c,t){
 }
 function gateUi(c,t){
   var g=gateState(c,t.gate),h='';
+  if(t.gate==='foew'){
+    var wo=(c.foe&&c.foe.options)||[];
+    if(!wo.length)return '<p class="small">Run the working field draft first.</p>';
+    h+='<div class="gatebox"><b>Choose or edit the working field of endeavor</b>';
+    wo.forEach(function(o,i){h+='<div class="opt"><b>'+esc(o.label)+'</b><p>'+esc(o.statement)+'</p><p class="small">Why: '+esc(o.why)+'</p><p class="small">US growth to verify: '+esc(o.usGrowth)+'</p><p class="small">Peer pool: '+esc(o.peerPool)+'</p><button class="btn sm" data-a="foew-use" data-id="'+i+'">Use this wording</button></div>'});
+    var wv=S.draft.foeWText!==undefined?S.draft.foeWText:((c.foe&&c.foe.working)||'');
+    h+='<label class="f" for="foewt">Working statement</label><textarea id="foewt" data-draft="foeWText">'+esc(wv)+'</textarea><div class="addrow"><button class="btn pri sm" data-a="foew-lock">'+(g==='approved'?'Update working field':'Set working field')+'</button></div><p class="small">The deep intake is built around this. The final field is locked after the full analysis.</p></div>';
+    return h;
+  }
+  if(t.gate==='plan'){
+    return '<div class="gatebox"><b>Edit and approve</b><p class="small">Open the Plan tab to edit, add or remove items, then approve.</p><div class="addrow"><button class="btn pri sm" data-a="tab" data-id="plan">Open Plan tab</button></div></div>';
+  }
   if(t.gate==='foe'){
     var opts=(c.foe&&c.foe.options)||[];
     if(!opts.length)return '<p class="small">Run the FOE draft first.</p>';
     h+='<div class="gatebox"><b>Choose or edit the field of endeavor</b>';
     opts.forEach(function(o,i){h+='<div class="opt"><b>'+esc(o.label)+'</b><p>'+esc(o.statement)+'</p><p class="small">Why: '+esc(o.why)+'</p><p class="small">US growth to verify: '+esc(o.usGrowth)+'</p><p class="small">Peer pool: '+esc(o.peerPool)+'</p><button class="btn sm" data-a="foe-use" data-id="'+i+'">Use this wording</button></div>'});
-    var val=S.draft.foeText!==undefined?S.draft.foeText:((c.foe&&c.foe.locked)||'');
+    var val=S.draft.foeText!==undefined?S.draft.foeText:((c.foe&&(c.foe.locked||c.foe.working))||'');
     h+='<label class="f" for="foet">Final statement</label><textarea id="foet" data-draft="foeText">'+esc(val)+'</textarea>'+
      '<label class="chk-l"><input type="checkbox" data-draft-chk="foeOk"'+(S.draft.foeOk?' checked':'')+'> I checked the US growth and impact evidence behind this statement.</label>'+
      '<div class="addrow"><button class="btn pri sm" data-a="foe-lock"'+(g==='approved'?' disabled':'')+'>'+(g==='approved'?'Locked':'Lock FOE')+'</button></div></div>';
@@ -457,6 +516,7 @@ function queueSave(fid){PEND[rid(S.cid,fid)]=1;clearTimeout(saveTimer[fid]);save
 
 document.addEventListener('input',function(e){
   var t=e.target;
+  if(t.dataset.pl!==undefined){setPlanField(t.dataset.pl,t.value);return}
   if(t.dataset.draft!==undefined){S.draft[t.dataset.draft]=t.value;return}
   if(t.dataset.fp!==undefined&&t.type!=='checkbox'&&t.tagName!=='SELECT'){setField(t.dataset.fp,t.value);queueSave(parsePath(t.dataset.fp)[0])}
   if(t.dataset.cnotes!==undefined){var c=cur();if(c){clearTimeout(saveTimer.n);var v=t.value;saveTimer.n=setTimeout(function(){candRef(c.id).update({notes:v})},700)}}
@@ -551,6 +611,25 @@ document.addEventListener('click',async function(e){
       case 'reopenform':{var fid=id;var rr3=workResp(c.id,fid);rr3.status='In progress';await saveResp(c.id,fid);var ft=taskByKey(c.id,fid),rt=taskByKey(c.id,'r'+fid.slice(1));if(ft)await setStatus(ft,'In progress');if(rt&&isDone(rt.status))await setStatus(rt,'To do');await log(c.id,formDef(fid).n+' sent back for edits.','task');break}
       case 'feas-save':{var fdr=feasFromForm(c);fdr.updatedAt=nowIso();await candRef(c.id).update({feasibilityDraft:fdr});S.draft.fz_outlook=S.draft.fz_strengths=S.draft.fz_focus=S.draft.fz_timeline=S.draft.fz_note=undefined;say('Draft saved.','ok');break}
       case 'feas-release':{var fdr2=feasFromForm(c);fdr2.updatedAt=nowIso();await candRef(c.id).update({feasibilityDraft:fdr2});c.feasibilityDraft=fdr2;S.draft.fz_outlook=S.draft.fz_strengths=S.draft.fz_focus=S.draft.fz_timeline=S.draft.fz_note=undefined;await releaseFeas();say('Released to the candidate.','ok');break}
+      case 'dec-proceed':case 'dec-hold':case 'dec-decline':{
+        var ch=a.slice(4),pt=taskByKey(c.id,'proceed');
+        await candRef(c.id).update({decision:{choice:ch,at:nowIso(),note:(S.draft.decn||'').trim()}});
+        await log(c.id,'Profile decision: '+ch+(S.draft.decn?'. '+S.draft.decn:'.'),'gate');S.draft.decn='';
+        if(ch==='proceed'){if(pt)await completeKey(c.id,'proceed','Decision: proceed.')}
+        else if(pt&&!isDone(pt.status))await setStatus(pt,'Blocked');
+        break}
+      case 'foew-use':{S.draft.foeWText=c.foe.options[+id].statement;break}
+      case 'foew-lock':{
+        var wt=(S.draft.foeWText!==undefined?S.draft.foeWText:((c.foe&&c.foe.working)||'')).trim();
+        if(!wt){say('Write the working field statement.','err');return}
+        var gw=Object.assign({},c.gates||{});gw.foew={status:'approved',at:nowIso()};
+        await candRef(c.id).update({foe:Object.assign({},c.foe||{},{working:wt}),gates:gw});
+        await log(c.id,'Working FOE set: '+wt,'gate');await completeKey(c.id,'foew','Working field set.');S.draft.foeWText=undefined;break}
+      case 'pl-add':{var pp=pwEdit(c)||(S.planWork={articles:[],memberships:[],judging:{count:0,types:[],note:''},status:'draft'});
+        if(id==='articles')pp.articles.push({id:'a'+Date.now().toString(36),title:'',abstract:'',journals:[],note:''});else pp.memberships.push({id:'m'+Date.now().toString(36),name:'',why:'',note:''});break}
+      case 'pl-del':{var qq=id.split('|');pwEdit(c)[qq[0]].splice(+qq[1],1);break}
+      case 'plan-approve':{if(!pw(c)){say('No plan yet.','err');return}await approvePlan();say('Plan approved. Tasks created and held back.','ok');break}
+      case 'plan-release':{if(!(c.plan&&c.plan.status==='approved')){say('Approve the plan first.','err');return}await releasePlan();say('Released to the candidate.','ok');break}
       case 'foe-use':{S.draft.foeText=c.foe.options[+id].statement;break}
       case 'foe-lock':{
         var ft2=(S.draft.foeText!==undefined?S.draft.foeText:((c.foe&&c.foe.locked)||'')).trim();
