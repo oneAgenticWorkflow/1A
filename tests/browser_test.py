@@ -1,0 +1,50 @@
+import asyncio,re,os
+from playwright.async_api import async_playwright
+ROOT=os.path.dirname(os.path.abspath(__file__))+'/..'
+html=open(ROOT+'/web/index.html').read()
+html=re.sub(r'<script src="https://cdn.jsdelivr.net[^>]*></script>\n<script src="config.js"></script>','<script src="STUB"></script>',html)
+html=html.replace('<script src="STUB"></script>','<script>'+open(ROOT+'/tests/stub_supabase.js').read()+'</script>')
+open('/tmp/portal_test.html','w').write(html)
+FILL=open(ROOT+'/tests/fill.js').read()
+async def main():
+  async with async_playwright() as p:
+    b=await p.chromium.launch(); ctx=await b.new_context(viewport={'width':1280,'height':900}); pg=await ctx.new_page()
+    errs=[]; pg.on('pageerror',lambda e:errs.append(str(e)))
+    await pg.goto('file:///tmp/portal_test.html?as=admin'); await pg.wait_for_timeout(600)
+    await pg.evaluate("localStorage.clear()"); await pg.reload(); await pg.wait_for_timeout(600)
+    await pg.click('text=New candidate'); await pg.fill('#nn','Alex Sample'); await pg.fill('#ne','Alex@X.com'); await pg.click('text=Create case and start workflow'); await pg.wait_for_timeout(1500)
+    print('tasks created:',await pg.evaluate("__db.tasks.length"),'invite:',await pg.evaluate("JSON.stringify(__db.invites)"))
+    await pg.screenshot(path='/tmp/p0.png'); print((await pg.inner_text('#app'))[:400]); print(errs)
+    await pg.click('button.tt:has-text("Welcome call")'); await pg.click('button[data-a=check]'); await pg.wait_for_timeout(800)
+    print('f1 status after welcome:',await pg.evaluate("__db.tasks.find(t=>t.id.endsWith('-f1')).data.status"))
+    await pg.click('button.tab[data-id=docs]'); await pg.fill('[data-draft=rq]','W-2 for 2025'); await pg.click('button[data-a=req-add]'); await pg.wait_for_timeout(600)
+    print('doc requests:',await pg.evaluate("__db.docs.length"))
+    await pg.screenshot(path='/tmp/p1-admin-docs.png')
+    # candidate
+    await pg.goto('file:///tmp/portal_test.html?as=candidate'); await pg.wait_for_timeout(800)
+    await pg.screenshot(path='/tmp/p2-cand.png',full_page=True)
+    body=await pg.inner_text('#app'); print('candidate sees scorecard?', 'Scorecard' in body, '| admin tabs?', 'All tasks' in body, '| mentions Welcome:', 'Welcome, Alex' in body)
+    await pg.click('button[data-a=openform]'); await pg.wait_for_timeout(300)
+    await pg.evaluate(FILL); await pg.wait_for_timeout(1200)
+    await pg.click('button[data-a=submit]'); await pg.wait_for_timeout(1200)
+    print('after submit:',await pg.evaluate("[__db.responses[0].data.status, __db.tasks.find(t=>t.id.endsWith('-r1')).data.status]"))
+    # upload + message
+    await pg.set_input_files('input[data-up]:not([data-up=""])',{'name':'w2.pdf','mimeType':'application/pdf','buffer':b'%PDF-1.4 test'}); await pg.wait_for_timeout(800)
+    await pg.fill('[data-draft=msg]','Uploaded my W-2.'); await pg.click('button[data-a=msg]'); await pg.wait_for_timeout(600)
+    print('files:',await pg.evaluate("__db.files.length"),'docs:',await pg.evaluate("__db.docs.length"),'log notes:',await pg.evaluate("__db.log.filter(l=>l.data.by==='Candidate').length"))
+    await pg.screenshot(path='/tmp/p3-cand-after.png',full_page=True)
+    # phone
+    await pg.set_viewport_size({'width':390,'height':800}); await pg.wait_for_timeout(300)
+    print('phone overflow:',await pg.evaluate("document.documentElement.scrollWidth>innerWidth+1"))
+    await pg.screenshot(path='/tmp/p4-phone.png')
+    # back to admin
+    await pg.set_viewport_size({'width':1280,'height':900})
+    await pg.goto('file:///tmp/portal_test.html?as=admin'); await pg.wait_for_timeout(800)
+    await pg.click('.cardc.big'); await pg.wait_for_timeout(300)
+    await pg.click('button.tab[data-id=docs]'); await pg.wait_for_timeout(300)
+    t=await pg.inner_text('#app'); print('admin sees upload:', 'w2.pdf' in t)
+    await pg.click('button.tab[data-id=activity]'); await pg.wait_for_timeout(400); t=await pg.inner_text('#app'); print('admin sees message:','Uploaded my W-2.' in t)
+    await pg.screenshot(path='/tmp/p5-admin-activity.png')
+    print('errors:',errs[:5])
+    await b.close()
+asyncio.run(main())

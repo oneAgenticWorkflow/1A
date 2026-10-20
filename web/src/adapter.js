@@ -1,0 +1,79 @@
+/* Thin layer that gives the app a small document-database API on top of Supabase tables. */
+function makeDb(sb,isAdmin,caseId){
+  function fail(error){var e=new Error(error.message||String(error));e.code=error.code||'db_error';return e}
+  var loaders={};
+  function bump(coll){if(coll){(loaders[coll]||[]).forEach(function(f){f()})}else Object.keys(loaders).forEach(bump)}
+  function caseOf(coll,id,d){return coll==='candidates'?id:(d&&d.cid)||caseId}
+  function newId(){return 'a'+(crypto.randomUUID?crypto.randomUUID().replace(/-/g,''):String(Date.now())+Math.random().toString(16).slice(2))}
+  function ref(coll,id){
+    return {id:id,
+      set:async function(d){var r=await sb.from(coll).upsert({id:id,case_id:caseOf(coll,id,d),data:d});if(r.error)throw fail(r.error);bump(coll)},
+      update:async function(d){var r=await sb.rpc('merge_doc',{p_table:coll,p_id:id,p_patch:d});if(r.error)throw fail(r.error);bump(coll)},
+      delete:async function(){var r=await sb.from(coll).delete().eq('id',id);if(r.error)throw fail(r.error);bump(coll)}};
+  }
+  async function loadAll(coll){
+    if(coll==='candidates'&&!isAdmin){
+      var m=await sb.rpc('my_case');if(m.error)throw fail(m.error);
+      return m.data?[{id:caseId,data:function(){return Object.assign({},m.data)}}]:[];
+    }
+    var out=[],from=0,page=1000;
+    for(;;){
+      var r=await sb.from(coll).select('id,data').order('id').range(from,from+page-1);
+      if(r.error)throw fail(r.error);
+      r.data.forEach(function(row){out.push({id:row.id,data:function(){return JSON.parse(JSON.stringify(row.data))}})});
+      if(r.data.length<page)break;from+=page;
+    }
+    return out;
+  }
+  var db={
+    doc:function(path){var p=path.split('/');return ref(p[0],p[1])},
+    collection:function(coll){
+      return {
+        add:async function(d){var id=newId();await ref(coll,id).set(d);return ref(coll,id)},
+        doc:function(id){return ref(coll,id||newId())},
+        onSnapshot:function(cb,errCb){
+          var timer=0,dead=false;
+          async function load(){try{var docs=await loadAll(coll);if(!dead)cb({docs:docs})}catch(e){if(errCb)errCb(e)}}
+          function soon(){clearTimeout(timer);timer=setTimeout(load,250)}
+          (loaders[coll]=loaders[coll]||[]).push(soon);
+          load();
+          if(isAdmin||coll!=='candidates')sb.channel('rt-'+coll).on('postgres_changes',{event:'*',schema:'public',table:coll},soon).subscribe();
+          setInterval(load,isAdmin?60000:20000);
+          return function(){dead=true};
+        }};
+    },
+    rpc:async function(name,args){var r=await sb.rpc(name,args);if(r.error)throw fail(r.error);if(name!=='my_case')bump();return r.data},
+    invite:async function(email,cid){var r=await sb.from('invites').upsert({email:email.trim().toLowerCase(),case_id:cid});if(r.error)throw fail(r.error)},
+    uninvite:async function(cid){await sb.from('invites').delete().eq('case_id',cid)},
+    upload:async function(cid,file){
+      var safe=file.name.replace(/[^A-Za-z0-9._-]+/g,'_').slice(-120);
+      var path=cid+'/'+newId().slice(0,12)+'-'+safe;
+      var r=await sb.storage.from('case-files').upload(path,file,{contentType:file.type||'application/octet-stream'});
+      if(r.error)throw fail(r.error);return path;
+    },
+    signedUrl:async function(path){var r=await sb.storage.from('case-files').createSignedUrl(path,120);if(r.error)throw fail(r.error);return r.data.signedUrl},
+    removeFiles:async function(paths){await sb.storage.from('case-files').remove(paths)},
+    signOut:async function(){await sb.auth.signOut();location.reload()}
+  };
+  return db;
+}
+
+/* Claude calls go through a Supabase Edge Function that holds the API key and only answers admins. */
+function makeSample(sb,cfg){
+  async function run(prompt,opts){
+    opts=opts||{};
+    var s=await sb.auth.getSession();var tok=s.data&&s.data.session&&s.data.session.access_token;
+    var res;
+    try{res=await fetch(cfg.SUPABASE_URL+'/functions/v1/claude',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'apikey':cfg.SUPABASE_ANON_KEY},body:JSON.stringify({prompt:prompt,tier:opts.modelTier||'default'}),signal:opts.signal})}
+    catch(e){var ce=new Error(e.name==='AbortError'?'Stopped':'Network error');ce.code=e.name==='AbortError'?'cancelled':'network';throw ce}
+    var body={};try{body=await res.json()}catch(_){}
+    if(!res.ok){var er=new Error(body.error||('Claude function returned '+res.status));er.code=res.status===429?'rate_limited':(res.status===401||res.status===403)?'not_granted':'error';throw er}
+    return body.text||'';
+  }
+  var f=async function(prompt,opts){return {text:await run(prompt,opts)}};
+  f.json=async function(prompt,opts){
+    var t=await run(prompt,opts),a=t.indexOf('{'),b=t.lastIndexOf('}');
+    try{return JSON.parse(t.slice(a,b+1))}catch(_){var e=new Error('Claude returned an unreadable answer');e.code='invalid_json';throw e}
+  };
+  return f;
+}
