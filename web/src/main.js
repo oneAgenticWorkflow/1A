@@ -39,12 +39,18 @@
         if(!cd){err('Enter the access code from your advisor.');go.disabled=false;return}
         if(pw2.length<8){err('Choose a password of at least 8 characters.');go.disabled=false;return}
         window.__busy=true;
-        var u=await sb.auth.signUp({email:em,password:pw2});
-        if(u.error){window.__busy=false;err(u.error.message);go.disabled=false;return}
-        if(!u.data.session){var si=await sb.auth.signInWithPassword({email:em,password:pw2});if(si.error){window.__busy=false;err('An account with this email may already exist. Use Sign in, or "Email me a link" if you forgot the password.');go.disabled=false;return}u.data.session=si.data.session}
+        var sess=null;
+        var si=await sb.auth.signInWithPassword({email:em,password:pw2});
+        if(!si.error)sess=si.data.session;
+        else{
+          var u=await sb.auth.signUp({email:em,password:pw2});
+          if(u.error){window.__busy=false;err(/already registered/i.test(u.error.message)?'An account with this email already exists. Use Sign in, or "Forgot password" if you cannot remember it.':u.error.message);go.disabled=false;return}
+          sess=u.data.session;
+          if(!sess){var s2=await sb.auth.signInWithPassword({email:em,password:pw2});if(s2.error){window.__busy=false;err(s2.error.message);go.disabled=false;return}sess=s2.data.session}
+        }
         var c=await sb.rpc('claim_with_code',{p_code:cd});
         if(c.error||!c.data){await sb.auth.signOut();window.__busy=false;login('',"up");err('That email and access code do not match a case. Check them with your advisor.');return}
-        window.__busy=false;window.__entered=true;enter(u.data.session);
+        window.__busy=false;window.__entered=true;enter(sess);
       }else{
         var o=await sb.auth.signInWithOtp({email:em,options:{emailRedirectTo:location.href.split('#')[0]}});
         if(o.error){err(o.error.message);go.disabled=false;return}
