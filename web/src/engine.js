@@ -75,7 +75,7 @@ function serialize(def,r){
 function candidateText(c){
   var parts=['Name: '+c.name,'Current status: '+(c.visa||'')+(c.visaExpiry?' (expires '+c.visaExpiry+')':''),'Timeline goal: '+(c.goal||'')];
   FORMS.forEach(function(f){var s=serialize(f,getResp(c.id,f.id));if(s)parts.push('=== '+f.n+' ===\n'+s)});
-  if(c.foe&&c.foe.locked)parts.push('Locked FOE: '+c.foe.locked);
+  if(c.foe&&c.foe.locked)parts.push('Locked FOE: '+c.foe.locked);else if(c.foe&&c.foe.working)parts.push('Working FOE (not yet locked): '+c.foe.working);
   if(c.notes)parts.push('Advisor notes: '+c.notes);
   return '<candidate_data>\n'+parts.join('\n\n').slice(0,160000)+'\n</candidate_data>';
 }
@@ -183,12 +183,12 @@ function cleanPlan(p,k){
 async function runProfile(t){
   var c=cur();if(!c)return;
   var ok=await ai('Profile screen',async function(signal){
-    var prompt=RULES+'\n\nThis is a PROFILE AND ELIGIBILITY SCREEN from the resume and Form 1 only. Do not rate individual criteria and do not suggest tasks. Read the candidate as an experienced advisor would on a first call. Give: "domain" (the specific technical or professional domain and niche), "experience" (the career arc in 2 or 3 sentences: roles, employers, years, seniority, scope), "seniority" (Early, Mid, Senior, Principal or Executive level, with one reason), "strengths" (up to 5 concrete facts that could support extraordinary ability), "concerns" (up to 5 concrete reasons a case could be hard, for example internal-only impact, no outside recognition, a short record, vendor-specific skills, employer-confined work), "outlook" (exactly one of: "Promising", "Possible with a longer build", "Unlikely in the near term", "Not enough information"), "rationale" (3 sentences saying plainly whether a filing is realistic in the candidate\'s stated timeline and why), "askNext" (up to 8 specific questions to ask in the deep intake) and "docsNext" (up to 8 documents to request). This is a screening aid, not a legal opinion.\n\nReply with only JSON: {"domain":"","experience":"","seniority":"","strengths":[""],"concerns":[""],"outlook":"","rationale":"","askNext":[""],"docsNext":[""]}\n\n'+candidateText(c);
+    var prompt=RULES+'\n\nThis is a quick PROFILE SCREEN from the resume and Form 1 only, for a supervisor who wants a fast read. Do not rate individual criteria. Be brief: every list item is one short sentence. Give: "outlook" (exactly one of: "Promising", "Possible with a longer build", "Unlikely in the near term", "Not enough information"), "domain" (the candidate\'s specific domain in one line), "positives" (exactly 3 strongest facts), "risks" (exactly 3 biggest concerns, including any inconsistency to verify, such as titles, dates or status), and "improvements" (exactly 3 things that would most strengthen the profile). This is a screening aid, not a legal opinion.\n\nReply with only JSON: {"outlook":"","domain":"","positives":[""],"risks":[""],"improvements":[""]}\n\n'+candidateText(c);
     var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false});
     var OUT=['Promising','Possible with a longer build','Unlikely in the near term','Not enough information'];
-    var p={domain:String(r.domain||''),experience:String(r.experience||''),seniority:String(r.seniority||''),strengths:strList(r.strengths,5),concerns:strList(r.concerns,5),outlook:OUT.indexOf(r.outlook)>=0?r.outlook:'Not enough information',rationale:String(r.rationale||''),askNext:strList(r.askNext,8),docsNext:strList(r.docsNext,8),ranAt:nowIso()};
+    var p={outlook:OUT.indexOf(r.outlook)>=0?r.outlook:'Not enough information',domain:String(r.domain||''),positives:strList(r.positives,3),risks:strList(r.risks,3),improvements:strList(r.improvements,3),ranAt:nowIso()};
     await candRef(c.id).update({profile:p});
-    await log(c.id,'Profile screen done. Outlook: '+p.outlook+'.','score');
+    await log(c.id,'Profile screen done. Outlook: '+p.outlook+'. Open the decision step to proceed, hold or decline.','score');
   });
   if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
 }
@@ -212,7 +212,7 @@ async function runStrategy(t){
   var c=cur();if(!c)return;
   var ok=await ai('Criteria strategy',async function(signal){
     var g=CRIT.map(function(k){var x=(c.criteria||{})[k.id];return x?k.id+' '+k.n+' ['+x.rating+'] evidence: '+x.evidence+' | gap: '+x.gaps:''}).filter(Boolean).join('\n');
-    var prompt=RULES+'\n\nFollow the internal playbook section on enhancement plans. The field of endeavor is locked, so tie every suggestion to it. For every criterion c1 to c10 give a "plan": "call" is Invest, Maintain or Skip (no more than 4 Invest; Skip anything this person cannot realistically win, such as high remuneration when pay is not clearly above the top decile, or memberships with experience-based bylaws); "why" one or two sentences; "effort" hours per month, cost band and months to result; "actions" concrete steps; "evidenceToRequest" documents to ask the candidate for; and, where relevant, "articleTopics" (tied to the candidate\'s own domain and projects), "venueTypes" (kinds of venue, never named journals), "judgingRoutes" and "letterIdeas" (kinds of independent writers and the facts each letter should contain). Leave lists empty for Skip. Also give "targets": the 3 or 4 criterion ids you recommend, in priority order, and "targetNote": two sentences on why this set is the most achievable.\n\nLocked FOE: '+((c.foe&&c.foe.locked)||'not set')+'\n\nFull analysis ratings and gaps (internal):\n'+g+'\n\nReply with only JSON: {"plans":{"c1":{"call":"","why":"","effort":"","actions":[""],"evidenceToRequest":[""],"articleTopics":[""],"venueTypes":[""],"judgingRoutes":[""],"letterIdeas":[""]},...,"c10":{...}},"targets":["c4"],"targetNote":""}\n\n'+candidateText(c);
+    var prompt=RULES+'\n\nFollow the internal playbook section on enhancement plans. The field of endeavor is locked, so tie every suggestion to it. For every criterion c1 to c10 give a "plan": "call" is Invest, Maintain or Skip (no more than 4 Invest; Skip anything this person cannot realistically win, such as high remuneration when pay is not clearly above the top decile, or memberships with experience-based bylaws); "why" one or two sentences; "effort" hours per month, cost band and months to result; "actions" concrete steps; "evidenceToRequest" documents to ask the candidate for; and "letterIdeas" (kinds of independent writers and the facts each letter should contain). Articles, memberships and judging are recommended in a later step, so leave "articleTopics", "venueTypes" and "judgingRoutes" empty. Leave lists empty for Skip. Also give "targets": the 3 or 4 criterion ids you recommend, in priority order, and "targetNote": two sentences on why this set is the most achievable.\n\nLocked FOE: '+((c.foe&&c.foe.locked)||'not set')+'\n\nFull analysis ratings and gaps (internal):\n'+g+'\n\nReply with only JSON: {"plans":{"c1":{"call":"","why":"","effort":"","actions":[""],"evidenceToRequest":[""],"articleTopics":[""],"venueTypes":[""],"judgingRoutes":[""],"letterIdeas":[""]},...,"c10":{...}},"targets":["c4"],"targetNote":""}\n\n'+candidateText(c);
     var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false});
     var cr=JSON.parse(JSON.stringify(c.criteria||{}));
     CRIT.forEach(function(k){var x=cr[k.id]||{rating:k.na?'N/A':'Low',evidence:'',gaps:''};x.plan=cleanPlan(r.plans&&r.plans[k.id],k);cr[k.id]=x});
@@ -221,6 +221,48 @@ async function runStrategy(t){
     await log(c.id,'Criteria strategy drafted: '+CRIT.filter(function(k){return cr[k.id].plan.call==='Invest'}).length+' criteria to invest in. You choose the targets.','score');
   });
   if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
+}
+async function runRecs(t){
+  var c=cur();if(!c)return;
+  var ok=await ai('Recommendations',async function(signal){
+    var tg=(c.targets||[]).map(function(id){var k=CRIT.find(function(x){return x.id===id});return k?k.n:id}).join(', ');
+    var prompt=RULES+'\n\nRecommend a plan for the candidate below, built around the locked field of endeavor. (1) "articles": exactly 5 article ideas the candidate could realistically write from the projects and results in the data. Each has "title", "abstract" (150 to 200 words: the problem, what was built or found, results stated only if they appear in the data, and why it matters) and "journals": 2 or 3 suitable peer-reviewed or major trade venues by name. Journal names come from your general knowledge and are UNVERIFIED, so prefer well-known, indexed, non-pay-to-publish venues; an advisor will check each one. Never invent results, numbers or employer facts, and use "note" for any employer-confidentiality concern. (2) "memberships": 2 to 4 professional associations to pursue, each with "name" (association and grade), "why" and "note" saying what to verify about admission. Only suggest grades whose admission requires achievement judged by experts, not fees or years of experience. (3) "judging": {"count": a realistic number of review or judging roles to seek, "types": the kinds of role, for example peer review for applied AI journals or hackathon judging, "note": one short sentence}. Do not name conferences or organizations for judging.\n\nTarget criteria: '+tg+'\nLocked FOE: '+((c.foe&&c.foe.locked)||'not set')+'\n\nReply with only JSON: {"articles":[{"title":"","abstract":"","journals":[""],"note":""}],"memberships":[{"name":"","why":"","note":""}],"judging":{"count":5,"types":[""],"note":""}}\n\n'+candidateText(c);
+    var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false});
+    var uid=function(p,i){return p+Date.now().toString(36)+i};
+    var j=r.judging||{};
+    var plan={articles:(Array.isArray(r.articles)?r.articles:[]).slice(0,5).map(function(a,i){return {id:uid('a',i),title:String(a.title||''),abstract:String(a.abstract||''),journals:strList(a.journals,4),note:String(a.note||'')}}),
+      memberships:(Array.isArray(r.memberships)?r.memberships:[]).slice(0,4).map(function(m,i){return {id:uid('m',i),name:String(m.name||''),why:String(m.why||''),note:String(m.note||'')}}),
+      judging:{count:Math.max(0,parseInt(j.count,10)||0),types:strList(j.types,6),note:String(j.note||'')},status:'draft',generatedAt:nowIso()};
+    delete S.planWork;
+    await candRef(c.id).update({plan:plan});
+    await log(c.id,'Recommendations drafted: '+plan.articles.length+' articles, '+plan.memberships.length+' memberships, '+plan.judging.count+' judging roles. Edit and approve them in the Plan tab.','score');
+  });
+  if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
+}
+async function approvePlan(){
+  var c=cur();if(!c)return;var p0=S.planWork||c.plan;if(!p0){say('No plan yet.','err');return}
+  var p=JSON.parse(JSON.stringify(p0));
+  p.articles=(p.articles||[]).filter(function(a){return String(a.title||'').trim()});
+  p.memberships=(p.memberships||[]).filter(function(m){return String(m.name||'').trim()});
+  var old=S.tasks.filter(function(t){return t.cid===c.id&&t.source==='plan'});
+  for(var i=0;i<old.length;i++)await db.doc('tasks/'+old[i].id).delete();
+  var n=0;
+  async function add(title,detail,months){await db.collection('tasks').add({cid:c.id,key:'pl'+Date.now().toString(36)+(n++),stage:5,title:title,detail:detail,owner:'Candidate',kind:'task',form:'',gate:'',deps:[],req:true,status:'To do',due:addDays(today(),months*30),source:'plan',draft:true,createdAt:nowIso()})}
+  for(var a=0;a<p.articles.length;a++){var x=p.articles[a];await add('Write and submit the article: '+x.title,x.abstract+((x.journals&&x.journals.length)?'\n\nPossible journals (your advisor will confirm): '+x.journals.join('; '):''),Math.min(6,a+2))}
+  for(var m=0;m<p.memberships.length;m++){var y=p.memberships[m];await add('Apply for membership: '+y.name,[y.why,y.note].filter(Boolean).join(' '),3)}
+  if(p.judging&&p.judging.count>0)await add('Offer to review or judge: '+p.judging.count+' roles',(p.judging.types&&p.judging.types.length?'Kinds of role: '+p.judging.types.join('; ')+'. ':'')+(p.judging.note||''),3);
+  p.status='approved';p.approvedAt=nowIso();
+  await candRef(c.id).update({plan:p});delete S.planWork;
+  await log(c.id,'Plan approved: '+n+' tasks created, held back until you release them after reviewing with the candidate.','task');
+  await completeKey(c.id,'plan','Plan approved.');
+}
+async function releasePlan(){
+  var c=cur();if(!c)return;
+  var hold=S.tasks.filter(function(t){return t.cid===c.id&&t.source==='plan'&&t.draft});
+  for(var i=0;i<hold.length;i++)await db.doc('tasks/'+hold[i].id).update({draft:false});
+  if(c.plan)await candRef(c.id).update({plan:Object.assign({},c.plan,{released:true,releasedAt:nowIso()})});
+  await log(c.id,'Released '+hold.length+' plan tasks to the candidate.','task');
+  await completeKey(c.id,'review-cand','Plan reviewed with the candidate and released.');
 }
 async function runFeas(t){
   var c=cur();if(!c)return;
@@ -246,12 +288,14 @@ async function releaseFeas(){
 }
 async function runFoe(t){
   var c=cur();if(!c)return;
-  var ok=await ai('FOE options',async function(signal){
-    var g=CRIT.map(function(k){var x=(c.criteria||{})[k.id];return x?k.n+': '+x.rating:''}).filter(Boolean).join('; ');
-    var prompt=RULES+'\n\nPropose 3 field-of-endeavor (FOE) statements: "Primary" (core technology and role), "Industry" (the application industry), "Research" (the scholarly angle). Each must be specific enough to define a peer group yet broad enough to have comparison data. Avoid a single vendor or platform name as the whole field and avoid labels like "Software Engineer". For each give "statement", "why" (roles and technologies in the data that support it), "usGrowth" (what evidence of US growth or national importance an advisor must find and cite; label it unverified; no statistics) and "peerPool".\n\nCurrent scores: '+g+'\n\nReply with only JSON: {"options":[{"label":"Primary","statement":"","why":"","usGrowth":"","peerPool":""},...]}\n\n'+candidateText(c);
-    var r=await sampleFn.json(prompt,{modelTier:'complex',signal:signal,cache:false});
+  var first=!!(t&&t.key==='foe0');
+  var ok=await ai(first?'Working FOE options':'FOE options',async function(signal){
+    var g=first?'':CRIT.map(function(k){var x=(c.criteria||{})[k.id];return x?k.n+': '+x.rating:''}).filter(Boolean).join('; ');
+    var ctx=first?'This is an early WORKING field from the resume and Form 1 only; the deep intake will be built around it and the final field is locked after the full analysis. Propose 2 or 3 options.':'This is the FINAL field, chosen after the full analysis of every form. The working field was: '+((c.foe&&c.foe.working)||'not set')+'. Keep it if the evidence supports it, otherwise refine or replace it. Propose 3 options.';
+    var prompt=RULES+'\n\n'+ctx+' Each option is a field-of-endeavor (FOE) statement: "Primary" (core technology and role), "Industry" (the application industry), "Research" (the scholarly angle). Each must be specific enough to define a peer group yet broad enough to have comparison data. Avoid a single vendor or platform name as the whole field and avoid labels like "Software Engineer". For each give "statement", "why" (roles and technologies in the data that support it), "usGrowth" (what evidence of US growth or national importance an advisor must find and cite; label it unverified; no statistics) and "peerPool".\n\n'+(g?'Current scores: '+g+'\n\n':'')+'Reply with only JSON: {"options":[{"label":"Primary","statement":"","why":"","usGrowth":"","peerPool":""},...]}\n\n'+candidateText(c);
+    var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false});
     var opts=(Array.isArray(r.options)?r.options:[]).slice(0,3).map(function(o){return {label:String(o.label||''),statement:String(o.statement||''),why:String(o.why||''),usGrowth:String(o.usGrowth||''),peerPool:String(o.peerPool||'')}});
-    await candRef(c.id).update({foe:{options:opts}});await log(c.id,'Analysis proposed '+opts.length+' FOE options. A human decides.','foe');
+    await candRef(c.id).update({foe:Object.assign({},c.foe||{},{options:opts})});await log(c.id,'Analysis proposed '+opts.length+(first?' working':'')+' FOE options. A human decides.','foe');
   });
   if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
 }
@@ -288,6 +332,8 @@ async function runScreen(t){
 }
 function runAi(t){
   if(t.key==='profile')return runProfile(t);
+  if(t.key==='foe0')return runFoe(t);
+  if(t.key==='recs')return runRecs(t);
   if(t.key==='analysis'||t.key==='rescore')return runScore(t);
   if(t.key==='strategy')return runStrategy(t);
   if(t.key==='feas-draft')return runFeas(t);
@@ -305,7 +351,8 @@ function baselineGaps(c){
 function aiReady(c,t){
   if(!sampleFn)return 'Analysis is not available in this view.';
   if(t.key==='analysis'){var bg=baselineGaps(c);if(bg.length)return 'Not ready. Still needed: '+bg.join('; ')+'.'}
-  if(t.key==='profile'||t.key==='rescore'||t.key==='foe-ai'){if(!hasCv(c))return 'Needs the CV text from Form 1.'}
+  if(t.key==='profile'||t.key==='rescore'||t.key==='foe-ai'||t.key==='foe0'){if(!hasCv(c))return 'Needs the CV text from Form 1.'}
+  if(t.key==='recs'){if(!c.strategyAt)return 'Needs the criteria strategy first.';if(!(c.foe&&c.foe.locked))return 'Needs the locked field of endeavor.'}
   if(t.key==='foe-ai'&&!c.baselineAt)return 'Needs the full analysis first.';
   if(t.key==='strategy'){if(!c.baselineAt)return 'Needs the full analysis first.';if(!(c.foe&&c.foe.locked))return 'Needs the locked field of endeavor.'}
   if((t.key==='feas-draft'||t.key==='tasks-ai')&&!c.strategyAt)return 'Needs the criteria strategy first.';
