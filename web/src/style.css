@@ -186,3 +186,4 @@ select{width:auto;max-width:100%;padding:5px 8px}
 .gantt .track,.gantt .grow{min-width:0}
 label.up{cursor:pointer;display:inline-block}
 code{font-family:var(--mono);font-size:12px}
+.plan{margin-top:6px}.plan h4{margin:8px 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;opacity:.7}.plan ul{margin:0 0 4px 18px;padding:0}.plan details{margin-top:4px}.plan summary{cursor:pointer;font-size:13px}
