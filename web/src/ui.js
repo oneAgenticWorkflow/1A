@@ -43,8 +43,8 @@ function render(){
 
 function topbar(){
   var c=cur();
-  if(S.locked)return '<div class="top"><div><h1>EB-1A Profile Program</h1><div class="priv">Signed in as '+esc((S.me&&S.me.email)||'')+'</div></div><div class="nav"><button class="btn sm" data-a="signout">Sign out</button></div></div>';
-  return '<div class="top"><div><h1>EB-1A Case Tracker</h1><div class="priv">Admin · '+esc((S.me&&S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
+  if(S.locked)return '<div class="top"><div><h1>OneA Pathway</h1><div class="priv">Signed in as '+esc((S.me&&S.me.email)||'')+'</div></div><div class="nav"><button class="btn sm" data-a="signout">Sign out</button></div></div>';
+  return '<div class="top"><div><h1>OneA Case Tracker</h1><div class="priv">Admin · '+esc((S.me&&S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
    '<div class="nav"><button class="tab'+(!c&&S.home==='cases'?' on':'')+'" data-a="home">Cases</button>'+
    '<button class="tab'+(!c&&S.home==='tasks'?' on':'')+'" data-a="alltasks">All tasks</button>'+
    '<button class="btn pri" data-a="newcase">New candidate</button><button class="btn sm ghost" data-a="signout">Sign out</button></div></div>';
@@ -429,7 +429,7 @@ document.addEventListener('click',async function(e){
     switch(a){
       case 'dismiss':S.msg=null;break;
       case 'signout':await db.signOut();return;
-      case 'invite':{var site=location.href.split('#')[0];S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour EB-1A profile workspace is ready: '+site+'\nSign in with this email address ('+(c.email||'your email')+'). You will get a one-time sign-in link by email; no password needed.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
+      case 'invite':{var site=location.href.split('#')[0];S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour OneA Pathway workspace is ready: '+site+'\nSign in with this email address ('+(c.email||'your email')+'). You will get a one-time sign-in link by email; no password needed.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
       case 'getfile':{var url=await db.signedUrl(el.dataset.path);window.open(url,'_blank','noopener');return}
       case 'file-del':{var fd0=S.docs.find(function(x){return x.id===id});if(fd0){await db.doc('docs/'+id).delete();if(fd0.path)await db.removeFiles([fd0.path])}break}
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
