@@ -13,7 +13,8 @@ function statCls(s){return s==='Done'?'ok':s==='In progress'?'mid':s==='Blocked'
 function dueCls(t){if(isDone(t.status)||!t.due)return '';var d=daysUntil(t.due);return d<0?'bad':d<=7?'gate':''}
 function dueTxt(t){if(!t.due)return '';var d=daysUntil(t.due);return fmtDate(t.due).replace(/, \d{4}$/,'')+(isDone(t.status)?'':(d<0?' ('+(-d)+'d late)':d===0?' (today)':''))}
 function kindChip(t){return t.kind==='form'?chip('FORM'):t.kind==='review'?chip('REVIEW'):t.kind==='ai'?chip('ANALYSIS'):t.kind==='gate'?chip('GATE','gate'):''}
-function ownerChip(o){return '<span class="own own-'+esc(o)+'">'+esc(o)+'</span>'}
+function ownerLabel(o){return o==='Analysis'?'System':o}
+function ownerChip(o){return '<span class="own own-'+esc(o)+'">'+esc(ownerLabel(o))+'</span>'}
 function options(arr,sel,blank){return (blank!==undefined?'<option value="">'+esc(blank)+'</option>':'')+arr.map(function(x){return '<option'+(x===sel?' selected':'')+'>'+esc(x)+'</option>'}).join('')}
 function caseProgress(c){if(S.locked&&c.progress!=null)return c.progress;var ts=tasksOf(c.id).filter(function(t){return t.req!==false});if(!ts.length)return 0;return Math.round(ts.filter(function(t){return isDone(t.status)}).length/ts.length*100)}
 function bar(p){return '<div class="bar" role="img" aria-label="'+p+' percent"><i style="width:'+p+'%"></i></div>'}
@@ -111,14 +112,57 @@ function caseView(c){
     var byO={};blockers.forEach(function(t){byO[t.owner]=(byO[t.owner]||0)+1});
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['score','Scorecard'],['activity','Activity']];
+  h+=lanes(c,ts);
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['score','Scorecard'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='score')h+=scoreTab(c);
+  else if(S.tab==='feas')h+=feasTab(c);
   else h+=activityTab(c);
   return h;
+}
+
+function laneRow(t){
+  var c0=S.cands.find(function(x){return x.id===t.cid});
+  return '<div class="laner"><button class="link" data-a="gotask" data-id="'+t.id+'">'+esc(t.title)+'</button><span class="chip '+dueCls(t)+'">'+esc(dueTxt(t)||'no date')+'</span></div>';
+}
+function lanes(c,ts){
+  var live=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.req!==false||(t.draft&&!isDone(t.status))});
+  var cand=live.filter(function(t){return t.owner==='Candidate'&&!t.draft}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});
+  var us=live.filter(function(t){return t.owner!=='Candidate'||t.draft}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});
+  function lane(title,list,empty,sub){return '<div class="lane"><h4>'+title+' <span class="chip">'+list.length+'</span></h4><p class="small">'+sub+'</p>'+(list.length?list.slice(0,6).map(laneRow).join('')+(list.length>6?'<p class="small">and '+(list.length-6)+' more in Tasks</p>':''):'<p class="small">'+empty+'</p>')+'</div>'}
+  return '<div class="lanes">'+lane('Waiting on candidate',cand,'Nothing is waiting on the candidate.','Forms, documents and real-world actions they own.')+lane('Waiting on you',us,'Nothing is waiting on you.','Reviews, approvals, drafts to approve, and analysis to run.')+'</div>';
+}
+function feasTab(c){
+  var d=c.feasibilityDraft,rel=c.feasibilityReleased;
+  var h='<div class="panel"><div class="ph"><h3>Feasibility summary for the candidate</h3><div class="chips">'+(rel?chip('Released v'+rel.version+' · '+fmt(rel.releasedAt),'ok'):chip('Not released','gate'))+'</div></div>';
+  h+='<p class="small">This is the only analysis result the candidate ever sees. It is written separately from the scorecard, so internal ratings, risks and plans never reach them. Edit freely, then release.</p>';
+  if(!d){return h+'<p class="empty">No draft yet. Run "Draft the feasibility summary" after the full baseline score.</p></div>'}
+  function val(k,fallback){return S.draft['fz_'+k]!==undefined?S.draft['fz_'+k]:fallback}
+  h+='<label class="f" for="fzo">Outlook</label><select id="fzo" data-draft="fz_outlook">'+options(['Strong foundation','Promising, with work needed','Needs substantial building'],val('outlook',d.outlook))+'</select>'+
+   '<label class="f" for="fzs">Strengths (one per line)</label><textarea id="fzs" class="tall" data-draft="fz_strengths">'+esc(val('strengths',(d.strengths||[]).join('\n')))+'</textarea>'+
+   '<label class="f" for="fzf">What we will build together (one per line)</label><textarea id="fzf" data-draft="fz_focus">'+esc(val('focus',(d.focus||[]).join('\n')))+'</textarea>'+
+   '<label class="f" for="fzt">Rough preparation time</label><input id="fzt" type="text" data-draft="fz_timeline" value="'+esc(val('timeline',d.timeline||''))+'">'+
+   '<label class="f" for="fzn">Closing note</label><textarea id="fzn" data-draft="fz_note">'+esc(val('note',d.note||''))+'</textarea>'+
+   '<div class="addrow"><button class="btn" data-a="feas-save">Save draft</button><button class="btn pri" data-a="feas-release">'+(rel?'Release updated version':'Release to candidate')+'</button></div>';
+  h+='<p class="small">Releasing saves your edits first. The candidate sees it on their next refresh.</p></div>';
+  return h+'<div class="panel"><h3>What the candidate will see</h3>'+feasCard(feasFromForm(c),true)+'</div>';
+}
+function feasFromForm(c){
+  var d=c.feasibilityDraft||{};
+  function v(k,f){return S.draft['fz_'+k]!==undefined?S.draft['fz_'+k]:f}
+  function lines(x){return String(x||'').split('\n').map(function(l){return l.trim()}).filter(Boolean)}
+  return {outlook:v('outlook',d.outlook),strengths:lines(v('strengths',(d.strengths||[]).join('\n'))),focus:lines(v('focus',(d.focus||[]).join('\n'))),timeline:v('timeline',d.timeline||''),note:v('note',d.note||'')};
+}
+function feasCard(f,preview){
+  if(!f||!f.outlook)return '';
+  function ul(a){return a&&a.length?'<ul>'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':''}
+  return '<div class="feas">'+(preview?'':'<h3>Your feasibility summary</h3>')+'<div class="chips">'+chip(f.outlook,f.outlook==='Strong foundation'?'ok':f.outlook==='Promising, with work needed'?'mid':'gate')+'</div>'+
+   (f.strengths&&f.strengths.length?'<h4>Where you are strong</h4>'+ul(f.strengths):'')+(f.focus&&f.focus.length?'<h4>What we will build together</h4>'+ul(f.focus):'')+
+   (f.timeline?'<p><b>Rough preparation time:</b> '+esc(f.timeline)+' <span class="small">(an estimate, not a promise)</span></p>':'')+(f.note?'<p>'+esc(f.note)+'</p>':'')+
+   '<p class="small">This is a planning assessment from your advisory team. It is not legal advice and does not guarantee any outcome.</p></div>';
 }
 
 function tasksTab(c,ts){
@@ -165,6 +209,7 @@ function taskDetail(c,t){
   if(!locked&&!isDone(t.status)||t.kind!=='task'){
     if(t.kind==='form')h+='<div class="addrow"><button class="btn pri sm" data-a="openform" data-id="'+t.form+'">Open '+esc(formDef(t.form).n)+'</button></div>';
     if(t.kind==='review'&&!locked){var r=getResp(c.id,t.form);h+='<p class="small">Form status: '+esc(r.status)+'</p><div class="addrow"><button class="btn sm" data-a="openform" data-id="'+t.form+'">Read the answers</button>'+(!isDone(t.status)?'<button class="btn pri sm" data-a="reviewed" data-id="'+t.id+'">Mark reviewed</button>':'')+(r.status==='Submitted'||r.status==='Reviewed'?'<button class="btn sm" data-a="reopenform" data-id="'+t.form+'">Send back for edits</button>':'')+'</div>'}
+    if(t.key==='baseline'&&!locked)h+='<label class="chk-l"><input type="checkbox" data-docschk="1"'+(c.docsChecked?' checked':'')+'> No documents available beyond what is uploaded (confirmed with the candidate)</label>';
     if(t.kind==='ai'&&!locked){var why=aiReady(c,t);h+='<div class="addrow"><button class="btn pri sm" data-a="runai" data-id="'+t.id+'"'+(why||S.busy?' disabled':'')+'>'+(isDone(t.status)?'Run again':'Run analysis')+'</button>'+(why?'<span class="small">'+esc(why)+'</span>':'')+'</div>'}
     if(t.kind==='gate'&&!locked)h+=gateUi(c,t);
   }
@@ -185,6 +230,8 @@ function gateUi(c,t){
     h+='<label class="f" for="foet">Final statement</label><textarea id="foet" data-draft="foeText">'+esc(val)+'</textarea>'+
      '<label class="chk-l"><input type="checkbox" data-draft-chk="foeOk"'+(S.draft.foeOk?' checked':'')+'> I checked the US growth and impact evidence behind this statement.</label>'+
      '<div class="addrow"><button class="btn pri sm" data-a="foe-lock"'+(g==='approved'?' disabled':'')+'>'+(g==='approved'?'Locked':'Lock FOE')+'</button></div></div>';
+  }else if(t.gate==='feas'){
+    h+='<div class="gatebox"><b>Release to the candidate</b><p class="small">Open the Feasibility tab to edit the wording and release it.</p><div class="addrow"><button class="btn pri sm" data-a="tab" data-id="feas">Open Feasibility tab</button></div></div>';
   }else{
     var open=openFlags(c);
     h+='<div class="gatebox"><b>Attorney decision</b>'+(open?'<p class="small">'+open+' red flag'+(open>1?'s are':' is')+' still open on the scorecard.</p>':'')+
@@ -306,8 +353,9 @@ function planHtml(p){
 function scoreTab(c){
   var n=counts(c),rd=readiness(c);
   var h='<div class="panel"><div class="ph"><h3>Criteria scorecard</h3><div class="chips">'+chip(n.High+' High','ok')+chip(n.Medium+' Medium','mid')+chip(n.Low+' Low or not met','bad')+chip(rd.k,rd.cls)+'</div></div>';
-  if(!c.scoredAt)h+='<p class="empty">Not scored yet. The baseline score task runs after Form 1 is reviewed.</p>';
+  if(!c.scoredAt)h+='<p class="empty">Not scored yet. The quick screen runs after Form 1 is reviewed; the full baseline runs after every form is reviewed.</p>';
   else{
+    h+='<p class="small">'+(c.scoreKind==='quick'?'<b>Preliminary quick screen</b> from the resume and Form 1 only. The full baseline replaces this once every form is reviewed.':'<b>Full baseline</b> from the reviewed forms and documents.')+'</p>';
     if(c.summary)h+='<p>'+esc(c.summary)+'</p>';
     CRIT.forEach(function(k){
       var x=(c.criteria||{})[k.id];if(!x)return;
@@ -359,7 +407,9 @@ function candidateView(c){
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});
   var later=ts.filter(function(t){return t.status==='Not started'}),done=ts.filter(function(t){return isDone(t.status)});
   h+='<div class="panel"><h2>Welcome, '+esc((c.name||'').split(' ')[0])+'</h2><p>Phase '+((c.stage||0)+1)+' of '+STAGES.length+': <b>'+esc(STAGES[c.stage||0].n)+'</b>. '+esc(STAGES[c.stage||0].d)+'.</p>'+bar(caseProgress(c))+'<p class="small">Your advisor moves your case forward after reviewing what you send.</p></div>';
-  h+='<div class="panel"><h3>Your next steps</h3>';
+  var fz=S.locked?c.feasibility:c.feasibilityReleased;
+  if(fz&&fz.outlook)h+='<div class="panel">'+feasCard(fz,false)+'</div>';
+  h+='<div class="panel"><h3>Your to-do</h3>';
   if(!now.length)h+='<p class="empty">Nothing for you right now. Your advisor is working on the next step.</p>';
   now.forEach(function(t){
     h+='<div class="task"><span class="chk dis"></span><div class="tt"><b>'+esc(t.title)+'</b><small>'+esc(t.detail||'')+'</small></div><span class="chip '+dueCls(t)+'">'+esc(dueTxt(t))+'</span>'+
@@ -407,6 +457,7 @@ document.addEventListener('focusout',function(e){
 document.addEventListener('change',async function(e){
   var t=e.target,c=cur();
   try{
+    if(t.dataset.docschk!==undefined&&c){await candRef(c.id).update({docsChecked:t.checked});return}
     if(t.dataset.draftChk!==undefined){S.draft[t.dataset.draftChk]=t.checked;return}
     if(t.dataset.up!==undefined&&t.files&&t.files[0]&&c){
       var file=t.files[0];if(file.size>25*1024*1024){say('That file is over 25 MB.','err');t.value='';return}
@@ -486,6 +537,8 @@ document.addEventListener('click',async function(e){
         S.openForm=false;say(def.n+' submitted. Your advisor will review it.','ok');return}
       case 'reviewed':{var tr2=S.tasks.find(function(x){return x.id===id});var rr2=workResp(c.id,tr2.form);rr2.status='Reviewed';rr2.reviewedAt=nowIso();await saveResp(c.id,tr2.form);await setStatus(tr2,'Done');await log(c.id,'Reviewed '+formDef(tr2.form).n+'.','task',tr2.id);break}
       case 'reopenform':{var fid=id;var rr3=workResp(c.id,fid);rr3.status='In progress';await saveResp(c.id,fid);var ft=taskByKey(c.id,fid),rt=taskByKey(c.id,'r'+fid.slice(1));if(ft)await setStatus(ft,'In progress');if(rt&&isDone(rt.status))await setStatus(rt,'To do');await log(c.id,formDef(fid).n+' sent back for edits.','task');break}
+      case 'feas-save':{var fdr=feasFromForm(c);fdr.updatedAt=nowIso();await candRef(c.id).update({feasibilityDraft:fdr});S.draft.fz_outlook=S.draft.fz_strengths=S.draft.fz_focus=S.draft.fz_timeline=S.draft.fz_note=undefined;say('Draft saved.','ok');break}
+      case 'feas-release':{var fdr2=feasFromForm(c);fdr2.updatedAt=nowIso();await candRef(c.id).update({feasibilityDraft:fdr2});c.feasibilityDraft=fdr2;S.draft.fz_outlook=S.draft.fz_strengths=S.draft.fz_focus=S.draft.fz_timeline=S.draft.fz_note=undefined;await releaseFeas();say('Released to the candidate.','ok');break}
       case 'foe-use':{S.draft.foeText=c.foe.options[+id].statement;break}
       case 'foe-lock':{
         var ft2=(S.draft.foeText!==undefined?S.draft.foeText:((c.foe&&c.foe.locked)||'')).trim();
