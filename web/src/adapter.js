@@ -43,7 +43,8 @@ function makeDb(sb,isAdmin,caseId){
         }};
     },
     rpc:async function(name,args){var r=await sb.rpc(name,args);if(r.error)throw fail(r.error);if(name!=='my_case')bump();return r.data},
-    invite:async function(email,cid){var r=await sb.from('invites').upsert({email:email.trim().toLowerCase(),case_id:cid});if(r.error)throw fail(r.error)},
+    invite:async function(email,cid){var al='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);var code='';for(var i=0;i<8;i++)code+=al[b[i]%al.length];var r=await sb.from('invites').upsert({email:email.trim().toLowerCase(),case_id:cid,code:code});if(r.error)throw fail(r.error);return code},
+    inviteCode:async function(cid){var r=await sb.from('invites').select('code').eq('case_id',cid).maybeSingle();return (r.data&&r.data.code)||''},
     uninvite:async function(cid){await sb.from('invites').delete().eq('case_id',cid)},
     upload:async function(cid,file){
       var safe=file.name.replace(/[^A-Za-z0-9._-]+/g,'_').slice(-120);
