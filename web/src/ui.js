@@ -103,7 +103,7 @@ function allTasksView(){
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
   var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span></div></div>'+
-   '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="invite">Copy invite message</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
+   '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="invite">Copy invite message</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.confirmReset?'<button class="btn sm danger" data-a="reset-yes">Yes, reset access</button><button class="btn sm" data-a="reset-no">Cancel</button>':'<button class="btn sm" data-a="reset">Reset access</button>')+(S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   h+='<div class="steps">'+STAGES.map(function(s,i){return '<div class="step'+(i<st?' done':i===st?' now':'')+(s.gate?' g':'')+'" title="'+esc(s.d)+'"><i>'+(i+1)+'</i>'+esc(s.n)+'</div>'}).join('')+'</div>'+bar(caseProgress(c));
   var blockers=ts.filter(function(t){return t.stage===st&&t.req!==false&&!isDone(t.status)});
@@ -450,6 +450,9 @@ document.addEventListener('click',async function(e){
       case 'copy-close':S.copyText=null;break;
       case 'delete':S.confirmDel=true;break;
       case 'delete-no':S.confirmDel=false;break;
+      case 'reset':S.confirmReset=true;break;
+      case 'reset-no':S.confirmReset=false;break;
+      case 'reset-yes':{S.confirmReset=false;try{var rc=await db.rpc('reset_candidate',{p_case:c.id});S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour access has been reset. Open '+location.href.split('#')[0]+' and choose "First time? Create your password".\n  Email: '+(c.email||'your email')+'\n  New access code: '+rc+'\nThen pick a new password.\n';say('Access reset. Send the message below to the candidate.','ok')}catch(err){fail(err)}break}
       case 'delete-yes':{var did=c.id;S.confirmDel=false;S.cid=null;schedule();await deleteCase(did);say('Case deleted.','ok');return}
       case 'check':{var t1=S.tasks.find(function(x){return x.id===id});if(t1){var nd=!isDone(t1.status);await setStatus(t1,nd?'Done':'To do');await log(t1.cid,(nd?'Done: ':'Reopened: ')+t1.title,'task',t1.id)}break}
       case 'task-add':{var title=(S.draft.tt||'').trim();if(!title){say('Enter a task title.','err');return}
