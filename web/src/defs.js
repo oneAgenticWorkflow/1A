@@ -55,6 +55,11 @@ var TEMPLATE=[
  {k:'feas',s:4,t:'Review and release the feasibility summary',o:'Advisor',kind:'gate',gate:'feas',deps:['feas-draft','review-cand'],off:65,d:'Nothing reaches the candidate until you release it from the Feasibility tab.'},
  {k:'venues',s:4,t:'Verify journals for the approved articles',o:'Advisor',deps:['plan'],off:66,d:'Check scope, indexing, review quality, fees and predatory status for each journal on the approved articles.'},
  {k:'judging-proof',s:5,t:'Collect proof of every completed review',o:'Candidate',deps:['plan'],off:105,d:'For every completed role keep four things: the invitation and your acceptance; proof you finished (review receipt, thank-you email, certificate or program listing); a short signed letter from the editor, chair or organizer saying what you judged; and one line on the venue (ranking, acceptance rate, audience). Aim for 5 to 8 completed roles over 6 to 9 months, from at least two types (paper review, award or competition judging, other expert evaluation), spread over more than a year. An invitation alone is not proof.'},
+ {k:'f11',s:5,t:'Complete Form 11: Senior membership facts sheet',o:'Candidate',kind:'form',form:'f11',deps:['plan'],off:100,req:false,d:'Every job and client engagement with exact dates, your best results with their source, certifications and recognition, and the senior members who could act as references. We draft the application answers from this sheet.'},
+ {k:'r11',s:5,t:'Review Form 11 and check the answers agree',o:'Advisor',kind:'review',form:'f11',deps:['f11'],off:104,req:false,d:'Titles, dates and figures must be identical wherever they appear. Fix overlaps and gaps in the date line. Confirm each client allows its name and figures to be used. Then draft the application answers for the candidate to review.'},
+ {k:'mem-fit',s:5,t:'Run the fit test on each membership',o:'Advisor',deps:['plan'],off:90,req:false,d:'Count a membership as evidence only if all four are true: admission is decided by experts or a committee on achievement; the published criteria ask for outstanding or senior-level achievement; we hold the bylaws page and the candidate\'s certificate or letter; the association is recognised in the field. Save the bylaws link and the date checked. Memberships that fail are listed as helpful but not evidence.'},
+ {k:'media-sheet',s:5,t:'Research existing coverage and sort it A, B or C',o:'Advisor',deps:['r5','plan'],off:62,req:false,d:'Record each piece in the shared sheet: title, URL, date, author, outlet, reach with a third-party source, whether the candidate is named, share about the candidate or work, kind, language. Sort: A names the candidate and discusses the work; B covers the project without the name (use it for contributions, role or field importance); C does not qualify (press release, paid, employer only).'},
+ {k:'media-chk',s:5,t:'Review the media sheet',o:'Candidate',deps:['media-sheet'],off:70,req:false,d:'Confirm each item is accurate, mark anything wrong and tell us what is missing. Only coverage that names you and discusses your work counts as media evidence; coverage of the project without your name still helps as proof of your impact.'},
  {k:'awards',s:5,t:'Apply to shortlisted qualifying awards',o:'Candidate',deps:['r4','plan'],off:90,req:false,d:'No paid or vanity awards. For each award keep: the rules or call for entries, who judged it, the number of entrants and winners, proof there was no fee or purchase, the certificate or letter, and independent press about the award.'},
  {k:'angles',s:5,t:'Choose 3 to 5 story angles about the candidate',o:'Advisor',deps:['r5','plan'],off:65,req:false,d:'Angles must centre on the candidate, not only the employer.'},
  {k:'media',s:5,t:'Secure coverage in vetted outlets (editorial only)',o:'Candidate',deps:['angles'],off:120,req:false,d:'No pay-to-publish placements. For each piece keep: the full article with date and author, the page showing you are named and what share is about you, the outlet\'s circulation or traffic from a third party, and a certified translation if not in English.'},
@@ -245,7 +250,10 @@ var FORMS=[
   fd('bylaws','Membership criteria or bylaws (link)','url',{req:1}),
   fd('who','Who decides admission? Expert committee or staff','text'),
   fd('cert','Certificate or letter','select',{o:['Will send through the document request','Have it','Cannot get it'],req:1})]},
- {id:'elig',title:'Eligible but not yet a member',fields:[fd('eligible','Associations you may qualify for','area')]}
+ {id:'elig',title:'Eligible but not yet a member',fields:[fd('eligible','Associations you may qualify for','area')]},
+ {id:'refs',title:'IEEE and references',fields:[
+  fd('ieee','IEEE member number and grade, if you are a member','text'),
+  fd('refs','Senior members, Fellows or association officers who know your work and could act as references (name, title, grade, how they know you)','area',{h:'Some memberships, such as Senior IEEE, need three references from members at Senior grade or higher.'})]}
 ]},
 {id:'f9',n:'Form 9: Recommender pool',who:'Candidate',intro:'We need 6 to 8 independent experts. List people who know your work. We check independence; nobody is contacted without your say-so.',parts:[
  {id:'recs',title:'Recommenders',repeat:{label:'Person',title:'name',min:6,max:12},fields:[
@@ -259,6 +267,24 @@ var FORMS=[
   fd('likely','How likely are they to agree?','select',{o:['Very likely','Likely','Unsure']}),
   fd('concerns','Anything we should know (conflicts, timing)?','text')]},
  {id:'wish',title:'Experts you do not know yet',fields:[fd('wish','Experts you would like a letter from but have no connection to','area')]}
+]},
+{id:'f11',n:'Form 11: Senior membership facts sheet',who:'Candidate',intro:'Used to draft your Senior-level membership application. Give exact months and years. Titles, dates and figures must match your CV and everything else you have given us. If two jobs overlapped, say so.',parts:[
+ {id:'jobs',title:'Every job and client engagement',repeat:{label:'Engagement',title:'org',min:1,max:20},fields:[
+  fd('org','Employer, and client if different','text',{req:1}),
+  fd('title','Exact job title on this engagement','text',{req:1}),
+  fd('start','Start (month and year)','date',{req:1}),fd('end','End (empty if current)','date'),
+  fd('overlap','Did this overlap another job or engagement? Explain','text'),
+  fd('scope','Scope: team size, systems you owned, users or volume','text',{req:1}),
+  fd('results','Results with the best proof','rows',{req:1,cols:[{k:'what',l:'Result',t:'text'},{k:'num',l:'Number',t:'text'},{k:'src',l:'Where the number came from',t:'text'},{k:'who',l:'Who can confirm',t:'text'}]}),
+  fd('ok','May the client name and these figures be used?','select',{o:['Yes','Only with approval','No'],req:1})]},
+ {id:'gaps',title:'Gaps',fields:[fd('gaps','Any period with no engagement listed above (leave, bench time, study)? What were you doing?','area')]},
+ {id:'recog',title:'Recognition and credentials',fields:[
+  fd('certs','Certifications','rows',{cols:[{k:'name',l:'Certification',t:'text'},{k:'issuer',l:'Issuer',t:'text'},{k:'year',l:'Year',t:'text'}]}),
+  fd('recog','Awards, promotions, talks, mentoring, publications, patents (with years)','area'),
+  fd('edu','Degrees and years, for the education credit','area')]},
+ {id:'refs',title:'Membership details',fields:[
+  fd('ieee','IEEE member number','text'),
+  fd('refs','Names of up to three Senior or higher IEEE members who could act as references','area')]}
 ]},
 {id:'f10',n:'Form 10: Your article ideas',who:'Candidate',intro:'Now that your field of endeavor is set, tell us about any articles you would like to write or have already started. We are also preparing our own suggestions, and we will compare both lists together. Leave this blank if you have no ideas yet.',parts:[
  {id:'ideas',title:'Your article ideas',repeat:{label:'Idea',title:'title',min:1,max:8},fields:[
