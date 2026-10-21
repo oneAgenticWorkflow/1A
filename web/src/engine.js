@@ -21,7 +21,7 @@ function wc(s){var m=String(s||'').trim().match(/\S+/g);return m?m.length:0}
 function candRef(id){return db.doc('candidates/'+id)}
 function log(cid,text,kind,tid){return db.collection('log').add({cid:cid,tid:tid||'',ts:nowIso(),text:text,kind:kind||'note'})}
 function fail(e){S.msg=(e&&e.message)||String(e);S.msgKind='err';S.busy=null;schedule()}
-function say(m,k){S.msg=m;S.msgKind=k||'ok';schedule()}
+function say(m,k){S.msgGo=null;S.msg=m;S.msgKind=k||'ok';schedule()}
 
 /* ---------- Ratings and readiness ---------- */
 var CRIT=[
@@ -174,7 +174,7 @@ var RULES='You are an analyst helping an immigration advisor run an extraordinar
 async function ai(label,fn){
   if(!sampleFn){say('Analysis is not available in this view.','err');return false}
   if(S.busy)return false;
-  S.busy=label;S.msg=null;ctl=new AbortController();schedule();var ok=false;
+  S.busy=label;S.msg=null;S.msgGo=null;ctl=new AbortController();schedule();var ok=false;
   try{await fn(ctl.signal);S.msg=label+' finished.';S.msgKind='ok';ok=true}
   catch(e){S.msg=(e&&e.code==='cancelled')?'Stopped.':(e&&e.code==='not_granted')?'Analysis access was not allowed for this page.':(e&&e.code==='rate_limited')?'Usage limit reached. Try again later.':(e&&e.code==='invalid_json')?'Analysis returned an unreadable answer. Try again.':('Could not finish: '+((e&&e.message)||e));S.msgKind=(e&&e.code==='cancelled')?'ok':'err'}
   S.busy=null;ctl=null;schedule();return ok;
@@ -364,7 +364,6 @@ async function runScreen(t){
 }
 function runAi(t){
   if(t.key==='profile')return runProfile(t);
-  if(t.key==='foe0')return runFoe(t);
   if(t.key==='recs')return runRecs(t);
   if(t.key==='analysis'||t.key==='rescore')return runScore(t);
   if(t.key==='strategy')return runStrategy(t);
