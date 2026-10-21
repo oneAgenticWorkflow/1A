@@ -1,5 +1,5 @@
 /* Thin layer that gives the app a small document-database API on top of Supabase tables. */
-function makeDb(sb,isAdmin,caseId){
+function makeDb(sb,isAdmin,caseId,cfg){
   function fail(error){var e=new Error(error.message||String(error));e.code=error.code||'db_error';return e}
   var loaders={};
   function bump(coll){if(coll){(loaders[coll]||[]).forEach(function(f){f()})}else Object.keys(loaders).forEach(bump)}
@@ -49,6 +49,18 @@ function makeDb(sb,isAdmin,caseId){
     },
     rpc:async function(name,args){var r=await sb.rpc(name,args);if(r.error)throw fail(r.error);if(name!=='my_case')bump();return r.data},
     invite:async function(email,cid){var al='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);var code='';for(var i=0;i<8;i++)code+=al[b[i]%al.length];var r=await sb.from('invites').upsert({email:email.trim().toLowerCase(),case_id:cid,code:code});if(r.error)throw fail(r.error);return code},
+    accounts:async function(body){
+      var ss=await sb.auth.getSession(),tk=ss.data.session&&ss.data.session.access_token;
+      var r=await fetch(cfg.SUPABASE_URL+'/functions/v1/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk,apikey:cfg.SUPABASE_ANON_KEY},body:JSON.stringify(body)});
+      var j={};try{j=await r.json()}catch(_){}
+      if(!r.ok)throw new Error(j.error||'Request failed ('+r.status+')');return j},
+    users:async function(){
+      var p=await sb.from('profiles').select('id,username,email,role,case_id,display_name,contact_email,must_change');if(p.error)throw fail(p.error);
+      var a=await sb.from('assignments').select('user_id,case_id');
+      return {profiles:p.data||[],assign:(a&&a.data)||[]}},
+    setAssign:async function(uid,cids){
+      var d=await sb.from('assignments').delete().eq('user_id',uid);if(d.error)throw fail(d.error);
+      if(cids.length){var r=await sb.from('assignments').insert(cids.map(function(c){return {user_id:uid,case_id:c}}));if(r.error)throw fail(r.error)}},
     inviteCode:async function(cid){var r=await sb.from('invites').select('code').eq('case_id',cid).maybeSingle();return (r.data&&r.data.code)||''},
     uninvite:async function(cid){await sb.from('invites').delete().eq('case_id',cid)},
     upload:async function(cid,file){
