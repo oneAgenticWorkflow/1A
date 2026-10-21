@@ -185,8 +185,12 @@ function planTab(c){
   if(!p)return h+ideasPanel(c,null)+'<p class="empty">Our suggestions are not drafted yet. They are drafted after the target criteria are chosen and Form 10 is reviewed.</p></div>';
   var ro=!!p.released,dis=ro?' disabled':'';
   h+=ideasPanel(c,p)+'<h4>Our suggested articles ('+(p.articles||[]).length+')</h4>';
+  var shn=(p.articles||[]).filter(function(a){return a.short}).length;
+  h+='<p class="small">Shortlisted: <b>'+shn+'</b> (aim for 4, worked on two at a time). Only shortlisted articles become tasks; the rest stay as reserves. If none is shortlisted, all become tasks. At most two ideas per category, and keep career-advice pieces to one.</p>';
   (p.articles||[]).forEach(function(a,i){
-    h+='<div class="opt"><label class="f">Title</label><input type="text" data-pl="articles|'+i+'|title" value="'+esc(a.title)+'"'+dis+'><label class="f">Abstract</label><textarea class="tall" data-pl="articles|'+i+'|abstract"'+dis+'>'+esc(a.abstract)+'</textarea><label class="f">Possible journals (one per line, unverified)</label><textarea data-pl="articles|'+i+'|journals"'+dis+'>'+esc((a.journals||[]).join('\n'))+'</textarea>'+(a.note?'<p class="small">Note: '+esc(a.note)+'</p>':'')+(ro?'':'<button class="btn sm danger" data-a="pl-del" data-id="articles|'+i+'">Remove</button>')+'</div>';
+    h+='<div class="opt"><div class="chips">'+(a.cat?chip(a.cat):'')+(a.tier?chip(a.tier,'mid'):'')+(a.short?chip('Shortlisted','ok'):'')+(a.fromCand?chip('From candidate'):'')+'</div><label class="f">Title</label><input type="text" data-pl="articles|'+i+'|title" value="'+esc(a.title)+'"'+dis+'><label class="f">Abstract</label><textarea class="tall" data-pl="articles|'+i+'|abstract"'+dis+'>'+esc(a.abstract)+'</textarea><label class="f">Possible journals (one per line, unverified)</label><textarea data-pl="articles|'+i+'|journals"'+dis+'>'+esc((a.journals||[]).join('\n'))+'</textarea>'+(a.evidence?'<p class="small">Evidence needed: '+esc(a.evidence)+'</p>':'')+(a.note?'<p class="small">Note: '+esc(a.note)+'</p>':'')+
+     '<div class="two"><div><label class="f">Status</label><select data-pl="articles|'+i+'|state">'+options(['Idea','Outline','Drafting','Candidate review','Submitted','Published'],a.state||'Idea')+'</select></div><div><label class="f">Link once published</label><input type="text" data-pl="articles|'+i+'|url" value="'+esc(a.url||'')+'" placeholder="https://"></div></div>'+
+     '<div class="addrow">'+(ro?'':'<button class="btn sm'+(a.short?' pri':'')+'" data-a="pl-short" data-id="'+i+'">'+(a.short?'Shortlisted (click to remove)':'Shortlist')+'</button><button class="btn sm danger" data-a="pl-del" data-id="articles|'+i+'">Remove</button>')+'</div></div>';
   });
   if(!ro)h+='<div class="addrow"><button class="btn sm" data-a="pl-add" data-id="articles">Add an article</button></div>';
   h+='<h4>Memberships ('+(p.memberships||[]).length+')</h4>';
@@ -425,6 +429,7 @@ function renderFields(def,part,idx,vals,ro){
 function formEditor(c,fid){
   var def=formDef(fid),r=getResp(c.id,fid),ro=S.role==='Candidate'&&(r.status==='Submitted'||r.status==='Reviewed');
   var h='<div class="panel"><div class="ph"><div><button class="link" data-a="closeform">&larr; All forms</button><h2>'+esc(def.n)+'</h2></div><div class="chips">'+chip(r.status,r.status==='Reviewed'?'ok':r.status==='Submitted'?'mid':'')+chip(progress(def,r)+'% required')+'</div></div><p class="small">'+esc(def.intro||'')+' Answers save as you type.</p>';
+  if(fid==='f10'&&r.data.guide&&r.data.guide.length)h+='<div class="panel cv-guide"><h3>Example ideas for your field</h3><p class="small">Only to spark ideas. Write your own in your own words.</p><ul class="cv-list" style="display:block">'+r.data.guide.map(function(g){return '<li style="display:block;margin:6px 0"><b>'+esc(g.cat)+':</b> '+esc(g.title)+'<br><span class="small">'+esc(g.line)+'</span></li>'}).join('')+'</ul></div>';
   if(S.errs&&S.errs.length)h+='<div class="banner err" role="alert"><b>Fix these before submitting:</b><ul>'+S.errs.slice(0,12).map(function(e){return '<li>'+esc(e)+'</li>'}).join('')+(S.errs.length>12?'<li>and '+(S.errs.length-12)+' more</li>':'')+'</ul></div>';
   if(ro)h+='<div class="banner ok">Submitted. Your advisor is reviewing it. '+(S.role==='Candidate'?'':'')+'</div>';
   def.parts.forEach(function(p){
@@ -618,7 +623,7 @@ function queueSave(fid){PEND[rid(S.cid,fid)]=1;clearTimeout(saveTimer[fid]);save
 document.addEventListener('input',function(e){
   var t=e.target;
   if(t.dataset.mk!==undefined){var mq=t.dataset.mk.split('|'),cc=cur(),mm=cc&&mwEdit(cc);if(mm&&mm.rows[+mq[0]])mm.rows[+mq[0]][mq[1]]=mq[1]==='urls'?t.value.split('\n').map(function(x){return x.trim()}).filter(Boolean):t.value;return}
-  if(t.dataset.pl!==undefined){setPlanField(t.dataset.pl,t.value);return}
+  if(t.dataset.pl!==undefined){setPlanField(t.dataset.pl,t.value);var pq=t.dataset.pl.split('|'),pc=cur();if(pc&&pc.plan&&pc.plan.status==='approved'&&pq[0]==='articles'&&(pq[2]==='state'||pq[2]==='url')){clearTimeout(saveTimer.pl);saveTimer.pl=setTimeout(function(){var pp=S.planWork;if(!pp)return;var cp=JSON.parse(JSON.stringify(pc.plan));pp.articles.forEach(function(a,i){if(cp.articles[i]){cp.articles[i].state=a.state;cp.articles[i].url=a.url}});candRef(pc.id).update({plan:cp})},700)}return}
   if(t.dataset.draft!==undefined){S.draft[t.dataset.draft]=t.value;return}
   if(t.dataset.fp!==undefined&&t.type!=='checkbox'&&t.tagName!=='SELECT'){setField(t.dataset.fp,t.value);queueSave(parsePath(t.dataset.fp)[0])}
   if(t.dataset.cnotes!==undefined){var c=cur();if(c){clearTimeout(saveTimer.n);var v=t.value;saveTimer.n=setTimeout(function(){candRef(c.id).update({notes:v})},700)}}
@@ -737,6 +742,7 @@ document.addEventListener('click',async function(e){
       case 'mk-copy':{S.copyText=marketText(Object.assign({},c,{market:mw(c)}));break}
       case 'pl-addcand':{var ci=candIdeas(c)[+id],pq=pwEdit(c);if(!ci||!pq)break;
         pq.articles.push({id:'a'+Date.now().toString(36),title:ci.title||'',abstract:ci.summary||'',journals:ci.venues?[ci.venues]:[],note:'Candidate\'s own idea.'+(ci.conf?' Confidentiality: '+ci.conf:''),fromCand:(ci.title||'')+'|'+id});break}
+      case 'pl-short':{var pa=pwEdit(c).articles[+id];if(pa)pa.short=!pa.short;break}
       case 'pl-del':{var qq=id.split('|');pwEdit(c)[qq[0]].splice(+qq[1],1);break}
       case 'plan-approve':{if(!pw(c)){say('No plan yet.','err');return}await approvePlan();say('Plan approved. Tasks created and held back.','ok');break}
       case 'plan-release':{if(!(c.plan&&c.plan.status==='approved')){say('Approve the plan first.','err');return}await releasePlan();say('Released to the candidate.','ok');break}
@@ -752,6 +758,7 @@ document.addEventListener('click',async function(e){
             else if(on2&&tt.status==='Skipped'&&tt.skippedBy==='targets'){await setStatus(tt,'Not started',{skippedBy:''});rs++}}}
         Object.keys(S.draft).forEach(function(dk){if(dk.indexOf('tg_')===0)delete S.draft[dk]});
         await log(c.id,'Target criteria confirmed: '+ch.map(function(id){return id.toUpperCase()}).join(', ')+(sk?'. '+sk+' evidence tasks skipped.':'')+(rs?'. '+rs+' evidence tasks restored.':''),'gate');
+        if((c.articleExamples||[]).length){var fr=workResp(c.id,'f10');if(!fr.data.guide&&fr.status!=='Submitted'&&fr.status!=='Reviewed'){fr.data.guide=c.articleExamples;await saveResp(c.id,'f10')}}
         await completeKey(c.id,'targets','Target criteria confirmed.');
         say('Target criteria confirmed: '+ch.length+'.');break}
       case 'foe-lock':{
