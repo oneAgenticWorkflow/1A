@@ -75,6 +75,7 @@ function makeSample(sb,cfg){
     var body={};try{body=await res.json()}catch(_){}
     if(!res.ok){var er=new Error(body.error||('Analysis function returned '+res.status));er.code=res.status===429?'rate_limited':(res.status===401||res.status===403)?'not_granted':'error';throw er}
     run.sources=body.sources||[];
+    if(body.usage&&f&&f.onUsage)f.onUsage(body.usage);
     return body.text||'';
   }
   var f=async function(prompt,opts){return {text:await run(prompt,opts)}};
