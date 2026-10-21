@@ -377,7 +377,7 @@ function runAi(t){
 function baselineGaps(c){
   var g=[];
   if(!hasCv(c))g.push('CV text in Form 1');
-  FORMS.forEach(function(f){var r=getResp(c.id,f.id);if(r.status!=='Reviewed')g.push(f.n+' reviewed ('+r.status.toLowerCase()+')')});
+  FORMS.forEach(function(f){var tk=taskByKey(c.id,f.id);if(tk&&tk.stage>2)return;var r=getResp(c.id,f.id);if(r.status!=='Reviewed')g.push(f.n+' reviewed ('+r.status.toLowerCase()+')')});
   if(!S.docs.some(function(d){return d.cid===c.id&&d.kind==='file'})&&!c.docsChecked)g.push('at least one document uploaded, or tick "No documents available" below');
   return g;
 }
