@@ -44,8 +44,10 @@ var TEMPLATE=[
  {k:'foe',s:3,t:'FOE lock: approve the field of endeavor',o:'Advisor',kind:'gate',gate:'foe',deps:['foe-ai'],off:50,d:'Approve only after the statement is backed by US growth and impact evidence you have checked. Every later step uses it.'},
  {k:'strategy',s:4,t:'Suggest target criteria and options for each',o:'Analysis',kind:'ai',deps:['foe'],off:52,d:'Using the locked field of endeavor, calls Invest, Maintain or Skip for each criterion and lists options: actions, documents to request, article topics, venue types, judging routes and letter ideas.'},
  {k:'targets',s:4,t:'Choose the 3 to 4 target criteria',o:'Advisor',deps:['strategy'],off:55,d:'Build the case on the criteria that are most achievable, not all ten.'},
- {k:'recs',s:4,t:'Recommend articles, memberships and judging',o:'Analysis',kind:'ai',deps:['targets'],off:56,d:'Five article ideas with abstracts and possible journals, memberships to pursue, and how many and what kind of judging roles. Names are unverified until you check them.'},
- {k:'plan',s:4,t:'Edit and approve the recommendations',o:'Advisor',kind:'gate',gate:'plan',deps:['recs'],off:60,d:'Add, edit or remove any suggestion in the Plan tab. Approving turns the list into tasks, held back until you have reviewed the plan with the candidate.'},
+ {k:'f10',s:4,t:'Complete Form 10: Your article ideas',o:'Candidate',kind:'form',form:'f10',deps:['foe'],off:54,d:'Optional: your own article ideas, to compare with ours.'},
+ {k:'r10',s:4,t:'Review Form 10',o:'Advisor',kind:'review',form:'f10',deps:['f10'],off:57},
+ {k:'recs',s:4,t:'Recommend articles, memberships and judging',o:'Analysis',kind:'ai',deps:['targets','r10'],off:58,d:'Five article ideas with abstracts and possible journals, memberships to pursue, and how many and what kind of judging roles. Names are unverified until you check them.'},
+ {k:'plan',s:4,t:'Edit and approve the recommendations',o:'Advisor',kind:'gate',gate:'plan',deps:['recs'],off:60,d:'Compare with the candidate\'s own ideas, then add, edit or remove any suggestion in the Plan tab. Approving turns the list into tasks, held back until you have reviewed the plan with the candidate.'},
  {k:'review-cand',s:4,t:'Review the plan with the candidate',o:'Advisor',deps:['plan'],off:63,d:'Walk the candidate through the plan. When you are done, release the tasks to them.'},
  {k:'feas-draft',s:4,t:'Draft the feasibility summary for the candidate',o:'Analysis',kind:'ai',deps:['targets'],off:57,d:'Writes the plain-language outlook the candidate will see. You edit it before anything is released.'},
  {k:'feas',s:4,t:'Review and release the feasibility summary',o:'Advisor',kind:'gate',gate:'feas',deps:['feas-draft','review-cand'],off:65,d:'Nothing reaches the candidate until you release it from the Feasibility tab.'},
@@ -250,6 +252,14 @@ var FORMS=[
   fd('likely','How likely are they to agree?','select',{o:['Very likely','Likely','Unsure']}),
   fd('concerns','Anything we should know (conflicts, timing)?','text')]},
  {id:'wish',title:'Experts you do not know yet',fields:[fd('wish','Experts you would like a letter from but have no connection to','area')]}
+]},
+{id:'f10',n:'Form 10: Your article ideas',who:'Candidate',intro:'Now that your field of endeavor is set, tell us about any articles you would like to write or have already started. We are also preparing our own suggestions, and we will compare both lists together. Leave this blank if you have no ideas yet.',parts:[
+ {id:'ideas',title:'Your article ideas',repeat:{label:'Idea',title:'title',min:1,max:8},fields:[
+  fd('title','Working title','text'),
+  fd('summary','What the article would cover: the problem, what you built or found, and the results','area',{tall:1}),
+  fd('state','Where is it now?','select',{o:['Just an idea','Outline or notes','Draft written','Submitted','Published']}),
+  fd('venues','Journals or publications you have in mind (optional)','text'),
+  fd('conf','Anything your employer would need to approve or keep confidential?','text')]}
 ]}
 ];
 function formDef(id){return FORMS.find(function(f){return f.id===id})}
