@@ -281,3 +281,8 @@ code{font-family:var(--mono);font-size:12px}
   .cv-em{display:none}
   .cv-next .btn.big{width:100%}
 }
+.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl th{text-align:left;font-weight:600;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl .rowact .btn{margin:2px 4px 2px 0}
+.cred code{background:var(--surface2);padding:2px 6px;border-radius:6px;font-family:var(--mono);user-select:all}
