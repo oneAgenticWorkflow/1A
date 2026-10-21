@@ -103,7 +103,7 @@ function allTasksView(){
 /* ----- case view ----- */
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
-  var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span></div></div>'+
+  var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
    '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="invite">Copy invite message</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.confirmReset?'<button class="btn sm danger" data-a="reset-yes">Yes, reset access</button><button class="btn sm" data-a="reset-no">Cancel</button>':'<button class="btn sm" data-a="reset">Reset access</button>')+(S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   h+='<div class="steps">'+STAGES.map(function(s,i){return '<div class="step'+(i<st?' done':i===st?' now':'')+(s.gate?' g':'')+'" title="'+esc(s.d)+'"><i>'+(i+1)+'</i>'+esc(s.n)+'</div>'}).join('')+'</div>'+bar(caseProgress(c));
@@ -455,6 +455,31 @@ function planHtml(p){
   return '<div class="plan"><div class="chips">'+chip(p.call,cls)+(p.effort?'<span class="small">'+esc(p.effort)+'</span>':'')+'</div>'+(p.why?'<p class="small">'+esc(p.why)+'</p>':'')+(det?'<details><summary>Plan details</summary>'+det+'</details>':'')+'</div>';
 }
 /* ----- scorecard ----- */
+var CRIT_TASKS={c1:['awards'],c2:['mem-fit','f11','r11'],c3:['media-sheet','media-chk','angles','media'],c4:['judging-proof'],c5:['contrib'],c8:['role'],c9:['comp']};
+function targetsPanel(c){
+  if(!c.strategyAt)return '';
+  var sug=c.targets||[],cho=c.chosen,h='<div class="panel"><div class="ph"><h3>Target criteria for evidence building</h3><div class="chips">'+(cho?chip('Confirmed: '+cho.length+' criteria','ok'):chip('Not confirmed','gate'))+'</div></div>';
+  h+='<p class="small">Tick every criterion to build evidence for. Our suggestion is pre-ticked, with the reason. Unticked criteria have their evidence tasks marked Skipped; you can change this later.</p>';
+  CRIT.forEach(function(k){
+    if(k.na)return;
+    var x=(c.criteria||{})[k.id]||{},call=(x.plan&&x.plan.call)||'',key='tg_'+k.id;
+    var on=S.draft[key]!==undefined?S.draft[key]:(cho?cho.indexOf(k.id)>=0:sug.indexOf(k.id)>=0);
+    h+='<label class="flag"><input type="checkbox" data-draft-chk="'+key+'"'+(on?' checked':'')+'><span><b>'+esc(k.n)+'</b> '+chip(x.rating||'n/a',x.rating==='High'?'ok':x.rating==='Medium'?'mid':'bad')+(call?' '+chip(call,call==='Invest'?'ok':'')+(sug.indexOf(k.id)>=0?' '+chip('Suggested','ok'):''):'')+(x.plan&&x.plan.why?'<br><span class="small">'+esc(x.plan.why)+'</span>':'')+'</span></label>';
+  });
+  if(c.targetNote)h+='<p class="small">'+esc(c.targetNote)+'</p>';
+  return h+'<div class="addrow"><button class="btn pri sm" data-a="tgt-save">'+(cho?'Update target criteria':'Confirm target criteria')+'</button></div></div>';
+}
+function costPanel(c){
+  var r=c.costs||[],tot=0,inp=0,out=0,se=0,by={};
+  r.forEach(function(x){tot+=x.usd||0;inp+=x.input||0;out+=x.output||0;se+=x.searches||0;by[x.label]=(by[x.label]||0)+(x.usd||0)});
+  var h='<div class="panel"><div class="ph"><h3>AI cost for this case (admins only)</h3><div class="chips">'+chip('$'+tot.toFixed(2)+' total','ok')+chip(r.length+' runs')+'</div></div>';
+  if(!r.length)return h+'<p class="empty">No analysis has run for this case yet.</p></div>';
+  h+='<p class="small">Estimated from token counts at published per-million-token rates plus $0.01 per web search. Check the Anthropic console for the billed amount. Never shown to candidates.</p>';
+  h+='<div class="chips">'+Object.keys(by).map(function(k){return chip(k+': $'+by[k].toFixed(3))}).join('')+'</div>';
+  h+='<p class="small">'+inp.toLocaleString()+' input tokens, '+out.toLocaleString()+' output tokens, '+se+' web searches.</p>';
+  h+='<div class="log">'+r.slice().reverse().map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.label)+' · '+esc(String(x.model||'').replace('claude-',''))+' · '+(x.input||0).toLocaleString()+' in / '+(x.output||0).toLocaleString()+' out'+(x.searches?' / '+x.searches+' searches':'')+' · <b>$'+(x.usd||0).toFixed(3)+'</b></span></div>'}).join('')+'</div></div>';
+  return h;
+}
 function scoreTab(c){
   var n=counts(c),rd=readiness(c);
   var h='<div class="panel"><div class="ph"><h3>Criteria scorecard</h3><div class="chips">'+chip(n.High+' High','ok')+chip(n.Medium+' Medium','mid')+chip(n.Low+' Low or not met','bad')+chip(rd.k,rd.cls)+'</div></div>';
@@ -468,7 +493,7 @@ function scoreTab(c){
     });
   }
   h+='</div>';
-  if(c.targets&&c.targets.length)h+='<div class="panel"><h3>Suggested target criteria</h3><div class="chips">'+c.targets.map(function(id){var k=CRIT.find(function(x){return x.id===id});return chip(k?k.n:id,'ok')}).join('')+'</div>'+(c.targetNote?'<p>'+esc(c.targetNote)+'</p>':'')+'<p class="small">A suggestion for your decision in "Choose the 3 to 4 target criteria".</p></div>';
+  h+=targetsPanel(c);
   var mr=c.meritsRisk;
   if(mr&&mr.level){h+='<div class="panel"><div class="ph"><h3>Final-merits risk</h3><div class="chips">'+chip(mr.level,mr.level==='Low'?'ok':mr.level==='Medium'?'mid':'bad')+'</div></div>'+(mr.drivers&&mr.drivers.length?'<ul>'+mr.drivers.map(function(d){return '<li>'+esc(d)+'</li>'}).join('')+'</ul>':'')+(mr.advice?'<p>'+esc(mr.advice)+'</p>':'')+'<p class="small">Internal view for advisors. Not shown to candidates.</p></div>'}
   var fl=c.redFlags||[];
@@ -479,7 +504,7 @@ function scoreTab(c){
 }
 function activityTab(c){
   var l=S.log.filter(function(x){return x.cid===c.id}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
-  return messagesPanel(c,true)+'<div class="panel"><h3>Activity</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
+  return messagesPanel(c,true)+costPanel(c)+'<div class="panel"><h3>Activity</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
 }
 
 /* ----- documents, messages ----- */
@@ -673,6 +698,19 @@ document.addEventListener('click',async function(e){
       case 'plan-approve':{if(!pw(c)){say('No plan yet.','err');return}await approvePlan();say('Plan approved. Tasks created and held back.','ok');break}
       case 'plan-release':{if(!(c.plan&&c.plan.status==='approved')){say('Approve the plan first.','err');return}await releasePlan();say('Released to the candidate.','ok');break}
       case 'foe-use':{S.draft.foeText=c.foe.options[+id].statement;break}
+      case 'tgt-save':{
+        var ch=CRIT.filter(function(k){return !k.na&&(S.draft['tg_'+k.id]!==undefined?S.draft['tg_'+k.id]:(c.chosen?c.chosen.indexOf(k.id)>=0:(c.targets||[]).indexOf(k.id)>=0))}).map(function(k){return k.id});
+        if(!ch.length){say('Tick at least one criterion.','err');return}
+        await candRef(c.id).update({chosen:ch,chosenAt:nowIso()});
+        var sk=0,rs=0;
+        for(var ci=0;ci<CRIT.length;ci++){var kk=CRIT[ci].id,keys=CRIT_TASKS[kk]||[],on2=ch.indexOf(kk)>=0;
+          for(var ki=0;ki<keys.length;ki++){var tt=taskByKey(c.id,keys[ki]);if(!tt)continue;
+            if(!on2&&!isDone(tt.status)){await setStatus(tt,'Skipped',{skippedBy:'targets'});sk++}
+            else if(on2&&tt.status==='Skipped'&&tt.skippedBy==='targets'){await setStatus(tt,'Not started',{skippedBy:''});rs++}}}
+        Object.keys(S.draft).forEach(function(dk){if(dk.indexOf('tg_')===0)delete S.draft[dk]});
+        await log(c.id,'Target criteria confirmed: '+ch.map(function(id){return id.toUpperCase()}).join(', ')+(sk?'. '+sk+' evidence tasks skipped.':'')+(rs?'. '+rs+' evidence tasks restored.':''),'gate');
+        await completeKey(c.id,'targets','Target criteria confirmed.');
+        say('Target criteria confirmed: '+ch.length+'.');break}
       case 'foe-lock':{
         var ft2=(S.draft.foeText!==undefined?S.draft.foeText:((c.foe&&c.foe.locked)||'')).trim();
         if(!ft2){say('Write the final FOE statement.','err');return}
