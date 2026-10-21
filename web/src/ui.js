@@ -450,7 +450,22 @@ function formEditor(c,fid){
   h+='<div class="addrow">';
   if(!ro&&r.status!=='Reviewed')h+='<button class="btn pri" data-a="submit">Submit '+(S.role==='Candidate'?'':'for review')+'</button>';
   if(S.role==='Advisor'&&(r.status==='Submitted'||r.status==='Reviewed'))h+='<button class="btn" data-a="reopenform" data-id="'+fid+'">Send back for edits</button>';
-  return h+'<button class="btn" data-a="closeform">Close</button></div></div>';
+  return h+'<button class="btn" data-a="form-tpl" data-id="'+esc(fid)+'">Download blank template</button> <button class="btn" data-a="closeform">Close</button></div></div>';
+}
+
+/* Blank, fill-in template for any form, generated from its definition so it never drifts. Opens in Word. */
+function formTemplate(fid,guide){
+  var def=formDef(fid);if(!def)return '';
+  function fld(f){var o=(f.o&&f.o.length)?'<div class="o">Choose one: '+f.o.map(esc).join(' / ')+'</div>':'';
+    return '<p class="q">'+esc(f.l)+(f.req?' <b>*</b>':'')+'</p>'+o+'<div class="box'+(f.t==='area'?' tall':'')+'"></div>'}
+  var b='<h1>'+esc(def.n)+'</h1><p class="n">'+esc(def.intro||'')+' Fields marked * are required. Fill this in and send it back, or enter the same answers in the portal.</p>';
+  if(fid==='f10'&&guide&&guide.length)b+='<h2>Example ideas for your field</h2><ul>'+guide.map(function(g){return '<li><b>'+esc(g.cat)+':</b> '+esc(g.title)+' &mdash; '+esc(g.line)+'</li>'}).join('')+'</ul>';
+  def.parts.forEach(function(p){
+    b+='<h2>'+esc(p.title)+'</h2>'+(p.intro?'<p class="n">'+esc(p.intro)+'</p>':'');
+    if(p.repeat){for(var i=1;i<=Math.max(p.repeat.min,fid==='f10'?4:2);i++)b+='<h3>'+esc(p.repeat.label)+' '+i+'</h3>'+p.fields.map(fld).join('')}
+    else b+=p.fields.map(fld).join('');
+  });
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><title>'+esc(def.n)+'</title><style>body{font-family:Calibri,Arial,sans-serif;font-size:11pt}h1{font-size:18pt}h2{font-size:14pt;border-bottom:1px solid #999}h3{font-size:12pt}.q{font-weight:bold;margin:10pt 0 2pt}.o,.n{color:#555;font-size:10pt}.box{border:1px solid #888;height:22pt}.box.tall{height:110pt}</style></head><body>'+b+'</body></html>';
 }
 
 function planHtml(p){
@@ -681,6 +696,7 @@ document.addEventListener('click',async function(e){
       case 'open':S.cid=id;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
       case 'cvphase':S.cvp=+id;break;
+      case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
       case 'cvscroll':{var se=document.getElementById(id);if(se)se.scrollIntoView({behavior:'smooth',block:'start'});return}
       case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;try{window.scrollTo(0,0)}catch(e){}break;
       case 'view':S.view=id;break;
