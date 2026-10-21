@@ -28,7 +28,7 @@ function render(){
   if(S.dberr){app.innerHTML='<div class="panel"><h2>Could not load</h2><p>Storage returned: '+esc(S.dberr)+'. Reload the page.</p></div>';return}
   if(!S.ready){app.innerHTML='<p class="small">Loading cases…</p>';return}
   h+=topbar();
-  if(S.msg)h+='<div class="banner '+S.msgKind+'" role="status">'+esc(S.msg)+' <button class="link" data-a="dismiss">Dismiss</button></div>';
+  if(S.msg)h+='<div class="banner '+S.msgKind+'" role="status">'+esc(S.msg)+(S.msgGo?' <button class="btn sm pri" data-a="'+S.msgGo.a+'" data-id="'+S.msgGo.id+'">View: '+esc(S.msgGo.l)+'</button>':'')+' <button class="link" data-a="dismiss">Dismiss</button></div>';
   if(S.busy)h+='<div class="banner busy" role="status">Analysis is running: '+esc(S.busy)+'… <button class="btn sm" data-a="cancel">Stop</button></div>';
   if(S.setup)h+='<div class="banner busy" role="status">'+esc(S.setup)+'</div>';
   var c=cur();
@@ -208,9 +208,13 @@ function setPlanField(path,val){
   if(q[0]==='judging'){p.judging=p.judging||{count:0,types:[],note:''};p.judging[q[1]]=q[1]==='count'?Math.max(0,parseInt(val,10)||0):q[1]==='types'?multi(val):val;return}
   var it=(p[q[0]]||[])[+q[1]];if(!it)return;it[q[2]]=q[2]==='journals'?multi(val):val;
 }
+var RESULT={profile:{t:'profile',l:'Profile'},proceed:{t:'profile',l:'Profile'},analysis:{t:'score',l:'Scorecard'},review:{t:'score',l:'Scorecard'},rescore:{t:'score',l:'Scorecard'},strategy:{t:'score',l:'Scorecard'},targets:{t:'score',l:'Scorecard'},'foe-mkt':{t:'field',l:'Field'},'foe-mkt-ok':{t:'field',l:'Field'},recs:{t:'plan',l:'Plan'},plan:{t:'plan',l:'Plan'},'review-cand':{t:'plan',l:'Plan'},venues:{t:'plan',l:'Plan'},'feas-draft':{t:'feas',l:'Feasibility'},feas:{t:'feas',l:'Feasibility'},'foe-ai':{k:'foe',l:'FOE lock task'}};
 function laneRow(t){
-  var c0=S.cands.find(function(x){return x.id===t.cid});
-  return '<div class="laner"><button class="link" data-a="gotask" data-id="'+t.id+'">'+esc(t.title)+'</button><span class="chip '+dueCls(t)+'">'+esc(dueTxt(t)||'no date')+'</span></div>';
+  var d=RESULT[t.key],run=t.kind==='ai'&&!isDone(t.status);
+  var main=(d&&d.t&&!run)?'<button class="link" data-a="tab" data-id="'+d.t+'">'+esc(t.title)+'</button>':'<button class="link" data-a="gotask" data-id="'+t.id+'">'+esc(t.title)+'</button>';
+  var hint=run?'Press Run analysis in the task':(d&&d.t?'Opens the '+d.l+' tab':'');
+  var sub=(hint?'<span class="small">'+esc(hint)+'</span>':'')+((d&&d.t&&!run)?' <button class="link small" data-a="gotask" data-id="'+t.id+'">task details</button>':'');
+  return '<div class="laner"><div>'+main+(sub?'<br>'+sub:'')+'</div><span class="chip '+dueCls(t)+'">'+esc(dueTxt(t)||'no date')+'</span></div>';
 }
 function lanes(c,ts){
   var live=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.req!==false||(t.draft&&!isDone(t.status))});
@@ -295,6 +299,7 @@ function taskDetail(c,t){
     if(t.kind==='review'&&!locked){var r=getResp(c.id,t.form);h+='<p class="small">Form status: '+esc(r.status)+'</p><div class="addrow"><button class="btn sm" data-a="openform" data-id="'+t.form+'">Read the answers</button>'+(!isDone(t.status)?'<button class="btn pri sm" data-a="reviewed" data-id="'+t.id+'">Mark reviewed</button>':'')+(r.status==='Submitted'||r.status==='Reviewed'?'<button class="btn sm" data-a="reopenform" data-id="'+t.form+'">Send back for edits</button>':'')+'</div>'}
     if(t.key==='analysis'&&!locked)h+='<label class="chk-l"><input type="checkbox" data-docschk="1"'+(c.docsChecked?' checked':'')+'> No documents available beyond what is uploaded (confirmed with the candidate)</label>';
     if(t.kind==='ai'&&!locked){var why=aiReady(c,t);h+='<div class="addrow"><button class="btn pri sm" data-a="runai" data-id="'+t.id+'"'+(why||S.busy?' disabled':'')+'>'+(isDone(t.status)?'Run again':'Run analysis')+'</button>'+(why?'<span class="small">'+esc(why)+'</span>':'')+'</div>'}
+    if(RESULT[t.key]&&RESULT[t.key].t&&!locked&&!/^(foe-mkt-ok|review-cand|plan|feas|proceed)$/.test(t.key))h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="'+RESULT[t.key].t+'">'+(isDone(t.status)?'See the result: ':'Open ')+RESULT[t.key].l+' tab</button></div>';
     if(t.key==='foe-mkt-ok'&&!locked)h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="field">Open Field tab</button></div>';
     if(t.key==='proceed'&&!locked)h+=profileSummary(c)+decisionUi(c);
     if(t.key==='review-cand'&&!locked)h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="plan">Open Plan tab</button><button class="btn pri sm" data-a="plan-release">Release plan tasks to the candidate</button></div>';
@@ -310,8 +315,7 @@ function gateUi(c,t){
   var g=gateState(c,t.gate),h='';
   if(t.gate==='foew'){
     var wo=(c.foe&&c.foe.options)||[];
-    if(!wo.length)return '<p class="small">Run the working field draft first.</p>';
-    h+='<div class="gatebox"><b>Choose or edit the working field of endeavor</b>';
+    h+='<div class="gatebox"><b>Set the working field of endeavor</b>'+(c.profile&&c.profile.domain?'<p class="small">Profile screen domain: '+esc(c.profile.domain)+' (see the Profile tab)</p>':'');
     wo.forEach(function(o,i){h+='<div class="opt"><b>'+esc(o.label)+'</b><p>'+esc(o.statement)+'</p><p class="small">Why: '+esc(o.why)+'</p><p class="small">US growth to verify: '+esc(o.usGrowth)+'</p><p class="small">Peer pool: '+esc(o.peerPool)+'</p><button class="btn sm" data-a="foew-use" data-id="'+i+'">Use this wording</button></div>'});
     var wv=S.draft.foeWText!==undefined?S.draft.foeWText:((c.foe&&c.foe.working)||'');
     h+='<label class="f" for="foewt">Working statement</label><textarea id="foewt" data-draft="foeWText">'+esc(wv)+'</textarea><div class="addrow"><button class="btn pri sm" data-a="foew-lock">'+(g==='approved'?'Update working field':'Set working field')+'</button></div><p class="small">The deep intake is built around this. The final field is locked after the full analysis.</p></div>';
@@ -590,7 +594,7 @@ document.addEventListener('click',async function(e){
   var a=el.dataset.a,id=el.dataset.id,c=cur();
   try{
     switch(a){
-      case 'dismiss':S.msg=null;break;
+      case 'dismiss':S.msg=null;S.msgGo=null;break;
       case 'signout':await db.signOut();return;
       case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour OneA Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
       case 'getfile':{var url=await db.signedUrl(el.dataset.path);window.open(url,'_blank','noopener');return}
@@ -605,7 +609,7 @@ document.addEventListener('click',async function(e){
       case 'create':await createCase();return;
       case 'open':S.cid=id;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
-      case 'tab':S.tab=id;S.openForm=false;break;
+      case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;try{window.scrollTo(0,0)}catch(e){}break;
       case 'view':S.view=id;break;
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
       case 'asCand':S.role='Candidate';S.openForm=false;break;
@@ -625,7 +629,7 @@ document.addEventListener('click',async function(e){
       case 'task-del':await db.doc('tasks/'+id).delete();break;
       case 'draft-ok':await db.doc('tasks/'+id).update({draft:false});await log(c.id,'You approved a drafted task for the candidate.','task',id);break;
       case 'note':{var txt=(S.draft['nt'+id]||'').trim();if(txt){await db.collection('log').add({cid:c.id,tid:id,ts:nowIso(),text:txt,kind:'note',by:'Admin',shared:!!S.draft['ns'+id]});S.draft['nt'+id]='';S.draft['ns'+id]=false}break}
-      case 'runai':{var tr=S.tasks.find(function(x){return x.id===id});if(tr&&!S.busy)runAi(tr);return}
+      case 'runai':{var tr=S.tasks.find(function(x){return x.id===id});if(tr&&!S.busy)Promise.resolve(runAi(tr)).then(function(){var d=RESULT[tr.key];if(d&&S.msgKind==='ok'&&!S.busy){var ft=d.k&&taskByKey(tr.cid,d.k);S.msg=tr.title+' finished. See the result in: '+d.l+'.';S.msgGo=ft?{a:'gotask',id:ft.id,l:d.l}:{a:'tab',id:d.t,l:d.l};schedule()}});return}
       case 'openform':S.form=id;S.openForm=true;S.errs=null;S.tab='forms';break;
       case 'closeform':S.openForm=false;S.errs=null;if(S.role==='Advisor')S.tab='forms';break;
       case 'entry-add':{var p1=parsePath(el.dataset.fp);var def1=formDef(p1[0]);var part1=def1.parts.find(function(x){return x.id===p1[1]});var r1=workResp(c.id,p1[0]);var ar=r1.data[part1.id]=r1.data[part1.id]||[];while(ar.length<part1.repeat.min)ar.push({});if(ar.length<part1.repeat.max)ar.push({});touch(p1[0]);await saveResp(c.id,p1[0]);break}
