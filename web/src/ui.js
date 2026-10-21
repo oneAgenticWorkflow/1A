@@ -1,3 +1,4 @@
+var LOGO_SVG='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#1c58a6"/><path d="M15 52V30a17 17 0 0 1 34 0v22" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/><path d="M32 52c0-8 0-10 0-14" fill="none" stroke="#9cc4f5" stroke-width="4" stroke-linecap="round"/><circle cx="32" cy="28" r="4.5" fill="#fff"/></svg>';
 /* ---------- Rendering ---------- */
 function schedule(){
   if(raf)return;
@@ -45,7 +46,7 @@ function render(){
 function topbar(){
   var c=cur();
   if(S.locked){var em=(S.me&&S.me.email)||'',nm=(c&&c.name)||em;var ini=nm.split(/[ @.]+/).filter(Boolean).slice(0,2).map(function(x){return x[0].toUpperCase()}).join('');
-    return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">AP</span><div><b>Arcanam Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
+    return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">'+LOGO_SVG+'</span><div><b>Arcanam Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
   return '<div class="top"><div><h1>Arcanam Case Tracker</h1><div class="priv">Admin · '+esc((S.me&&S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
    '<div class="nav"><button class="tab'+(!c&&S.home==='cases'?' on':'')+'" data-a="home">Cases</button>'+
    '<button class="tab'+(!c&&S.home==='tasks'?' on':'')+'" data-a="alltasks">All tasks</button>'+
