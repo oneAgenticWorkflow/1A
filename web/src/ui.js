@@ -150,12 +150,23 @@ function profileTab(c){
 /* ----- plan tab ----- */
 function pw(c){return S.planWork||c.plan||null}
 function pwEdit(c){if(!S.planWork&&c.plan)S.planWork=JSON.parse(JSON.stringify(c.plan));return S.planWork}
+function candIdeas(c){var r=getResp(c.id,'f10');return ((r&&r.data&&r.data.ideas)||[]).filter(function(x){return x&&String(x.title||x.summary||'').trim()})}
+function ideasPanel(c,p){
+  var ids=candIdeas(c),f=getResp(c.id,'f10').status;
+  var h='<h4>Candidate\'s own ideas ('+ids.length+') <span class="small">Form 10: '+esc(f)+'</span></h4>';
+  if(!ids.length)return h+'<p class="small">None yet. Their ideas appear here once they submit Form 10.</p>';
+  ids.forEach(function(x,i){
+    var added=p&&(p.articles||[]).some(function(a){return a.fromCand===(x.title||'')+'|'+i});
+    h+='<div class="opt"><b>'+esc(x.title||'(untitled)')+'</b> <span class="small">'+esc(x.state||'')+'</span><p>'+esc(x.summary||'')+'</p>'+(x.venues?'<p class="small">Journals they mention: '+esc(x.venues)+'</p>':'')+(x.conf?'<p class="small">Confidentiality: '+esc(x.conf)+'</p>':'')+(p&&!p.released?(added?'<span class="chip ok">In the plan</span>':'<button class="btn sm" data-a="pl-addcand" data-id="'+i+'">Add to plan</button>'):'')+'</div>';
+  });
+  return h;
+}
 function planTab(c){
   var p=pw(c);
   var h='<div class="panel"><div class="ph"><h3>Plan: articles, memberships, judging</h3><div class="chips">'+(p?chip(p.released?'Released':p.status==='approved'?'Approved, held back':'Draft',p.released?'ok':p.status==='approved'?'mid':'gate'):chip('Not drafted','gate'))+'</div></div><p class="small">Built around the locked field of endeavor. Journal and association names come from the model and are unverified. Check each before approving. Candidates see only the tasks you release.</p>';
-  if(!p)return h+'<p class="empty">Not drafted yet. It is drafted after the target criteria are chosen.</p></div>';
+  if(!p)return h+ideasPanel(c,null)+'<p class="empty">Our suggestions are not drafted yet. They are drafted after the target criteria are chosen and Form 10 is reviewed.</p></div>';
   var ro=!!p.released,dis=ro?' disabled':'';
-  h+='<h4>Articles ('+(p.articles||[]).length+')</h4>';
+  h+=ideasPanel(c,p)+'<h4>Our suggested articles ('+(p.articles||[]).length+')</h4>';
   (p.articles||[]).forEach(function(a,i){
     h+='<div class="opt"><label class="f">Title</label><input type="text" data-pl="articles|'+i+'|title" value="'+esc(a.title)+'"'+dis+'><label class="f">Abstract</label><textarea class="tall" data-pl="articles|'+i+'|abstract"'+dis+'>'+esc(a.abstract)+'</textarea><label class="f">Possible journals (one per line, unverified)</label><textarea data-pl="articles|'+i+'|journals"'+dis+'>'+esc((a.journals||[]).join('\n'))+'</textarea>'+(a.note?'<p class="small">Note: '+esc(a.note)+'</p>':'')+(ro?'':'<button class="btn sm danger" data-a="pl-del" data-id="articles|'+i+'">Remove</button>')+'</div>';
   });
@@ -627,6 +638,8 @@ document.addEventListener('click',async function(e){
         await log(c.id,'Working FOE set: '+wt,'gate');await completeKey(c.id,'foew','Working field set.');S.draft.foeWText=undefined;break}
       case 'pl-add':{var pp=pwEdit(c)||(S.planWork={articles:[],memberships:[],judging:{count:0,types:[],note:''},status:'draft'});
         if(id==='articles')pp.articles.push({id:'a'+Date.now().toString(36),title:'',abstract:'',journals:[],note:''});else pp.memberships.push({id:'m'+Date.now().toString(36),name:'',why:'',note:''});break}
+      case 'pl-addcand':{var ci=candIdeas(c)[+id],pq=pwEdit(c);if(!ci||!pq)break;
+        pq.articles.push({id:'a'+Date.now().toString(36),title:ci.title||'',abstract:ci.summary||'',journals:ci.venues?[ci.venues]:[],note:'Candidate\'s own idea.'+(ci.conf?' Confidentiality: '+ci.conf:''),fromCand:(ci.title||'')+'|'+id});break}
       case 'pl-del':{var qq=id.split('|');pwEdit(c)[qq[0]].splice(+qq[1],1);break}
       case 'plan-approve':{if(!pw(c)){say('No plan yet.','err');return}await approvePlan();say('Plan approved. Tasks created and held back.','ok');break}
       case 'plan-release':{if(!(c.plan&&c.plan.status==='approved')){say('Approve the plan first.','err');return}await releasePlan();say('Released to the candidate.','ok');break}
