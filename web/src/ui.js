@@ -44,7 +44,8 @@ function render(){
 
 function topbar(){
   var c=cur();
-  if(S.locked)return '<div class="top"><div><h1>OneA Pathway</h1><div class="priv">Signed in as '+esc((S.me&&S.me.email)||'')+'</div></div><div class="nav"><button class="btn sm" data-a="signout">Sign out</button></div></div>';
+  if(S.locked){var em=(S.me&&S.me.email)||'',nm=(c&&c.name)||em;var ini=nm.split(/[ @.]+/).filter(Boolean).slice(0,2).map(function(x){return x[0].toUpperCase()}).join('');
+    return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">1A</span><div><b>OneA Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
   return '<div class="top"><div><h1>OneA Case Tracker</h1><div class="priv">Admin · '+esc((S.me&&S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
    '<div class="nav"><button class="tab'+(!c&&S.home==='cases'?' on':'')+'" data-a="home">Cases</button>'+
    '<button class="tab'+(!c&&S.home==='tasks'?' on':'')+'" data-a="alltasks">All tasks</button>'+
@@ -531,23 +532,63 @@ function messagesPanel(c,admin){
 }
 
 /* ----- candidate view ----- */
+var CV_STAGES=[
+ {n:'Getting started',d:'A welcome call, your consent and your first form.'},
+ {n:'Your profile',d:'We read your background and agree on your direction.'},
+ {n:'Tell us the details',d:'You complete detailed forms and share documents. We review each one.'},
+ {n:'Our analysis',d:'We study everything you shared and settle on your field of endeavor.'},
+ {n:'Your plan',d:'We agree which areas to strengthen and how, then you receive your plan.'},
+ {n:'Build your evidence',d:'You carry out the plan: reviews, articles, memberships, proof and more.'},
+ {n:'Prove and polish',d:'We check every claim, gather recommendation letters and write your case.'},
+ {n:'Attorney review',d:'Your attorney reviews everything before anything is filed.'},
+ {n:'Filing',d:'Your attorney files the petition and supports you afterwards.'}];
+var CV_ICON={form:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',file:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/>',msg:'<path d="M4 5h16v11H9l-5 4z"/>',check:'<path d="M5 12l4 4 10-10"/>',lock:'<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 016 0v3"/>'};
+function cvIcon(k){return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+CV_ICON[k]+'</svg>'}
+function cvRing(p){var r=34,cf=2*Math.PI*r;return '<svg class="cv-ring" viewBox="0 0 80 80" role="img" aria-label="'+p+' percent complete"><circle cx="40" cy="40" r="'+r+'" class="rt"/><circle cx="40" cy="40" r="'+r+'" class="rf" stroke-dasharray="'+(cf*p/100).toFixed(1)+' '+cf.toFixed(1)+'" transform="rotate(-90 40 40)"/><text x="40" y="45" text-anchor="middle">'+p+'%</text></svg>'}
+function cvGreeting(){var h=new Date().getHours();return h<5?'Hello':h<12?'Good morning':h<18?'Good afternoon':'Good evening'}
+function cvTaskCard(c,t){
+  var isForm=t.kind==='form'&&t.form,def=isForm?formDef(t.form):null,r=isForm?getResp(c.id,t.form):null,p=isForm?progress(def,r):0;
+  var started=isForm&&r.status==='In progress';
+  var ico=isForm?'form':'file';
+  var cta=isForm?'<button class="btn pri" data-a="openform" data-id="'+t.form+'">'+(started?'Continue':'Start')+'</button>':'<button class="btn pri" data-a="cvscroll" data-id="cv-docs">Upload a file</button><button class="btn" data-a="cvscroll" data-id="cv-msg">Message us</button>';
+  var late=t.due&&daysUntil(t.due)<0;
+  return '<div class="cv-task"><div class="cv-ico">'+cvIcon(ico)+'</div><div class="cv-tb"><div class="cv-tt"><b>'+esc(t.title)+'</b>'+(t.due?'<span class="chip '+dueCls(t)+'">'+(late?'Overdue · ':'Due ')+esc(fmtDate(t.due).replace(/, \d{4}$/,''))+'</span>':'')+'</div>'+
+   (t.detail?'<p>'+esc(t.detail)+'</p>':'')+
+   (isForm&&r.status!=='Not started'?'<div class="cv-prog"><div class="bar"><i style="width:'+p+'%"></i></div><span class="small">'+p+'% of required answers</span></div>':'')+
+   '<div class="cv-cta">'+cta+'</div></div></div>';
+}
 function candidateView(c){
-  var ts=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft});
+  var ts=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft&&t.req!==false||(t.owner==='Candidate'&&!t.draft&&t.status!=='Not started')});
   var h=S.locked?'':'<div class="candbar"><span class="chip gate">Candidate view (preview)</span> <button class="btn sm" data-a="asAdv">Back to admin view</button></div>';
   if(S.openForm){return h+formEditor(c,S.form)}
-  var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});
-  var later=ts.filter(function(t){return t.status==='Not started'}),done=ts.filter(function(t){return isDone(t.status)});
-  h+='<div class="panel"><h2>Welcome, '+esc((c.name||'').split(' ')[0])+'</h2><p>Phase '+((c.stage||0)+1)+' of '+STAGES.length+': <b>'+esc(STAGES[c.stage||0].n)+'</b>. '+esc(STAGES[c.stage||0].d)+'.</p>'+bar(caseProgress(c))+'<p class="small">Your advisor moves your case forward after reviewing what you send.</p></div>';
+  var st=c.stage||0,first=(c.name||'').split(' ')[0];
+  var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
+  var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
+  var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)}).sort(function(a,b){return (b.doneAt||'')<(a.doneAt||'')?-1:1});
+  var pct=caseProgress(c),sel=S.cvp!==undefined?S.cvp:st,ph=CV_STAGES[st];
+  /* hero */
+  h+='<section class="cv-hero"><div class="cv-hl"><p class="cv-eyebrow">'+esc(cvGreeting())+'</p><h2>'+esc(first)+', here is where you stand</h2><p class="cv-sub">Phase '+(st+1)+' of '+CV_STAGES.length+': <b>'+esc(ph.n)+'</b>. '+esc(ph.d)+'</p>'+
+   '<div class="cv-meta">'+(c.visa?'<span>'+esc(c.visa)+(c.visaExpiry?' valid to '+esc(fmtDate(c.visaExpiry)):'')+'</span>':'')+(c.goal?'<span>Goal: '+esc(c.goal)+'</span>':'')+'</div></div><div class="cv-hr">'+cvRing(pct)+'<span>overall progress</span></div></section>';
+  /* next step */
+  if(now.length){var n0=now[0];h+='<section class="cv-next"><div><p class="cv-eyebrow">Your next step</p><h3>'+esc(n0.title)+'</h3><p class="small">'+(n0.due?'Due '+esc(fmtDate(n0.due).replace(/, \d{4}$/,''))+'. ':'')+(now.length>1?(now.length-1)+' more after this one.':'This is the only thing we need from you right now.')+'</p></div>'+(n0.kind==='form'&&n0.form?'<button class="btn pri big" data-a="openform" data-id="'+n0.form+'">'+(getResp(c.id,n0.form).status==='In progress'?'Continue':'Start')+'</button>':'<button class="btn pri big" data-a="cvscroll" data-id="cv-todo">See what to do</button>')+'</section>'}
+  else h+='<section class="cv-next calm"><div><p class="cv-eyebrow">Your next step</p><h3>Nothing needed from you right now</h3><p class="small">Our team is working on your case. We will list your next task here and in your messages as soon as it is ready.</p></div><span class="cv-ico ok">'+cvIcon('check')+'</span></section>';
+  /* lifecycle */
+  h+='<section class="panel cv-life"><div class="ph"><h3>Your journey</h3><span class="small">Tap a phase to see what happens in it</span></div><ol class="cv-rail">'+CV_STAGES.map(function(s,i){
+    var cls=i<st?'done':i===st?'now':'next';return '<li class="'+cls+(i===sel?' sel':'')+'"><button data-a="cvphase" data-id="'+i+'" aria-label="Phase '+(i+1)+': '+esc(s.n)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span></button></li>'}).join('')+'</ol>';
+  var mine=ts.filter(function(t){return t.stage===sel}).sort(by),sc=sel<st?'Complete':sel===st?'You are here':'Coming up';
+  h+='<div class="cv-phase"><div class="cv-ph"><b>'+(sel+1)+'. '+esc(CV_STAGES[sel].n)+'</b>'+chip(sc,sel<st?'ok':sel===st?'gate':'')+'</div><p>'+esc(CV_STAGES[sel].d)+'</p>'+
+   (mine.length?'<ul class="cv-list">'+mine.map(function(t){var d2=isDone(t.status);return '<li class="'+(d2?'d':t.status==='Not started'?'l':'')+'"><span>'+(d2?cvIcon('check'):t.status==='Not started'?cvIcon('lock'):'')+'</span>'+esc(t.title)+'</li>'}).join('')+'</ul>':'<p class="small">Nothing is needed from you in this phase. Our team handles it.</p>')+'</div></section>';
+  /* to do */
+  h+='<section class="panel" id="cv-todo"><div class="ph"><h3>Your to-do</h3>'+(now.length?chip(now.length+' open','gate'):chip('All caught up','ok'))+'</div>';
+  if(!now.length)h+='<p class="empty">You are all caught up. Thank you.</p>';
+  now.forEach(function(t){h+=cvTaskCard(c,t)});
+  if(later.length)h+='<details class="cv-more"><summary>Coming up ('+later.length+')</summary><ul class="cv-list">'+later.slice(0,12).map(function(t){return '<li class="l"><span>'+cvIcon('lock')+'</span>'+esc(t.title)+'</li>'}).join('')+'</ul><p class="small">These open automatically as earlier steps finish.</p></details>';
+  if(done.length)h+='<details class="cv-more"><summary>Completed ('+done.length+')</summary><ul class="cv-list">'+done.map(function(t){var rs=t.kind==='form'&&t.form?getResp(c.id,t.form).status:'';return '<li class="d"><span>'+cvIcon('check')+'</span>'+esc(t.title)+(rs==='Submitted'?' <span class="chip mid">Under review</span>':rs==='Reviewed'?' <span class="chip ok">Reviewed</span>':'')+'</li>'}).join('')+'</ul></details>';
+  h+='</section>';
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
-  if(fz&&fz.outlook)h+='<div class="panel">'+feasCard(fz,false)+'</div>';
-  h+='<div class="panel"><h3>Your to-do</h3>';
-  if(!now.length)h+='<p class="empty">Nothing for you right now. Your advisor is working on the next step.</p>';
-  now.forEach(function(t){
-    h+='<div class="task"><span class="chk dis"></span><div class="tt"><b>'+esc(t.title)+'</b><small>'+esc(t.detail||'')+'</small></div><span class="chip '+dueCls(t)+'">'+esc(dueTxt(t))+'</span>'+
-     (t.kind==='form'?'<button class="btn pri sm" data-a="openform" data-id="'+t.form+'">Open form</button>':'<span class="small">Send files or a message below</span>')+'</div>';
-  });
-  h+='</div>'+docsPanel(c,false)+messagesPanel(c,false);
-  h+='<div class="panel"><h3>Your journey</h3><p class="small">Nine phases from start to filing. Your advisor moves you from one phase to the next.</p>'+STAGES.map(function(s,i){var st=c.stage||0,cls=i<st?'done':i===st?'now':'',mine=ts.filter(function(t){return t.stage===i}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});return '<div style="border-top:1px solid var(--line);padding:10px 0"><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="step '+cls+(s.gate?' g':'')+'"><i>'+(i+1)+'</i>'+esc(s.n)+'</span><span class="chip">'+(i<st?'Complete':i===st?'You are here':'Upcoming')+'</span></div><p class="small">'+esc(s.d)+'</p>'+mine.map(function(t){var dn=isDone(t.status);return '<div class="task'+(dn?' done':t.status==='Not started'?' locked':'')+'"><span class="chk dis'+(dn?' on':'')+'"></span><div class="tt"><b>'+esc(t.title)+'</b></div><span class="chip">'+(dn?'Done':esc(dueTxt(t)))+'</span></div>'}).join('')+'</div>'}).join('')+'</div>';
+  if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
+  h+='<div class="cv-two"><div id="cv-docs">'+docsPanel(c,false)+'</div><div id="cv-msg">'+messagesPanel(c,false)+'</div></div>';
+  h+='<p class="cv-foot">OneA Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p>';
   return h;
 }
 
@@ -634,6 +675,8 @@ document.addEventListener('click',async function(e){
       case 'create':await createCase();return;
       case 'open':S.cid=id;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
+      case 'cvphase':S.cvp=+id;break;
+      case 'cvscroll':{var se=document.getElementById(id);if(se)se.scrollIntoView({behavior:'smooth',block:'start'});return}
       case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;try{window.scrollTo(0,0)}catch(e){}break;
       case 'view':S.view=id;break;
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
