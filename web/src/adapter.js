@@ -70,16 +70,17 @@ function makeSample(sb,cfg){
     opts=opts||{};
     var s=await sb.auth.getSession();var tok=s.data&&s.data.session&&s.data.session.access_token;
     var res;
-    try{res=await fetch(cfg.SUPABASE_URL+'/functions/v1/analysis',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'apikey':cfg.SUPABASE_ANON_KEY},body:JSON.stringify({prompt:prompt,tier:opts.modelTier||'default'}),signal:opts.signal})}
+    try{res=await fetch(cfg.SUPABASE_URL+'/functions/v1/analysis',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok,'apikey':cfg.SUPABASE_ANON_KEY},body:JSON.stringify({prompt:prompt,tier:opts.modelTier||'default',web:!!opts.web}),signal:opts.signal})}
     catch(e){var ce=new Error(e.name==='AbortError'?'Stopped':'Network error');ce.code=e.name==='AbortError'?'cancelled':'network';throw ce}
     var body={};try{body=await res.json()}catch(_){}
     if(!res.ok){var er=new Error(body.error||('Analysis function returned '+res.status));er.code=res.status===429?'rate_limited':(res.status===401||res.status===403)?'not_granted':'error';throw er}
+    run.sources=body.sources||[];
     return body.text||'';
   }
   var f=async function(prompt,opts){return {text:await run(prompt,opts)}};
   f.json=async function(prompt,opts){
     var t=await run(prompt,opts),a=t.indexOf('{'),b=t.lastIndexOf('}');
-    try{return JSON.parse(t.slice(a,b+1))}catch(_){var e=new Error('Analysis returned an unreadable answer');e.code='invalid_json';throw e}
+    try{var o=JSON.parse(t.slice(a,b+1));if(opts&&opts.web)Object.defineProperty(o,'_sources',{value:run.sources,enumerable:false});return o}catch(_){var e=new Error('Analysis returned an unreadable answer');e.code='invalid_json';throw e}
   };
   return f;
 }
