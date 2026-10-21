@@ -98,7 +98,9 @@ var FORMS=[
   fd('timeline','Target filing timeline','select',{o:GOALS,req:1}),
   fd('fallback','Open to NIW or O-1 as a fallback?','select',{o:YNU,req:1}),
   fd('hours','Hours per week you can give to tasks','select',{o:['1 to 3','4 to 6','7 to 10','10+'],req:1}),
-  fd('employer','Would your employer support a letter or an org chart?','select',{o:YNU})]},
+  fd('employer','Would your employer support a letter or an org chart?','select',{o:YNU}),
+  fd('intent','What will you keep doing in the US in this field? Employer, venture or independent work, and in which state','area',{h:'The petition must show you will continue work in your field of expertise. A plain description is enough.'}),
+  fd('usben','How will your continued work benefit the US? Customers, jobs, industries, public programs','area')]},
  {id:'career',title:'Career',fields:[
   fd('cv','CV or resume (paste the full text)','area',{req:1,tall:1,minWords:150}),
   fd('linkedin','LinkedIn URL','url',{req:1}),
