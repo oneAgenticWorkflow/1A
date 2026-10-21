@@ -1,8 +1,9 @@
 /* Sign-in and role routing. */
 (function(){
   var cfg=window.PORTAL_CONFIG||{};
+  (function(){var l=document.querySelector('link[rel=icon]');if(!l){l=document.createElement('link');l.rel='icon';document.head.appendChild(l)}l.type='image/png';l.href=BRAND_FAV})();
   var app=document.getElementById('app');
-  function shell(html){app.innerHTML='<div class="panel newcase" style="margin-top:48px"><h2 class="brandh"><span class="cv-logo">'+LOGO_SVG+'</span> Arcanam Pathway</h2>'+html+'</div>'}
+  function shell(html){app.innerHTML='<div class="panel newcase" style="margin-top:48px"><img class="brandfull" src="'+BRAND_FULL+'" alt="Arcanam Pathway">'+html+'</div>'}
   function esc2(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY||cfg.SUPABASE_URL.indexOf('YOUR-')>=0){shell('<p>This site is not configured yet. Fill in <code>config.js</code> (see the README).</p>');return}
   var sb=window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
