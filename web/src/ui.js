@@ -45,8 +45,8 @@ function render(){
 function topbar(){
   var c=cur();
   if(S.locked){var em=(S.me&&S.me.email)||'',nm=(c&&c.name)||em;var ini=nm.split(/[ @.]+/).filter(Boolean).slice(0,2).map(function(x){return x[0].toUpperCase()}).join('');
-    return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">1A</span><div><b>OneA Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
-  return '<div class="top"><div><h1>OneA Case Tracker</h1><div class="priv">Admin · '+esc((S.me&&S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
+    return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">AP</span><div><b>Arcanam Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
+  return '<div class="top"><div><h1>Arcanam Case Tracker</h1><div class="priv">Admin · '+esc((S.me&&S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
    '<div class="nav"><button class="tab'+(!c&&S.home==='cases'?' on':'')+'" data-a="home">Cases</button>'+
    '<button class="tab'+(!c&&S.home==='tasks'?' on':'')+'" data-a="alltasks">All tasks</button>'+
    '<button class="btn pri" data-a="newcase">New candidate</button><button class="btn sm ghost" data-a="signout">Sign out</button></div></div>';
@@ -608,7 +608,7 @@ function candidateView(c){
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
   h+='<div class="cv-two"><div id="cv-docs">'+docsPanel(c,false)+'</div><div id="cv-msg">'+messagesPanel(c,false)+'</div></div>';
-  h+='<p class="cv-foot">OneA Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p>';
+  h+='<p class="cv-foot">Arcanam Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p>';
   return h;
 }
 
@@ -682,7 +682,7 @@ document.addEventListener('click',async function(e){
     switch(a){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
       case 'signout':await db.signOut();return;
-      case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour OneA Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
+      case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour Arcanam Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
       case 'getfile':{var url=await db.signedUrl(el.dataset.path);window.open(url,'_blank','noopener');return}
       case 'file-del':{var fd0=S.docs.find(function(x){return x.id===id});if(fd0){await db.doc('docs/'+id).delete();if(fd0.path)await db.removeFiles([fd0.path])}break}
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
