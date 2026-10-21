@@ -203,7 +203,7 @@ code{font-family:var(--mono);font-size:12px}
 .cv-brand{display:flex;align-items:center;gap:10px}
 .cv-brand b{display:block;font-size:16px;letter-spacing:-.01em}
 .cv-brand small{color:var(--muted);font-size:12px}
-.cv-logo{display:grid;place-items:center;width:38px;height:38px;border-radius:10px;background:var(--accent);color:var(--accent-ink);font-weight:700;font-family:var(--mono);font-size:14px}
+.cv-logo{display:inline-grid;place-items:center;width:38px;height:38px;flex:none}.cv-logo svg{width:100%;height:100%;display:block}.brandh{display:flex;align-items:center;gap:12px}
 .cv-user{display:flex;align-items:center;gap:10px;min-width:0}
 .cv-av{display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--na-bg);color:var(--ink);font-weight:600;font-size:12px}
 .cv-em{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}
