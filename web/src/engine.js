@@ -1,5 +1,5 @@
 /* ---------- State and helpers ---------- */
-var S={cands:[],tasks:[],resp:[],docs:[],locked:false,me:null,log:[],role:'Advisor',home:'cases',cid:null,tab:'tasks',form:'f1',open:{},busy:null,msg:null,msgKind:'err',draft:{},confirmDel:false,newOpen:false,ready:false,dberr:null,filter:{owner:'All',status:'Open'},setup:null,errs:null,copyText:null,entry:{}};
+var S={cands:[],tasks:[],resp:[],docs:[],locked:false,me:null,log:[],role:'Advisor',home:'cases',cid:null,tab:'tasks',form:'f1',open:{},busy:null,msg:null,msgKind:'err',draft:{},confirmDel:false,newOpen:false,ready:false,dberr:null,filter:{owner:'All',status:'Open'},setup:null,errs:null,copyText:null,entry:{},staff:'admin',users:null,cred:null,usersErr:null,confirmUser:null};
 var db=null,sampleFn=null,pendingRender=false,raf=0,ctl=null,rec=false,recAgain=false;
 var WORK={},DIRTY={},WQ={},PEND={};
 
@@ -137,13 +137,23 @@ function reconcile(){
 }
 
 /* ---------- Case setup: onboarding creates the whole workflow ---------- */
+function slugName(n){var p=String(n||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').trim().split(/\s+/).filter(Boolean);return p.length>1?p[0]+'.'+p[p.length-1]:(p[0]||'')}
+function siteUrl(){return location.href.split('#')[0].split('?')[0]}
+function credText(name,username,password,role){
+  var first=String(name||'').split(' ')[0]||'there';
+  return 'Hello '+first+',\n\nYour Arcanam Pathway login is ready.\n\nAddress: '+siteUrl()+'\nUsername: '+username+'\nTemporary password: '+password+'\n\nYou will be asked to choose your own password the first time you sign in. '+(role==='candidate'?'You will only ever see your own case.':'Keep these details private.')+'\n';
+}
+async function refreshUsers(){
+  if(S.staff!=='admin'||!db||!db.users)return;
+  try{S.users=await db.users();S.usersErr=null}catch(err){S.usersErr=err.message||String(err)}
+  schedule();
+}
 async function createCase(){
   var nm=(S.draft.nn||'').trim();if(!nm){say('Enter the candidate name.','err');return}
   var ref=db.collection('candidates').doc(),start=today();
   S.setup='Setting up the workflow for '+nm+'…';S.newOpen=false;schedule();
   try{
     await ref.set({email:(S.draft.ne||'').trim().toLowerCase(),name:nm,email:S.draft.ne||'',visa:S.draft.nv||'H-1B',visaExpiry:S.draft.nx||'',goal:S.draft.ng||'12 months',stage:0,intake:{},criteria:{},redFlags:[],gates:{},foe:{},startDate:start,createdAt:nowIso()});
-    if(S.draft.ne&&db.invite)await db.invite(S.draft.ne,ref.id);
     for(var i=0;i<TEMPLATE.length;i+=8){
       await Promise.all(TEMPLATE.slice(i,i+8).map(function(t){
         return db.doc('tasks/'+ref.id+'-'+t.k).set({cid:ref.id,key:t.k,stage:t.s,title:t.t,detail:t.d||'',owner:t.o,kind:t.kind||'task',form:t.form||'',gate:t.gate||'',deps:t.deps||[],req:t.req!==false,status:(t.deps&&t.deps.length)?'Not started':'To do',due:addDays(start,t.off),source:'template',createdAt:nowIso()});
@@ -166,6 +176,8 @@ async function deleteCase(id){
   var paths=[];for(i=0;i<dRows.length;i++){if(dRows[i].path)paths.push(dRows[i].path);await db.doc('docs/'+dRows[i].id).delete()}
   if(paths.length&&db.removeFiles)await db.removeFiles(paths);
   if(db.uninvite)await db.uninvite(id);
+  var lu=((S.users&&S.users.profiles)||[]).find(function(p){return p.role==='candidate'&&p.case_id===id});
+  if(lu&&db.accounts){try{await db.accounts({action:'delete',user_id:lu.id})}catch(_){}}
   await candRef(id).delete();
 }
 
