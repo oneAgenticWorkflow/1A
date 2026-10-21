@@ -33,8 +33,9 @@ function render(){
   if(S.busy)h+='<div class="banner busy" role="status">Analysis is running: '+esc(S.busy)+'… <button class="btn sm" data-a="cancel">Stop</button></div>';
   if(S.setup)h+='<div class="banner busy" role="status">'+esc(S.setup)+'</div>';
   var c=cur();
-  if(S.locked)h+=c?candidateView(c):'<div class="panel"><h2>No case yet</h2><p>This email is not linked to a case. Ask your advisor to add it, then sign in again.</p></div>';
+  if(S.locked)h+=c?candidateView(c):'<div class="panel"><h2>No case yet</h2><p>Your login is not linked to a case. Ask your administrator.</p></div>';
   else if(S.home==='new')h+=newCaseView();
+  else if(S.home==='users'&&!c&&S.staff==='admin')h+=usersView();
   else if(S.home==='tasks'&&!c)h+=allTasksView();
   else if(c)h+=(S.role==='Candidate'?candidateView(c):caseView(c));
   else h+=casesView();
@@ -45,12 +46,67 @@ function render(){
 
 function topbar(){
   var c=cur();
-  if(S.locked){var em=(S.me&&S.me.email)||'',nm=(c&&c.name)||em;var ini=nm.split(/[ @.]+/).filter(Boolean).slice(0,2).map(function(x){return x[0].toUpperCase()}).join('');
+  if(S.locked){var em=(S.me&&(S.me.name||S.me.username||S.me.email))||'',nm=(c&&c.name)||em;var ini=nm.split(/[ @.]+/).filter(Boolean).slice(0,2).map(function(x){return x[0].toUpperCase()}).join('');
     return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">'+LOGO_SVG+'</span><div><b>Arcanam Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
-  return '<div class="top"><div><h1>Arcanam Case Tracker</h1><div class="priv">Admin · '+esc((S.me&&S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
+  var adm=S.staff==='admin';
+  return '<div class="top"><div><h1>Arcanam Case Tracker</h1><div class="priv">'+(adm?'Admin':'Supervisor')+' · '+esc(S.me&&(S.me.name||S.me.username||S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
    '<div class="nav"><button class="tab'+(!c&&S.home==='cases'?' on':'')+'" data-a="home">Cases</button>'+
    '<button class="tab'+(!c&&S.home==='tasks'?' on':'')+'" data-a="alltasks">All tasks</button>'+
-   '<button class="btn pri" data-a="newcase">New candidate</button><button class="btn sm ghost" data-a="signout">Sign out</button></div></div>';
+   (adm?'<button class="tab'+(!c&&S.home==='users'?' on':'')+'" data-a="usr-open">People</button><button class="btn pri" data-a="newcase">New candidate</button>':'')+'<button class="btn sm ghost" data-a="signout">Sign out</button></div></div>';
+}
+
+
+/* ----- logins (admins only) ----- */
+function credPanel(){
+  if(!S.cred)return '';
+  var x=S.cred;
+  return '<div class="panel cred"><div class="ph"><h3>Login created for '+esc(x.name||x.username)+'</h3><button class="link" data-a="cred-close">Close</button></div>'+
+   '<div class="banner ok">The password is shown only now. Copy the message below and send it. Use Reset password later if it is lost.</div>'+
+   '<p><b>Username:</b> <code>'+esc(x.username)+'</code> &nbsp; <b>Temporary password:</b> <code>'+esc(x.password)+'</code></p>'+
+   '<textarea class="tall" readonly>'+esc(credText(x.name,x.username,x.password,x.role))+'</textarea></div>';
+}
+function loginPanel(c){
+  if(S.staff!=='admin')return '';
+  var h=credPanel();
+  var lu=((S.users&&S.users.profiles)||[]).find(function(p){return p.role==='candidate'&&p.case_id===c.id});
+  h+='<div class="panel"><div class="ph"><h3>Candidate login</h3></div>';
+  if(S.usersErr)return h+'<p class="small">Could not load logins: '+esc(S.usersErr)+'</p></div>';
+  if(!S.users)return h+'<p class="small">Loading…</p></div>';
+  if(lu){
+    h+='<p>Username: <b>'+esc(lu.username||lu.email)+'</b>'+(lu.must_change?' · <span class="chip mid">has not chosen a password yet</span>':' · <span class="chip ok">active</span>')+'</p><div class="addrow">'+
+      (S.confirmUser==='r:'+lu.id?'<button class="btn sm danger" data-a="usr-reset-yes" data-id="'+esc(lu.id)+'">Yes, issue a new password</button><button class="btn sm" data-a="usr-cancel">Cancel</button>':'<button class="btn sm" data-a="usr-reset" data-id="'+esc(lu.id)+'">Reset password</button>')+'</div>';
+  }else{
+    var sug=S.draft.cl_user!==undefined?S.draft.cl_user:slugName(c.name);
+    h+='<p class="small">This candidate has no login yet. Choose a username and create it; you will get a temporary password to share.</p><div class="two"><div><label class="f" for="cl_user">Username</label><input id="cl_user" type="text" data-draft="cl_user" value="'+esc(sug)+'" autocomplete="off"></div></div>'+
+      '<div class="addrow"><button class="btn pri sm" data-a="usr-create-cand" data-id="'+esc(c.id)+'">Create login</button></div>';
+  }
+  return h+'</div>';
+}
+function usersView(){
+  var h=credPanel();
+  if(S.usersErr)return h+'<div class="panel"><p>Could not load people: '+esc(S.usersErr)+'</p></div>';
+  if(!S.users)return h+'<p class="small">Loading…</p>';
+  var P=S.users.profiles.slice().sort(function(a,b){return (a.role+(a.display_name||a.username||''))<(b.role+(b.display_name||b.username||''))?-1:1});
+  var role=S.draft.ur||'supervisor';
+  h+='<div class="panel"><h3>Add a person</h3><p class="small">You create every login. Each person gets a username and a temporary password and chooses their own at first sign-in. Candidate logins are normally created from the candidate\'s case page.</p>'+
+   '<div class="two"><div><label class="f" for="ur">Role</label><select id="ur" data-draft="ur">'+[['supervisor','Supervisor (assigned cases)'],['admin','Admin (full control)'],['candidate','Candidate (one case)']].map(function(r){return '<option value="'+r[0]+'"'+(r[0]===role?' selected':'')+'>'+r[1]+'</option>'}).join('')+'</select></div>'+
+   '<div><label class="f" for="un">Full name</label><input id="un" type="text" data-draft="un" value="'+esc(S.draft.un||'')+'"></div></div>'+
+   '<div class="two"><div><label class="f" for="uu">Username</label><input id="uu" type="text" data-draft="uu" value="'+esc(S.draft.uu!==undefined?S.draft.uu:slugName(S.draft.un))+'" autocomplete="off"></div>'+
+   '<div><label class="f" for="ue">Contact email (optional, for your records)</label><input id="ue" type="text" data-draft="ue" value="'+esc(S.draft.ue||'')+'"></div></div>'+
+   (role==='candidate'?'<label class="f" for="uc">Case</label><select id="uc" data-draft="uc"><option value="">Choose a case</option>'+S.cands.filter(function(c){return !P.some(function(p){return p.role==='candidate'&&p.case_id===c.id})}).map(function(c){return '<option value="'+esc(c.id)+'"'+(S.draft.uc===c.id?' selected':'')+'>'+esc(c.name)+'</option>'}).join('')+'</select>':'')+
+   '<div class="addrow"><button class="btn pri" data-a="usr-create">Create login</button></div></div>';
+  h+='<div class="panel"><h3>People</h3><div class="tablewrap"><table class="tbl"><thead><tr><th>Name</th><th>Sign-in</th><th>Role</th><th>Cases</th><th></th></tr></thead><tbody>';
+  P.forEach(function(p){
+    var asg=S.users.assign.filter(function(a){return a.user_id===p.id}).map(function(a){return a.case_id});
+    var cs=p.role==='candidate'?((S.cands.find(function(c){return c.id===p.case_id})||{}).name||'(case removed)'):p.role==='admin'?'All':(asg.length?asg.map(function(id){return (S.cands.find(function(c){return c.id===id})||{}).name||id}).join(', '):'None assigned');
+    h+='<tr><td>'+esc(p.display_name||'')+'</td><td>'+esc(p.username||p.email||'')+(p.must_change?' <span class="chip mid">new</span>':'')+'</td><td>'+esc(p.role)+'</td><td>'+esc(cs)+'</td><td class="rowact">'+
+      (S.confirmUser==='r:'+p.id?'<button class="btn sm danger" data-a="usr-reset-yes" data-id="'+esc(p.id)+'">Yes, new password</button><button class="btn sm" data-a="usr-cancel">Cancel</button>':'<button class="btn sm" data-a="usr-reset" data-id="'+esc(p.id)+'">Reset password</button>')+
+      (S.confirmUser==='d:'+p.id?'<button class="btn sm danger" data-a="usr-del-yes" data-id="'+esc(p.id)+'">Yes, remove</button><button class="btn sm" data-a="usr-cancel">Keep</button>':'<button class="btn sm danger" data-a="usr-del" data-id="'+esc(p.id)+'">Remove</button>')+'</td></tr>';
+    if(p.role==='supervisor'){
+      h+='<tr><td colspan="5"><div class="small">Assigned cases for '+esc(p.display_name||p.username)+':</div><div class="chips">'+(S.cands.length?S.cands.map(function(c){var on=asg.indexOf(c.id)>=0;return '<button class="btn sm'+(on?' pri':'')+'" data-a="asg-toggle" data-id="'+esc(p.id+'|'+c.id)+'" aria-pressed="'+on+'">'+esc(c.name)+'</button>'}).join(''):'<span class="small">No cases yet.</span>')+'</div></td></tr>';
+    }
+  });
+  return h+'</tbody></table></div></div>';
 }
 
 /* ----- cases list ----- */
@@ -105,8 +161,9 @@ function allTasksView(){
 /* ----- case view ----- */
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
-  var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
-   '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="invite">Copy invite message</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.confirmReset?'<button class="btn sm danger" data-a="reset-yes">Yes, reset access</button><button class="btn sm" data-a="reset-no">Cancel</button>':'<button class="btn sm" data-a="reset">Reset access</button>')+(S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
+  var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
+   '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
+  h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   h+='<div class="steps">'+STAGES.map(function(s,i){return '<div class="step'+(i<st?' done':i===st?' now':'')+(s.gate?' g':'')+'" title="'+esc(s.d)+'"><i>'+(i+1)+'</i>'+esc(s.n)+'</div>'}).join('')+'</div>'+bar(caseProgress(c));
   var blockers=ts.filter(function(t){return t.stage===st&&t.req!==false&&!isDone(t.status)});
@@ -526,7 +583,7 @@ function scoreTab(c){
 }
 function activityTab(c){
   var l=S.log.filter(function(x){return x.cid===c.id}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
-  return messagesPanel(c,true)+costPanel(c)+'<div class="panel"><h3>Activity</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
+  return messagesPanel(c,true)+(S.staff==='admin'?costPanel(c):'')+'<div class="panel"><h3>Activity</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
 }
 
 /* ----- documents, messages ----- */
@@ -680,8 +737,37 @@ document.addEventListener('click',async function(e){
   var el=e.target.closest&&e.target.closest('[data-a]');if(!el)return;
   var a=el.dataset.a,id=el.dataset.id,c=cur();
   try{
+    if(S.staff==='supervisor'&&['feas-release','plan-approve','att-ok','delete-yes','newcase','create'].indexOf(a)>=0){say('An admin has to do this step.','err');return}
     switch(a){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
+      case 'usr-open':S.cid=null;S.home='users';S.confirmUser=null;refreshUsers();break;
+      case 'cred-close':S.cred=null;break;
+      case 'usr-cancel':S.confirmUser=null;break;
+      case 'usr-create':case 'usr-create-cand':{
+        if(S.staff!=='admin')return;
+        var cc=a==='usr-create-cand',ro=cc?'candidate':(S.draft.ur||'supervisor'),nm=cc?(c?c.name:''):(S.draft.un||''),
+            un=((cc?S.draft.cl_user:S.draft.uu)!==undefined?(cc?S.draft.cl_user:S.draft.uu):slugName(nm)).trim().toLowerCase(),cid=cc?id:(S.draft.uc||'');
+        if(!un){say('Choose a username.','err');return}
+        if(!cc&&!nm.trim()){say('Enter the person\'s name.','err');return}
+        if(ro==='candidate'&&!cid){say('Choose the case for this candidate.','err');return}
+        var rs=await db.accounts({action:'create',role:ro,username:un,name:nm,email:cc?(c.email||''):(S.draft.ue||''),case_id:cid});
+        S.cred={username:rs.username,password:rs.password,name:nm,role:ro};
+        S.draft.un=S.draft.uu=S.draft.ue=S.draft.cl_user=undefined;
+        if(cid)await log(cid,'Candidate login created: '+rs.username+'.','case');
+        await refreshUsers();break}
+      case 'usr-reset':S.confirmUser='r:'+id;break;
+      case 'usr-reset-yes':{if(S.staff!=='admin')return;S.confirmUser=null;var rr=await db.accounts({action:'reset',user_id:id});
+        var pp=(S.users&&S.users.profiles||[]).find(function(p){return p.id===id})||{};
+        S.cred={username:rr.username,password:rr.password,name:pp.display_name||rr.username,role:rr.role};
+        if(pp.case_id)await log(pp.case_id,'Candidate password reset.','case');
+        await refreshUsers();break}
+      case 'usr-del':S.confirmUser='d:'+id;break;
+      case 'usr-del-yes':{if(S.staff!=='admin')return;S.confirmUser=null;await db.accounts({action:'delete',user_id:id});await refreshUsers();say('Login removed.','ok');break}
+      case 'asg-toggle':{if(S.staff!=='admin')return;var ap=id.split('|'),au=ap[0],ac=ap[1];
+        var cur2=S.users.assign.filter(function(x){return x.user_id===au}).map(function(x){return x.case_id});
+        var nxt=cur2.indexOf(ac)>=0?cur2.filter(function(x){return x!==ac}):cur2.concat([ac]);
+        await db.setAssign(au,nxt);await refreshUsers();break}
+
       case 'signout':await db.signOut();return;
       case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour Arcanam Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
       case 'getfile':{var url=await db.signedUrl(el.dataset.path);window.open(url,'_blank','noopener');return}
@@ -807,7 +893,7 @@ document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' '
 
 /* ---------- Start (called by main.js after sign-in) ---------- */
 function startApp(opts){
-  db=opts.db;sampleFn=opts.sample;S.locked=!!opts.locked;S.me=opts.me;if(S.locked){S.role='Candidate';S.cid=opts.caseId}
+  db=opts.db;sampleFn=opts.sample;S.locked=!!opts.locked;S.me=opts.me;S.staff=opts.staff||'admin';if(S.locked){S.role='Candidate';S.cid=opts.caseId}
   var loaded={};
   function sub(coll,key){
     db.collection(coll).onSnapshot(function(snap){
@@ -820,5 +906,6 @@ function startApp(opts){
   }
   sub('candidates','cands');sub('tasks','tasks');sub('responses','resp');sub('log','log');sub('docs','docs');
   render();
+  if(S.staff==='admin'&&!S.locked)refreshUsers();
   if(window.__db)window.__t={S:S,runAi:runAi,taskByKey:taskByKey,aiReady:aiReady,cur:cur,STAGES:STAGES,FORMS:FORMS};
 }
