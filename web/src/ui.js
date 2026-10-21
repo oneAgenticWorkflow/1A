@@ -475,7 +475,7 @@ function costPanel(c){
   r.forEach(function(x){tot+=x.usd||0;inp+=x.input||0;out+=x.output||0;se+=x.searches||0;by[x.label]=(by[x.label]||0)+(x.usd||0)});
   var h='<div class="panel"><div class="ph"><h3>AI cost for this case (admins only)</h3><div class="chips">'+chip('$'+tot.toFixed(2)+' total','ok')+chip(r.length+' runs')+'</div></div>';
   if(!r.length)return h+'<p class="empty">No analysis has run for this case yet.</p></div>';
-  h+='<p class="small">Estimated from token counts at published per-million-token rates plus $0.01 per web search. Check the Anthropic console for the billed amount. Never shown to candidates.</p>';
+  h+='<p class="small">A full case has 8 analysis steps, and a re-run costs again. Alerts show when one run passes $'+RUN_WARN.toFixed(2)+' or the case passes $'+CASE_WARN+'. Estimated from token counts at published per-million-token rates plus $0.01 per web search. Check the Anthropic console for the billed amount. Never shown to candidates.</p>';
   h+='<div class="chips">'+Object.keys(by).map(function(k){return chip(k+': $'+by[k].toFixed(3))}).join('')+'</div>';
   h+='<p class="small">'+inp.toLocaleString()+' input tokens, '+out.toLocaleString()+' output tokens, '+se+' web searches.</p>';
   h+='<div class="log">'+r.slice().reverse().map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.label)+' · '+esc(String(x.model||'').replace('claude-',''))+' · '+(x.input||0).toLocaleString()+' in / '+(x.output||0).toLocaleString()+' out'+(x.searches?' / '+x.searches+' searches':'')+' · <b>$'+(x.usd||0).toFixed(3)+'</b></span></div>'}).join('')+'</div></div>';
@@ -697,7 +697,7 @@ document.addEventListener('click',async function(e){
       case 'task-del':await db.doc('tasks/'+id).delete();break;
       case 'draft-ok':await db.doc('tasks/'+id).update({draft:false});await log(c.id,'You approved a drafted task for the candidate.','task',id);break;
       case 'note':{var txt=(S.draft['nt'+id]||'').trim();if(txt){await db.collection('log').add({cid:c.id,tid:id,ts:nowIso(),text:txt,kind:'note',by:'Admin',shared:!!S.draft['ns'+id]});S.draft['nt'+id]='';S.draft['ns'+id]=false}break}
-      case 'runai':{var tr=S.tasks.find(function(x){return x.id===id});if(tr&&!S.busy)Promise.resolve(runAi(tr)).then(function(){var d=RESULT[tr.key];if(d&&S.msgKind==='ok'&&!S.busy){var ft=d.k&&taskByKey(tr.cid,d.k);S.msg=tr.title+' finished. See the result in: '+d.l+'.';S.msgGo=ft?{a:'gotask',id:ft.id,l:d.l}:{a:'tab',id:d.t,l:d.l};schedule()}});return}
+      case 'runai':{var tr=S.tasks.find(function(x){return x.id===id});if(tr&&!S.busy)Promise.resolve(runAi(tr)).then(function(){var d=RESULT[tr.key];if(d&&S.msgKind==='ok'&&!S.busy){var ft=d.k&&taskByKey(tr.cid,d.k);S.msg=tr.title+' finished. See the result in: '+d.l+'.'+(S.costNote||'');S.msgGo=ft?{a:'gotask',id:ft.id,l:d.l}:{a:'tab',id:d.t,l:d.l};schedule()}});return}
       case 'openform':S.form=id;S.openForm=true;S.errs=null;S.tab='forms';break;
       case 'closeform':S.openForm=false;S.errs=null;if(S.role==='Advisor')S.tab='forms';break;
       case 'entry-add':{var p1=parsePath(el.dataset.fp);var def1=formDef(p1[0]);var part1=def1.parts.find(function(x){return x.id===p1[1]});var r1=workResp(c.id,p1[0]);var ar=r1.data[part1.id]=r1.data[part1.id]||[];while(ar.length<part1.repeat.min)ar.push({});if(ar.length<part1.repeat.max)ar.push({});touch(p1[0]);await saveResp(c.id,p1[0]);break}
