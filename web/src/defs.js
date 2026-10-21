@@ -45,14 +45,14 @@ var TEMPLATE=[
  {k:'foe-mkt-ok',s:3,t:'Check the market figures and sources',o:'Advisor',deps:['foe-mkt'],off:53,d:'Open each source, confirm the figure and year, and edit the table in the Field tab. Every later step uses this table.'},
  {k:'strategy',s:4,t:'Suggest target criteria and options for each',o:'Analysis',kind:'ai',deps:['foe','foe-mkt-ok'],off:54,d:'Using the locked field of endeavor, calls Invest, Maintain or Skip for each criterion and lists options: actions, documents to request, article topics, venue types, judging routes and letter ideas.'},
  {k:'targets',s:4,t:'Choose the target criteria',o:'Advisor',deps:['strategy'],off:55,d:'Open the Scorecard tab. Every criterion is evaluated with Invest, Maintain or Skip and a reason. Tick every criterion worth building evidence for (no fixed number), then confirm. Unticked criteria have their evidence tasks skipped.'},
- {k:'f10',s:4,t:'Complete Form 10: Your article ideas',o:'Candidate',kind:'form',form:'f10',deps:['foe'],off:54,d:'Optional: your own article ideas, to compare with ours.'},
- {k:'r10',s:4,t:'Review Form 10',o:'Advisor',kind:'review',form:'f10',deps:['f10'],off:57},
- {k:'recs',s:4,t:'Recommend articles, memberships and judging',o:'Analysis',kind:'ai',deps:['targets','r10'],off:58,d:'Five article ideas with abstracts and possible journals, memberships to pursue, and how many and what kind of judging roles. Names are unverified until you check them.'},
- {k:'plan',s:4,t:'Edit and approve the recommendations',o:'Advisor',kind:'gate',gate:'plan',deps:['recs'],off:60,d:'Compare with the candidate\'s own ideas, then add, edit or remove any suggestion in the Plan tab. Approving turns the list into tasks, held back until you have reviewed the plan with the candidate.'},
- {k:'review-cand',s:4,t:'Review the plan with the candidate',o:'Advisor',deps:['plan'],off:63,d:'Walk the candidate through the plan. When you are done, release the tasks to them.'},
+ {k:'f10',s:4,t:'Complete Form 10: Your article ideas',o:'Candidate',kind:'form',form:'f10',deps:['targets'],off:60,d:'Optional: 3 to 6 article ideas in your own words, grouped by category, with example ideas for your field. We add ours and pick the best four together.'},
+ {k:'r10',s:4,t:'Review Form 10',o:'Advisor',kind:'review',form:'f10',deps:['f10'],off:63},
+ {k:'recs',s:4,t:'Recommend articles, memberships and judging',o:'Analysis',kind:'ai',deps:['targets','r10'],off:65,d:'Eight article ideas across categories, each with an abstract, venue tier and possible journals; memberships to pursue, and how many and what kind of judging roles. Names are unverified until you check them.'},
+ {k:'plan',s:4,t:'Edit and approve the recommendations',o:'Advisor',kind:'gate',gate:'plan',deps:['recs'],off:67,d:'Compare with the candidate\'s own ideas, shortlist the best four articles, then add, edit or remove any suggestion in the Plan tab. Approving turns the shortlist into tasks, held back until you have reviewed the plan with the candidate.'},
+ {k:'review-cand',s:4,t:'Review the plan with the candidate',o:'Advisor',deps:['plan'],off:70,d:'Walk the candidate through the plan. When you are done, release the tasks to them.'},
  {k:'feas-draft',s:4,t:'Draft the feasibility summary for the candidate',o:'Analysis',kind:'ai',deps:['targets'],off:57,d:'Writes the plain-language outlook the candidate will see. You edit it before anything is released.'},
- {k:'feas',s:4,t:'Review and release the feasibility summary',o:'Advisor',kind:'gate',gate:'feas',deps:['feas-draft','review-cand'],off:65,d:'Nothing reaches the candidate until you release it from the Feasibility tab.'},
- {k:'venues',s:4,t:'Verify journals for the approved articles',o:'Advisor',deps:['plan'],off:66,d:'Check scope, indexing, review quality, fees and predatory status for each journal on the approved articles.'},
+ {k:'feas',s:4,t:'Review and release the feasibility summary',o:'Advisor',kind:'gate',gate:'feas',deps:['feas-draft','review-cand'],off:72,d:'Nothing reaches the candidate until you release it from the Feasibility tab.'},
+ {k:'venues',s:4,t:'Verify journals for the approved articles',o:'Advisor',deps:['plan'],off:72,d:'Check scope, indexing, review quality, fees and predatory status for each journal on the approved articles.'},
  {k:'judging-proof',s:5,t:'Collect proof of every completed review',o:'Candidate',deps:['plan'],off:105,d:'For every completed role keep four things: the invitation and your acceptance; proof you finished (review receipt, thank-you email, certificate or program listing); a short signed letter from the editor, chair or organizer saying what you judged; and one line on the venue (ranking, acceptance rate, audience). Aim for 5 to 8 completed roles over 6 to 9 months, from at least two types (paper review, award or competition judging, other expert evaluation), spread over more than a year. An invitation alone is not proof.'},
  {k:'f11',s:5,t:'Complete Form 11: Senior membership facts sheet',o:'Candidate',kind:'form',form:'f11',deps:['plan'],off:100,req:false,d:'Every job and client engagement with exact dates, your best results with their source, certifications and recognition, and the senior members who could act as references. We draft the application answers from this sheet.'},
  {k:'r11',s:5,t:'Review Form 11 and check the answers agree',o:'Advisor',kind:'review',form:'f11',deps:['f11'],off:104,req:false,d:'Titles, dates and figures must be identical wherever they appear. Fix overlaps and gaps in the date line. Confirm each client allows its name and figures to be used. Then draft the application answers for the candidate to review.'},
@@ -86,6 +86,7 @@ var YNU=['Yes','No','Unsure'];
 var LEVEL=['Company','Local','Regional','National','International'];
 var PROOFSTAT=['Documented','Can obtain','Estimate only'];
 function fd(k,l,t,x){var o={k:k,l:l,t:t||'text'};if(x)for(var i in x)o[i]=x[i];return o}
+var ART_CATS=['Core concepts explained','Research and innovations','Case studies and lessons','Industry applications','Your field and society','Methods, benchmarks and frameworks','People and systems working together'];
 var METRIC_COLS=[{k:'metric',l:'Metric',t:'text'},{k:'before',l:'Before',t:'text'},{k:'after',l:'After',t:'text'},{k:'period',l:'Period',t:'text'},{k:'source',l:'How measured, or source',t:'text'},{k:'proof',l:'Proof',t:'select',o:PROOFSTAT}];
 var MEDIA_NAMED=['Named in the title or first paragraph','Named later in the body','Not named; company only'];
 
@@ -285,10 +286,11 @@ var FORMS=[
   fd('ieee','IEEE member number','text'),
   fd('refs','Names of up to three Senior or higher IEEE members who could act as references','area')]}
 ]},
-{id:'f10',n:'Form 10: Your article ideas',who:'Candidate',intro:'Now that your field of endeavor is set, tell us about any articles you would like to write or have already started. We are also preparing our own suggestions, and we will compare both lists together. Leave this blank if you have no ideas yet.',parts:[
+{id:'f10',n:'Form 10: Your article ideas',who:'Candidate',intro:'Write 3 to 6 ideas for articles about the knowledge you have gained in your field. They do not have to be about your own work, and they should stay general: please do not name your employer, clients, internal systems or figures, since some employers need permission for that. Use at most two ideas per category, and skip categories that do not fit your field. Add a title and 100 to 200 words on what the article would cover. We add our own ideas, pick the best four together, and work on them two at a time: we prepare outlines and edit, you supply the substance, check every statement and approve the final text before anything is submitted. You are the named author. Leave this blank if you have no ideas yet.',parts:[
  {id:'ideas',title:'Your article ideas',repeat:{label:'Idea',title:'title',min:1,max:8},fields:[
+  fd('cat','Category','select',{o:ART_CATS}),
   fd('title','Working title','text'),
-  fd('summary','What the article would cover: the problem, what you built or found, and the results','area',{tall:1}),
+  fd('summary','What the article would cover, in 100 to 200 words: the problem, the approach or insight, and why it matters to people in your field','area',{tall:1}),
   fd('state','Where is it now?','select',{o:['Just an idea','Outline or notes','Draft written','Submitted','Published']}),
   fd('venues','Journals or publications you have in mind (optional)','text'),
   fd('conf','Anything your employer would need to approve or keep confidential?','text')]}
