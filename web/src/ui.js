@@ -113,13 +113,14 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['score','Scorecard'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='score')h+=scoreTab(c);
+  else if(S.tab==='field')h+=fieldTab(c);
   else if(S.tab==='plan')h+=planTab(c);
   else if(S.tab==='feas')h+=feasTab(c);
   else h+=activityTab(c);
@@ -146,6 +147,22 @@ function profileTab(c){
   if(!p)return h+'<p class="empty">Not run yet. It runs after Form 1 is reviewed.</p></div>';
   h+=profileSummary(c)+decisionUi(c);
   return h+'<p class="small">Run '+esc(fmt(p.ranAt))+'. A screening aid, not legal advice.</p></div>';
+}
+/* ----- field (FOE and market) tab ----- */
+function mw(c){return S.mktWork||c.market||null}
+function mwEdit(c){if(!S.mktWork&&c.market)S.mktWork=JSON.parse(JSON.stringify(c.market));return S.mktWork}
+function fieldTab(c){
+  var m=mw(c),foe=(c.foe&&c.foe.locked)||'';
+  var h='<div class="panel"><div class="ph"><h3>Field of endeavor and market evidence</h3><div class="chips">'+(m?chip(m.checked?'Checked':'Draft, not checked',m.checked?'ok':'gate'):chip('Not run','gate'))+'</div></div>';
+  h+='<div class="row"><div class="nm">Working field</div><div><p>'+esc((c.foe&&c.foe.working)||'Not set')+'</p></div></div><div class="row"><div class="nm">Final field</div><div><p>'+esc(foe||'Not locked yet')+'</p></div></div>';
+  if(!m)return h+'<p class="empty">The table is drafted after the field is locked (step: Research the market and evidence for the field).</p></div>';
+  h+='<p class="small">Figures and links come from a web search run when the table was drafted. Open each link, confirm the number and the year, and fix anything that does not match. Links the search did not return were dropped.</p>';
+  (m.rows||[]).forEach(function(r,i){
+    h+='<div class="opt"><label class="f">FOE</label><textarea data-mk="'+i+'|foe">'+esc(r.foe)+'</textarea><label class="f">Market size and growth</label><textarea class="tall" data-mk="'+i+'|market">'+esc(r.market)+'</textarea><label class="f">Why it matters to the US</label><textarea class="tall" data-mk="'+i+'|importance">'+esc(r.importance||r.evidence)+'</textarea><label class="f">Maps to the Critical and Emerging Technologies list</label><textarea data-mk="'+i+'|cet">'+esc(r.cet)+'</textarea><label class="f">Where the candidate fits</label><textarea data-mk="'+i+'|fit">'+esc(r.fit)+'</textarea><label class="f">Not found or not confirmed (chase these)</label><textarea data-mk="'+i+'|gaps">'+esc(r.gaps)+'</textarea><label class="f">Source links (one per line)</label><textarea data-mk="'+i+'|urls">'+esc((r.urls||[]).join('\n'))+'</textarea>'+(r.urls&&r.urls.length?'<p class="small">Open: '+r.urls.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(u.replace(/^https?:\/\/(www\.)?/,'').slice(0,60))+'</a>'}).join(' · ')+'</p>':'')+(r.dropped?'<p class="small">'+r.dropped+' link(s) removed because the search did not return them.</p>':'')+'<button class="btn sm danger" data-a="mk-del" data-id="'+i+'">Remove row</button></div>';
+  });
+  h+='<div class="addrow"><button class="btn sm" data-a="mk-add">Add a row</button><button class="btn pri sm" data-a="mk-save">Save changes</button><button class="btn sm" data-a="mk-ok">'+(m.checked?'Mark as not checked':'Mark as checked')+'</button><button class="btn sm" data-a="mk-copy">Copy table</button></div>';
+  if(m.pages&&m.pages.length)h+='<h4>Pages the search returned</h4><ul>'+m.pages.map(function(p){return '<li><a href="'+esc(p.url)+'" target="_blank" rel="noopener noreferrer">'+esc(p.title||p.url)+'</a></li>'}).join('')+'</ul>';
+  return h+'</div>';
 }
 /* ----- plan tab ----- */
 function pw(c){return S.planWork||c.plan||null}
@@ -278,6 +295,7 @@ function taskDetail(c,t){
     if(t.kind==='review'&&!locked){var r=getResp(c.id,t.form);h+='<p class="small">Form status: '+esc(r.status)+'</p><div class="addrow"><button class="btn sm" data-a="openform" data-id="'+t.form+'">Read the answers</button>'+(!isDone(t.status)?'<button class="btn pri sm" data-a="reviewed" data-id="'+t.id+'">Mark reviewed</button>':'')+(r.status==='Submitted'||r.status==='Reviewed'?'<button class="btn sm" data-a="reopenform" data-id="'+t.form+'">Send back for edits</button>':'')+'</div>'}
     if(t.key==='analysis'&&!locked)h+='<label class="chk-l"><input type="checkbox" data-docschk="1"'+(c.docsChecked?' checked':'')+'> No documents available beyond what is uploaded (confirmed with the candidate)</label>';
     if(t.kind==='ai'&&!locked){var why=aiReady(c,t);h+='<div class="addrow"><button class="btn pri sm" data-a="runai" data-id="'+t.id+'"'+(why||S.busy?' disabled':'')+'>'+(isDone(t.status)?'Run again':'Run analysis')+'</button>'+(why?'<span class="small">'+esc(why)+'</span>':'')+'</div>'}
+    if(t.key==='foe-mkt-ok'&&!locked)h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="field">Open Field tab</button></div>';
     if(t.key==='proceed'&&!locked)h+=profileSummary(c)+decisionUi(c);
     if(t.key==='review-cand'&&!locked)h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="plan">Open Plan tab</button><button class="btn pri sm" data-a="plan-release">Release plan tasks to the candidate</button></div>';
     if(t.kind==='gate'&&!locked)h+=gateUi(c,t);
@@ -527,6 +545,7 @@ function queueSave(fid){PEND[rid(S.cid,fid)]=1;clearTimeout(saveTimer[fid]);save
 
 document.addEventListener('input',function(e){
   var t=e.target;
+  if(t.dataset.mk!==undefined){var mq=t.dataset.mk.split('|'),cc=cur(),mm=cc&&mwEdit(cc);if(mm&&mm.rows[+mq[0]])mm.rows[+mq[0]][mq[1]]=mq[1]==='urls'?t.value.split('\n').map(function(x){return x.trim()}).filter(Boolean):t.value;return}
   if(t.dataset.pl!==undefined){setPlanField(t.dataset.pl,t.value);return}
   if(t.dataset.draft!==undefined){S.draft[t.dataset.draft]=t.value;return}
   if(t.dataset.fp!==undefined&&t.type!=='checkbox'&&t.tagName!=='SELECT'){setField(t.dataset.fp,t.value);queueSave(parsePath(t.dataset.fp)[0])}
@@ -638,6 +657,10 @@ document.addEventListener('click',async function(e){
         await log(c.id,'Working FOE set: '+wt,'gate');await completeKey(c.id,'foew','Working field set.');S.draft.foeWText=undefined;break}
       case 'pl-add':{var pp=pwEdit(c)||(S.planWork={articles:[],memberships:[],judging:{count:0,types:[],note:''},status:'draft'});
         if(id==='articles')pp.articles.push({id:'a'+Date.now().toString(36),title:'',abstract:'',journals:[],note:''});else pp.memberships.push({id:'m'+Date.now().toString(36),name:'',why:'',note:''});break}
+      case 'mk-add':{var ma=mwEdit(c);if(ma)ma.rows.push({foe:'',market:'',importance:'',cet:'',fit:'',gaps:'',urls:[]});break}
+      case 'mk-del':{var md=mwEdit(c);if(md)md.rows.splice(+id,1);break}
+      case 'mk-save':case 'mk-ok':{var mv=mwEdit(c);if(!mv)break;var m2=JSON.parse(JSON.stringify(mv));if(a==='mk-ok')m2.checked=!m2.checked;m2.editedAt=nowIso();await candRef(c.id).update({market:m2});S.mktWork=null;say(a==='mk-ok'?(m2.checked?'Marked as checked.':'Marked as not checked.'):'Saved.','ok');break}
+      case 'mk-copy':{S.copyText=marketText(Object.assign({},c,{market:mw(c)}));break}
       case 'pl-addcand':{var ci=candIdeas(c)[+id],pq=pwEdit(c);if(!ci||!pq)break;
         pq.articles.push({id:'a'+Date.now().toString(36),title:ci.title||'',abstract:ci.summary||'',journals:ci.venues?[ci.venues]:[],note:'Candidate\'s own idea.'+(ci.conf?' Confidentiality: '+ci.conf:''),fromCand:(ci.title||'')+'|'+id});break}
       case 'pl-del':{var qq=id.split('|');pwEdit(c)[qq[0]].splice(+qq[1],1);break}
