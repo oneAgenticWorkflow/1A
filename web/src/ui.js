@@ -261,7 +261,7 @@ function tasksTab(c,ts){
 function listView(c,ts){
   var st=c.stage||0,h='';
   STAGES.forEach(function(s,i){
-    var group=ts.filter(function(t){return t.stage===i}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});
+    var group=ts.filter(function(t){return t.stage===i}).sort(function(a,b){var x=tIdx(a),y=tIdx(b);if(x!==y)return x-y;return (a.due||'9')<(b.due||'9')?-1:1});
     if(!group.length)return;
     var all=tasksOf(c.id).filter(function(t){return t.stage===i&&t.req!==false}),done=all.filter(function(t){return isDone(t.status)}).length;
     var key='st'+c.id+i,open=S.open[key]===undefined?i===st:S.open[key];
@@ -371,11 +371,13 @@ function timelineView(c,ts){
 }
 
 /* ----- forms ----- */
+function tIdx(t){for(var i=0;i<TEMPLATE.length;i++)if(TEMPLATE[i].k===t.key)return i;return 9999}
 function formsTab(c){
   if(S.openForm)return formEditor(c,S.form);
   var h='<div class="panel"><h3>Forms</h3>';
-  FORMS.forEach(function(f){
-    var r=getResp(c.id,f.id),p=progress(f,r);
+  FORMS.slice().sort(function(a,b){return parseInt(a.id.slice(1),10)-parseInt(b.id.slice(1),10)}).forEach(function(f){
+    var r=getResp(c.id,f.id),p=progress(f,r),tk=taskByKey(c.id,f.id);
+    if(tk&&tk.stage>2&&tk.status==='Not started'&&r.status==='Not started')return;
     h+='<div class="formrow"><div><b>'+esc(f.n)+'</b><div class="small">'+esc(r.status)+' · '+p+'% of required fields</div></div><div class="chips">'+chip(r.status,r.status==='Reviewed'?'ok':r.status==='Submitted'?'mid':'')+'<button class="btn sm" data-a="openform" data-id="'+f.id+'">Open</button></div></div>';
   });
   return h+'</div>';
