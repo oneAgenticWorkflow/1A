@@ -9,53 +9,37 @@
   function field(id,label,type,ac){return '<label class="f" for="'+id+'">'+label+'</label><input id="'+id+'" type="'+type+'" autocomplete="'+ac+'">'}
   function val(id){var e=document.getElementById(id);return e?e.value.trim():''}
   function err(m){document.getElementById('lerr').textContent=m}
-  function login(msg,mode){
-    mode=mode||'in';
+  var AUTH_DOMAIN='accounts.arcanam.com'; /* keep in sync with the accounts function */
+  function login(msg){
     var h='';
     if(msg)h+='<div class="banner ok">'+msg+'</div>';
-    if(mode==='in'){
-      h+='<p class="small">Sign in with your email and password.</p>'+field('em','Email','email','email')+field('pw','Password','password','current-password')+
-        '<div class="addrow"><button class="btn pri" id="go">Sign in</button></div><p class="small" id="lerr"></p>'+
-        '<p class="small"><button class="link" id="m-up">First time? Create your password</button> &middot; <button class="link" id="m-link">Forgot password? Email me a link</button></p>';
-    }else if(mode==='up'){
-      h+='<p class="small">First time here? Use the email address and access code your advisor gave you, then choose a password (at least 8 characters).</p>'+field('em','Email','email','email')+field('cd','Access code','text','off')+field('pw','Choose a password','password','new-password')+
-        '<div class="addrow"><button class="btn pri" id="go">Create my account</button></div><p class="small" id="lerr"></p><p class="small"><button class="link" id="m-in">Back to sign in</button></p>';
-    }else{
-      h+='<p class="small">We will email you a one-time sign-in link. Then you can set a new password from inside the portal.</p>'+field('em','Email','email','email')+
-        '<div class="addrow"><button class="btn pri" id="go">Email me a sign-in link</button></div><p class="small" id="lerr"></p><p class="small"><button class="link" id="m-in">Back to sign in</button></p>';
-    }
+    h+='<p class="small">Sign in with the username and password your administrator gave you.</p>'+field('em','Username','text','username')+field('pw','Password','password','current-password')+
+      '<div class="addrow"><button class="btn pri" id="go">Sign in</button></div><p class="small" id="lerr"></p>'+
+      '<p class="small">Forgot your password or need access? Ask your administrator.</p>';
     shell(h);
-    ['m-up','m-in','m-link'].forEach(function(id){var b=document.getElementById(id);if(b)b.onclick=function(){login('',id==='m-up'?'up':id==='m-in'?'in':'link')}});
     var go=document.getElementById('go');
-    go.onclick=async function(){
-      var em=val('em').toLowerCase();if(!em){err('Enter your email.');return}
+    var doGo=async function(){
+      var id=val('em').toLowerCase(),pw=document.getElementById('pw').value;
+      if(!id||!pw){err('Enter your username and password.');return}
       go.disabled=true;err('');
-      if(mode==='in'){
-        var pw=document.getElementById('pw').value;
-        var r=await sb.auth.signInWithPassword({email:em,password:pw});
-        if(r.error){err(r.error.message==='Invalid login credentials'?'Email or password is not right. If this is your first time, choose "Create your password".':r.error.message);go.disabled=false}
-      }else if(mode==='up'){
-        var cd=val('cd'),pw2=document.getElementById('pw').value;
-        if(!cd){err('Enter the access code from your advisor.');go.disabled=false;return}
-        if(pw2.length<8){err('Choose a password of at least 8 characters.');go.disabled=false;return}
-        window.__busy=true;
-        var sess=null;
-        var si=await sb.auth.signInWithPassword({email:em,password:pw2});
-        if(!si.error)sess=si.data.session;
-        else{
-          var u=await sb.auth.signUp({email:em,password:pw2});
-          if(u.error){window.__busy=false;err(/already registered/i.test(u.error.message)?'An account with this email already exists. Use Sign in, or "Forgot password" if you cannot remember it.':u.error.message);go.disabled=false;return}
-          sess=u.data.session;
-          if(!sess){var s2=await sb.auth.signInWithPassword({email:em,password:pw2});if(s2.error){window.__busy=false;err(s2.error.message);go.disabled=false;return}sess=s2.data.session}
-        }
-        var c=await sb.rpc('claim_with_code',{p_code:cd});
-        if(c.error||!c.data){await sb.auth.signOut();window.__busy=false;login('',"up");err('That email and access code do not match a case. Check them with your advisor.');return}
-        window.__busy=false;window.__entered=true;enter(sess);
-      }else{
-        var o=await sb.auth.signInWithOtp({email:em,options:{emailRedirectTo:location.href.split('#')[0]}});
-        if(o.error){err(o.error.message);go.disabled=false;return}
-        login('Check your inbox for '+esc2(em)+'. Open the link on this device.','link');
-      }
+      var email=id.indexOf('@')>=0?id:id+'@'+AUTH_DOMAIN;
+      var r=await sb.auth.signInWithPassword({email:email,password:pw});
+      if(r.error){err(r.error.message==='Invalid login credentials'?'Username or password is not right.':r.error.message);go.disabled=false}
+    };
+    go.onclick=doGo;
+    ['em','pw'].forEach(function(i){document.getElementById(i).onkeydown=function(e){if(e.key==='Enter')doGo()}});
+  }
+  function mustChange(session){
+    shell('<div class="banner ok">Welcome. Please choose your own password before you continue.</div>'+field('p1','New password (at least 8 characters)','password','new-password')+field('p2','Repeat the new password','password','new-password')+
+      '<div class="addrow"><button class="btn pri" id="go">Save and continue</button> <button class="btn" id="so">Sign out</button></div><p class="small" id="lerr"></p>');
+    document.getElementById('so').onclick=function(){sb.auth.signOut().then(function(){location.reload()})};
+    document.getElementById('go').onclick=async function(){
+      var a=document.getElementById('p1').value,b=document.getElementById('p2').value;
+      if(a.length<8){err('Use at least 8 characters.');return}
+      if(a!==b){err('The two passwords do not match.');return}
+      var u=await sb.auth.updateUser({password:a});if(u.error){err(u.error.message);return}
+      var c=await sb.rpc('password_changed');if(c.error){err(c.error.message);return}
+      enter(session,true);
     };
   }
   function pwTool(){
@@ -70,18 +54,19 @@
         var r=await sb.auth.updateUser({password:v});document.getElementById('pwm').textContent=r.error?r.error.message:'Password saved.';if(!r.error)setTimeout(function(){d.remove();pwTool()},1500)}
     };
   }
-  async function enter(session){
+  async function enter(session,changed){
     shell('<p class="small">Loading…</p>');
     var uid=session.user.id;
-    var p=await sb.from('profiles').select('role,case_id,email').eq('id',uid).maybeSingle();
+    var p=await sb.from('profiles').select('role,case_id,email,username,display_name,must_change').eq('id',uid).maybeSingle();
     if(p.error){shell('<p>Could not load your account: '+esc2(p.error.message)+'</p>');return}
     var prof=p.data||{role:'candidate',case_id:null,email:session.user.email};
+    if(prof.must_change&&!changed){mustChange(session);return}
     app.innerHTML='';
-    var isAdmin=prof.role==='admin';
-    if(!isAdmin&&!prof.case_id){shell('<p>This email is not linked to a case yet. Ask your advisor to add <b>'+esc2(prof.email||session.user.email)+'</b> and send you an access code, then use &quot;Create your password&quot;.</p><div class="addrow"><button class="btn" id="so">Sign out</button></div>');document.getElementById('so').onclick=function(){sb.auth.signOut().then(function(){location.reload()})};return}
+    var isAdmin=prof.role==='admin',isStaff=isAdmin||prof.role==='supervisor';
+    if(!isStaff&&!prof.case_id){shell('<p>Your login is not linked to a case yet. Ask your administrator.</p><div class="addrow"><button class="btn" id="so">Sign out</button></div>');document.getElementById('so').onclick=function(){sb.auth.signOut().then(function(){location.reload()})};return}
     pwTool();
-    var db=makeDb(sb,isAdmin,prof.case_id);
-    startApp({db:db,sample:isAdmin?makeSample(sb,cfg):null,locked:!isAdmin,caseId:prof.case_id,me:{email:prof.email||session.user.email}});
+    var db=makeDb(sb,isStaff,prof.case_id,cfg);
+    startApp({db:db,sample:isStaff?makeSample(sb,cfg):null,locked:!isStaff,staff:prof.role,caseId:prof.case_id,me:{email:prof.email||session.user.email,username:prof.username||'',name:prof.display_name||''}});
   }
   sb.auth.getSession().then(function(r){if(r.data.session){window.__entered=true;enter(r.data.session)}else login()});
   sb.auth.onAuthStateChange(function(ev,session){if(ev==='SIGNED_IN'&&session&&!window.__entered&&!window.__busy){window.__entered=true;enter(session)}if(ev==='SIGNED_OUT'&&!window.__busy)login()});
