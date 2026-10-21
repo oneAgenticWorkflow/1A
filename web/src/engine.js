@@ -155,10 +155,15 @@ async function createCase(){
   }catch(e){S.setup=null;fail(e)}
 }
 async function deleteCase(id){
-  for(var i=0;i<S.tasks.length;i++)if(S.tasks[i].cid===id)await db.doc('tasks/'+S.tasks[i].id).delete();
-  for(var j=0;j<FORMS.length;j++){await db.doc('responses/'+rid(id,FORMS[j].id)).delete();delete WORK[rid(id,FORMS[j].id)]}
-  for(var k=0;k<S.log.length;k++)if(S.log[k].cid===id)await db.doc('log/'+S.log[k].id).delete();
-  var paths=[];for(var m=0;m<S.docs.length;m++)if(S.docs[m].cid===id){if(S.docs[m].path)paths.push(S.docs[m].path);await db.doc('docs/'+S.docs[m].id).delete()}
+  /* copy the ids first: the live lists are replaced while deletes are in flight */
+  var tIds=S.tasks.filter(function(t){return t.cid===id}).map(function(t){return t.id});
+  var lIds=S.log.filter(function(l){return l.cid===id}).map(function(l){return l.id});
+  var dRows=S.docs.filter(function(d){return d.cid===id}).map(function(d){return {id:d.id,path:d.path}});
+  var i;
+  for(i=0;i<tIds.length;i++)await db.doc('tasks/'+tIds[i]).delete();
+  for(i=0;i<FORMS.length;i++){await db.doc('responses/'+rid(id,FORMS[i].id)).delete();delete WORK[rid(id,FORMS[i].id)]}
+  for(i=0;i<lIds.length;i++)await db.doc('log/'+lIds[i]).delete();
+  var paths=[];for(i=0;i<dRows.length;i++){if(dRows[i].path)paths.push(dRows[i].path);await db.doc('docs/'+dRows[i].id).delete()}
   if(paths.length&&db.removeFiles)await db.removeFiles(paths);
   if(db.uninvite)await db.uninvite(id);
   await candRef(id).delete();
@@ -292,12 +297,37 @@ async function runFoe(t){
   var ok=await ai(first?'Working FOE options':'FOE options',async function(signal){
     var g=first?'':CRIT.map(function(k){var x=(c.criteria||{})[k.id];return x?k.n+': '+x.rating:''}).filter(Boolean).join('; ');
     var ctx=first?'This is an early WORKING field from the resume and Form 1 only; the deep intake will be built around it and the final field is locked after the full analysis. Propose 2 or 3 options.':'This is the FINAL field, chosen after the full analysis of every form. The working field was: '+((c.foe&&c.foe.working)||'not set')+'. Keep it if the evidence supports it, otherwise refine or replace it. Propose 3 options.';
-    var prompt=RULES+'\n\n'+ctx+' Each option is a field-of-endeavor (FOE) statement: "Primary" (core technology and role), "Industry" (the application industry), "Research" (the scholarly angle). Each must be specific enough to define a peer group yet broad enough to have comparison data. Avoid a single vendor or platform name as the whole field and avoid labels like "Software Engineer". For each give "statement", "why" (roles and technologies in the data that support it), "usGrowth" (what evidence of US growth or national importance an advisor must find and cite; label it unverified; no statistics) and "peerPool".\n\n'+(g?'Current scores: '+g+'\n\n':'')+'Reply with only JSON: {"options":[{"label":"Primary","statement":"","why":"","usGrowth":"","peerPool":""},...]}\n\n'+candidateText(c);
+    var prompt=RULES+'\n\n'+ctx+' Each option is a field-of-endeavor (FOE) statement written in this style: a broad, recognised technology or industry area, then "with a focus on" and two to four specific technology or application areas, for example "Enterprise Technologies with a focus on Workflow Optimization, AI-Driven & Robotic Process Automation." It must be a field that has published market data and can map to a national priority technology area. Use "label" Primary, Industry or Research for the three angles. Avoid a single vendor or platform name as the whole field and avoid labels like "Software Engineer". For each give "statement", "why" (roles and technologies in the data that support it), "usGrowth" (what evidence of US growth or national importance an advisor must find and cite; label it unverified; no statistics) and "peerPool".\n\n'+(g?'Current scores: '+g+'\n\n':'')+'Reply with only JSON: {"options":[{"label":"Primary","statement":"","why":"","usGrowth":"","peerPool":""},...]}\n\n'+candidateText(c);
     var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false});
     var opts=(Array.isArray(r.options)?r.options:[]).slice(0,3).map(function(o){return {label:String(o.label||''),statement:String(o.statement||''),why:String(o.why||''),usGrowth:String(o.usGrowth||''),peerPool:String(o.peerPool||'')}});
     await candRef(c.id).update({foe:Object.assign({},c.foe||{},{options:opts})});await log(c.id,'Analysis proposed '+opts.length+(first?' working':'')+' FOE options. A human decides.','foe');
   });
   if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
+}
+async function runMarket(t){
+  var c=cur();if(!c)return;
+  var ok=await ai('Market research',async function(signal){
+    var prompt=RULES+'\n\nUse web search to build the market and evidence table for the locked field of endeavor below. Return 1 row for the field itself and, only if the candidate\'s work clearly spans them, up to 2 more rows for closely related sub-areas. For each row give: "foe" (the field statement, same style as the locked one); "market" (market size and growth: the base-year figure, a later projection and the CAGR, each with year, region and the research firm named, plus share data where it exists; use only numbers that appear in pages you found, never from memory; if none, write "No reliable figure found"); "importance" (why the field matters to the United States: federal programs, policy documents, workforce or economic data, in two or three sentences, each claim tied to a page you found); "cet" (the closest category of the White House Critical and Emerging Technologies List, 2024 update, with one sentence on the mapping; search for the list and use its exact category names); "fit" (one or two sentences on where the candidate\'s work sits in this field, from the data only); "gaps" (what you could not find or could not confirm, so the advisor knows what to chase); and "urls" (the pages you used, copied exactly from your search results; at least two per row where possible). Never invent a link or a figure.\n\nLocked FOE: '+((c.foe&&c.foe.locked)||'not set')+'\n\nReply with only JSON: {"rows":[{"foe":"","market":"","importance":"","cet":"","fit":"","gaps":"","urls":[""]}]}\n\n'+candidateText(c);
+    var r=await sampleFn.json(prompt,{modelTier:'default',signal:signal,cache:false,web:true});
+    var known={};(r._sources||[]).forEach(function(s){known[normUrl(s.url)]=s});
+    var rows=(Array.isArray(r.rows)?r.rows:[]).slice(0,3).map(function(x){
+      var urls=strList(x.urls,8).filter(function(u){return known[normUrl(u)]});
+      return {foe:String(x.foe||''),market:String(x.market||''),importance:String(x.importance||x.evidence||''),cet:String(x.cet||''),fit:String(x.fit||''),gaps:String(x.gaps||''),urls:urls,dropped:strList(x.urls,8).length-urls.length};
+    });
+    var pages=(r._sources||[]).slice(0,12).map(function(s){return {url:s.url,title:s.title}});
+    delete S.mktWork;
+    await candRef(c.id).update({market:{rows:rows,pages:pages,ranAt:nowIso(),checked:false}});
+    await log(c.id,'Market research drafted: '+rows.length+' row(s). Check every figure against its source in the Field tab.','foe');
+  });
+  if(ok&&t)await completeKey(c.id,t.key,'Analysis finished: '+t.title);
+}
+function normUrl(u){return String(u||'').trim().replace(/^https?:\/\/(www\.)?/i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase()}
+function marketText(c){
+  var m=c.market;if(!m||!m.rows)return '';
+  var q=function(x){return '"'+String(x||'').replace(/"/g,'""')+'"'};
+  var lines=['FOE\tMarket size and growth\tImportance to the US\tCritical and Emerging Technologies mapping\tCandidate fit\tSources'];
+  m.rows.forEach(function(r){lines.push([r.foe,r.market,r.importance,r.cet,r.fit,(r.urls||[]).join('\n')].map(q).join('\t'))});
+  return lines.join('\n');
 }
 async function runTasks(t){
   var c=cur();if(!c)return;
@@ -338,6 +368,7 @@ function runAi(t){
   if(t.key==='strategy')return runStrategy(t);
   if(t.key==='feas-draft')return runFeas(t);
   if(t.key==='foe-ai')return runFoe(t);
+  if(t.key==='foe-mkt')return runMarket(t);
   if(t.key==='tasks-ai')return runTasks(t);
   if(t.key==='screen')return runScreen(t);
 }
@@ -354,6 +385,7 @@ function aiReady(c,t){
   if(t.key==='profile'||t.key==='rescore'||t.key==='foe-ai'||t.key==='foe0'){if(!hasCv(c))return 'Needs the CV text from Form 1.'}
   if(t.key==='recs'){if(!c.strategyAt)return 'Needs the criteria strategy first.';if(!(c.foe&&c.foe.locked))return 'Needs the locked field of endeavor.'}
   if(t.key==='foe-ai'&&!c.baselineAt)return 'Needs the full analysis first.';
+  if(t.key==='foe-mkt'&&!(c.foe&&c.foe.locked))return 'Needs the locked field of endeavor.';
   if(t.key==='strategy'){if(!c.baselineAt)return 'Needs the full analysis first.';if(!(c.foe&&c.foe.locked))return 'Needs the locked field of endeavor.'}
   if((t.key==='feas-draft'||t.key==='tasks-ai')&&!c.strategyAt)return 'Needs the criteria strategy first.';
   if(t.key==='screen'){var r=getResp(c.id,'f3');if(!(r.data.ideas||[]).length)return 'Needs the article ideas in Form 3.'}
