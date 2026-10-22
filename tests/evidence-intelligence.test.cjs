@@ -24,3 +24,19 @@ test('unassessed cases receive a caution',()=>{
  assert.match(ui,/if\(!c\.scoredAt\)/);
  assert.match(ui,/A full evidence assessment has not been recorded/);
 });
+
+test('source review requires an uploaded file, source location, and excerpt',()=>{
+ assert.match(ui,/function evidenceSourceReview\(c\)/);
+ assert.match(ui,/d\.cid===c\.id&&d\.kind==='file'&&d\.path/);
+ assert.match(ui,/if\(!locator\|\|!excerpt\)/);
+});
+test('advisor review is separate from criterion ratings and supports rejection',()=>{
+ assert.match(ui,/case 'ev-accept':case 'ev-reject':case 'ev-remove'/);
+ assert.match(ui,/status:'pending'/);
+ assert.match(ui,/status:a==='ev-accept'\?'accepted':'rejected'/);
+ assert.match(ui,/Findings remain advisor-only and do not change criterion ratings automatically/);
+});
+test('source-linked review is shown on advisor scorecard',()=>{
+ const score=ui.slice(ui.indexOf('function scoreTab(c){'),ui.indexOf('function activityTab(c){'));
+ assert.match(score,/evidenceSourceReview\(c\)/);
+});
