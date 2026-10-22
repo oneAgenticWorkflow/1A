@@ -12,6 +12,27 @@ html='''<!doctype html>
 '''+r('style.css')+'''
 </style></head><body>
 <div class="wrap" id="app"><p class="small">Loading…</p></div>
+<script>
+(function(){
+  var finished=false;
+  function fail(message){
+    if(finished)return;
+    var app=document.getElementById('app');
+    if(!app)return;
+    var content=(app.textContent||'').trim();
+    if(content!=='Loading…'&&content!=='Loading...')return;
+    finished=true;
+    app.innerHTML='<div class="panel newcase" style="margin-top:48px"><h2>Unable to start Arcanam Pathway</h2><p id="startup-error"></p><p class="small">No candidate data has been changed. Refresh to try again.</p><button class="btn pri" onclick="location.reload()">Retry</button></div>';
+    document.getElementById('startup-error').textContent=message;
+  }
+  window.addEventListener('error',function(e){fail('Application startup error: '+(e.message||'Script could not load'))});
+  window.addEventListener('unhandledrejection',function(e){fail('Application initialization failed: '+((e.reason&&e.reason.message)||'Request failed'))});
+  setTimeout(function(){
+    if(!window.supabase)fail('Authentication library did not load. Check your connection or browser content blockers.');
+    else fail('Startup took too long. Check your connection and try again.');
+  },12000);
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="config.js"></script>
 <script>
