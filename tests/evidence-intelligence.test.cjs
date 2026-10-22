@@ -26,7 +26,7 @@ test('unassessed cases receive a caution',()=>{
 });
 
 test('source review requires an uploaded file, source location, and excerpt',()=>{
- assert.match(ui,/function evidenceSourceReview\(c\)/);
+ assert.match(ui,/function evidenceSourceReview\(c,tracks\)/);
  assert.match(ui,/d\.cid===c\.id&&d\.kind==='file'&&d\.path/);
  assert.match(ui,/if\(!locator\|\|!excerpt\)/);
 });
@@ -75,4 +75,83 @@ test('pathway guide compares EB-1A and NIW and explains post-I-140 steps',()=>{
  assert.match(ui,/NIW I-140 filed November 2026 and approved May 2027/);
  assert.match(ui,/I-140 approval grants work authorization\?/);
  assert.match(ui,/h\+=comparison/);
+});
+
+test('NIW evidence review supports independent source-linked prongs',()=>{
+ assert.match(ui,/evidenceSourceReview\(c,tracks\)/);
+ assert.match(ui,/PATHWAY_REQUIREMENTS\.niw\.forEach/);
+ assert.match(ui,/NIW — /);
+ assert.match(ui,/\['niw','both'\]\.indexOf/);
+});
+
+test('NIW lifecycle requires candidate acknowledgement and advisor activation',()=>{
+ assert.match(ui,/var NIW_PHASES=/);
+ assert.match(ui,/case 'niw-agree'/);
+ assert.match(ui,/if\(!S\.locked\)/);
+ assert.match(ui,/case 'niw-activate'/);
+ assert.match(ui,/if\(!p\.agreement\|\|!p\.agreement\.acceptedAt\)/);
+ assert.match(ui,/data-draft-chk="niw_agree"/);
+});
+test('NIW case separates USCIS filing and visa availability',()=>{
+ assert.match(ui,/\['filing','I-140 filing'/);
+ assert.match(ui,/\['uscis','USCIS adjudication'/);
+ assert.match(ui,/\['visa','Visa availability'/);
+ assert.match(ui,/\['residence','Green-card process'/);
+ assert.match(ui,/case 'niw-filing'/);
+ assert.match(ui,/niwCaseFlow\(c,true\)/);
+ assert.match(ui,/niwCaseFlow\(c,false\)/);
+});
+
+test('NIW readiness checks requested documents, uploads and reviewed source findings',()=>{
+ assert.match(ui,/function niwReadiness\(c\)/);
+ assert.match(ui,/pathway:niw:/);
+ assert.match(ui,/f\.status==='accepted'/);
+ assert.match(ui,/function niwReadinessPanel\(c\)/);
+});
+test('NIW filing and legal milestones require advisor-recorded attorney review',()=>{
+ assert.match(ui,/case 'niw-signoff'/);
+ assert.match(ui,/legalSignoff:/);
+ assert.match(ui,/Record attorney review before filing details/);
+ assert.match(ui,/Record USCIS receipt and filing date first/);
+});
+
+test('NIW petition package and RFE workspace are present',()=>{
+ assert.match(ui,/var NIW_PACKAGE_ITEMS=/);
+ assert.match(ui,/function niwAdvancedWorkspace\(c\)/);
+ assert.match(ui,/case 'niw-package'/);
+ assert.match(ui,/case 'niw-rfe'/);
+ assert.match(ui,/case 'niw-visa'/);
+});
+test('NIW filing readiness includes evidence and attorney review gates',()=>{
+ assert.match(ui,/Complete all petition package items first/);
+ assert.match(ui,/case 'niw-signoff'/);
+ assert.match(ui,/Record attorney review before filing details/);
+});
+
+test('candidate NIW journey displays outstanding document requests and RFE guidance',()=>{
+ assert.match(ui,/Your NIW document requests/);
+ assert.match(ui,/USCIS additional evidence request/);
+ assert.match(ui,/niwCaseFlow\(c,true\)/);
+});
+
+test('NIW evidence findings must cite an upload linked to the corresponding request',()=>{
+ assert.match(ui,/linked\.some\(function\(d\)\{return d\.id===f\.fileId&&d\.path\}\)/);
+});
+test('NIW adjudication and visa milestones require documented decisions and bulletin review',()=>{
+ assert.match(ui,/Record a USCIS I-140 decision before completing adjudication/);
+ assert.match(ui,/Record a reviewed Visa Bulletin and USCIS chart before completing visa tracking/);
+});
+
+test('workflow checkpoints require screening and eligibility before FOE and criteria approval',()=>{
+ assert.match(ui,/function pathwayAudit\(c\)/);
+ assert.match(ui,/function pathwayAuditPanel\(c\)/);
+ assert.match(ui,/case 'elig-save'/);
+ assert.match(ui,/Record the eligibility assessment before locking the final FOE/);
+ assert.match(ui,/Complete eligibility assessment and FOE lock first/);
+});
+test('screening and criteria finalization preserve advisor rationale and history',()=>{
+ assert.match(ui,/Complete screening fields:/);
+ assert.match(ui,/criteriaFinalization:\{criteria:ch,note:rationale/);
+ assert.match(ui,/history:foeHistory/);
+ assert.match(ui,/criteriaFinalization\.foe===\(c\.foe\|\|\{\}\)\.locked/);
 });

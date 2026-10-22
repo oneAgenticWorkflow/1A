@@ -40,7 +40,13 @@ function render(){
   else if(c)h+=(S.role==='Candidate'?candidateView(c):caseView(c));
   else h+=casesView();
   app.innerHTML=h;
-  if(typeof y==='number')window.scrollTo(0,y);
+  if(S.focusCaseTab&&!S.locked&&c&&S.role!=='Candidate'){
+    S.focusCaseTab=false;
+    var activeTab=app.querySelector('.nav.tabs .tab.on');
+    var tabRow=app.querySelector('.nav.tabs');
+    if(activeTab){try{activeTab.focus({preventScroll:true})}catch(e){}}
+    if(tabRow){tabRow.scrollIntoView({block:'start',behavior:'instant'});}
+  }else if(typeof y==='number')window.scrollTo(0,y);
   reconcile();
 }
 
@@ -211,7 +217,7 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
@@ -219,6 +225,7 @@ function caseView(c){
   else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='pathway')h+=pathwayScreening(c);
   else if(S.tab==='development')h+=pathwayDevelopment(c);
+  else if(S.tab==='niwcase')h+=niwCaseFlow(c,false);
   else if(S.tab==='strategy')h+=pathwayStrategy(c);
   else if(S.tab==='guide')h+=pathwayGuide();
   else if(S.tab==='score')h+=scoreTab(c);
@@ -257,8 +264,129 @@ function pathwayDevelopment(c){
  });
  h+='</div>';
  });
+ h+=evidenceSourceReview(c,tracks);
  h+='<div class="addrow"><button class="btn pri sm" data-a="ps-generate">Create missing evidence requests</button><button class="btn sm" data-a="tab" data-id="docs">Open shared documents</button></div><p class="small">Advisor review required for all evidence and final legal conclusions.</p></div>';
  return h;
+}
+var NIW_PHASES=[
+ ['agreement','Candidate agreement','Candidate acknowledges NIW pathway and authorizes case preparation'],
+ ['intake','NIW intake','Education, work history, status, chargeability, and proposed endeavor'],
+ ['evidence','Evidence collection','EB-2 threshold, proposed endeavor and each Dhanasar prong'],
+ ['draft','Petition drafting','Endeavor statement, supporting exhibits, letters, and petition narrative'],
+ ['legal','Attorney review','Counsel validates petition, evidence, and filing strategy'],
+ ['filing','I-140 filing','Record actual USCIS receipt and priority date'],
+ ['uscis','USCIS adjudication','Track receipt, RFE, response, approval or denial'],
+ ['visa','Visa availability','Monitor EB-2 chargeability, bulletin and adjustment eligibility'],
+ ['residence','Green-card process','Separate I-485 or consular processing and final decision']
+];
+function niwReadiness(c){
+ var docs=S.docs.filter(function(d){return d.cid===c.id}),reqs=docs.filter(function(d){return d.kind==='request'&&String(d.pathwayKey||'').indexOf('pathway:niw:')===0}),files=docs.filter(function(d){return d.kind==='file'});
+ var findings=(c.evidenceFindings||[]).filter(function(f){return PATHWAY_REQUIREMENTS.niw.some(function(x){return x[0]===f.criterionId})});
+ var checks=PATHWAY_REQUIREMENTS.niw.map(function(item){
+ var key='pathway:niw:'+item[0],req=reqs.find(function(d){return d.pathwayKey===key});
+ var linked=req?files.filter(function(f){return f.reqId===req.id}):[];
+ var accepted=findings.filter(function(f){return f.criterionId===item[0]&&f.status==='accepted'&&linked.some(function(d){return d.id===f.fileId&&d.path})});
+ return {key:item[0],label:item[1],requested:!!req,uploaded:linked.length,reviewed:accepted.length};
+ });
+ var all=checks.every(function(x){return x.requested&&x.uploaded>0&&x.reviewed>0});
+ return {checks:checks,ready:all};
+}
+function niwReadinessPanel(c){
+ var r=niwReadiness(c),p=c.niwCase||{},sign=p.legalSignoff||{};
+ var h='<div class="entry"><div class="ph"><h4>NIW petition preparation checklist</h4>'+chip(r.ready?'Evidence checks satisfied':'Evidence review incomplete',r.ready?'ok':'mid')+'</div>'+
+ '<p class="small">Each requirement needs a document request, a linked upload and at least one advisor-reviewed, source-cited finding. These checks support preparation only; they do not establish legal sufficiency.</p>';
+ r.checks.forEach(function(x){h+='<div class="formrow"><div><b>'+esc(x.label)+'</b><p class="small">Request: '+(x.requested?'Created':'Missing')+' · Linked files: '+x.uploaded+' · Reviewed findings: '+x.reviewed+'</p></div>'+chip(x.requested&&x.uploaded&&x.reviewed?'Documented':'Needs work',x.requested&&x.uploaded&&x.reviewed?'ok':'mid')+'</div>'});
+ h+='<div class="entry"><h4>Attorney sign-off</h4><p class="small">Record the reviewing attorney and confirmation after independent review. This field is an advisor-entered record, not an authenticated attorney signature.</p>';
+ if(sign.signedAt)h+='<p class="small">Recorded: '+esc(sign.reviewer)+' · '+esc(fmt(sign.signedAt))+'</p>';
+ h+='<label class="f" for="niwreviewer">Reviewing attorney name</label><input id="niwreviewer" data-draft="niwreviewer" value="'+esc(S.draft.niwreviewer!==undefined?S.draft.niwreviewer:sign.reviewer||'')+'">'+
+ '<label class="f" for="niwreviewnote">Review decision and filing instructions</label><textarea id="niwreviewnote" data-draft="niwreviewnote">'+esc(S.draft.niwreviewnote!==undefined?S.draft.niwreviewnote:sign.note||'')+'</textarea>'+
+ '<label class="chk-l"><input type="checkbox" data-draft-chk="niwreviewconfirm"'+(S.draft.niwreviewconfirm?' checked':'')+'> I confirm an attorney has independently reviewed the NIW petition and authorized preparation for filing.</label>'+
+ '<button class="btn sm pri" data-a="niw-signoff"'+(!r.ready?' disabled':'')+'>Record attorney review</button>'+
+ (!r.ready?'<p class="small">Complete evidence review before recording sign-off.</p>':'')+'</div></div>';
+ return h;
+}
+var NIW_PACKAGE_ITEMS=[
+ ['i140','Form I-140 and applicable filing documents'],
+ ['endeavor','Proposed endeavor statement'],
+ ['eb2','EB-2 qualifying degree or exceptional ability'],
+ ['prong1','National importance evidence and analysis'],
+ ['prong2','Well-positioned evidence and analysis'],
+ ['prong3','On-balance waiver argument'],
+ ['exhibits','Exhibit index and cited source documents'],
+ ['letters','Supporting letters, where appropriate'],
+ ['review','Final attorney-reviewed petition narrative']
+];
+function niwAdvancedWorkspace(c){
+ var p=c.niwCase||{},pkg=p.package||{},rfe=p.rfe||{},visa=p.visaTracking||{};
+ var h='<div class="entry"><h4>Petition package workspace</h4><p class="small">Track preparation of the I-140 package. Marking an item ready is an advisor work record, not verification of its legal sufficiency.</p>';
+ NIW_PACKAGE_ITEMS.forEach(function(x){
+ var item=pkg[x[0]]||{},val=S.draft['niwpkg_'+x[0]]!==undefined?S.draft['niwpkg_'+x[0]]:item.note||'';
+ h+='<div class="entry"><div class="ph"><b>'+esc(x[1])+'</b>'+chip(item.ready?'Prepared':'Open',item.ready?'ok':'mid')+'</div>'+
+ '<label class="f">Document location / preparation notes</label><input data-draft="niwpkg_'+x[0]+'" value="'+esc(val)+'">'+
+ '<button class="btn sm" data-a="niw-package" data-id="'+x[0]+'">'+(item.ready?'Reopen item':'Mark prepared')+'</button></div>';
+ });
+ h+='</div><div class="entry"><h4>USCIS RFE response tracker</h4><p class="small">Use only when USCIS has actually issued a Request for Evidence. An RFE deadline must be verified against the notice; this app does not calculate or extend deadlines.</p>';
+ [['notice','RFE notice date','date'],['deadline','Response due date on USCIS notice','date'],['issues','USCIS requested issues / evidence','textarea'],['response','Response package and evidence references','textarea']].forEach(function(x){
+ var val=S.draft['niwrfe_'+x[0]]!==undefined?S.draft['niwrfe_'+x[0]]:rfe[x[0]]||'';
+ h+='<label class="f">'+esc(x[1])+'</label>'+(x[2]==='textarea'?'<textarea data-draft="niwrfe_'+x[0]+'">'+esc(val)+'</textarea>':'<input type="date" data-draft="niwrfe_'+x[0]+'" value="'+esc(val)+'">');
+ });
+ h+='<label class="f">RFE status</label><select data-draft="niwrfe_status">'+[['none','No RFE'],['received','Received'],['preparing','Preparing response'],['review','Attorney review'],['sent','Response sent'],['closed','Closed']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.niwrfe_status||rfe.status||'none')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
+ '<button class="btn sm pri" data-a="niw-rfe">Save RFE tracker</button></div>';
+ h+='<div class="entry"><h4>Post-approval visa availability</h4><p class="small">Record the bulletin actually reviewed. Visa Bulletin dates change monthly, and USCIS separately selects the adjustment filing chart. This tracker does not automatically determine I-485 eligibility.</p>';
+ [['chargeability','Country of chargeability','text'],['bulletin','Visa Bulletin month (YYYY-MM)','month'],['category','Employment-based category','text'],['filingCutoff','Dates for Filing cutoff','date'],['finalCutoff','Final Action cutoff','date'],['chart','USCIS adjustment chart selected that month','text'],['notes','Counsel review / I-485 or consular-processing next steps','textarea']].forEach(function(x){
+ var val=S.draft['niwvisa_'+x[0]]!==undefined?S.draft['niwvisa_'+x[0]]:visa[x[0]]||'';
+ h+='<label class="f">'+esc(x[1])+'</label>'+(x[2]==='textarea'?'<textarea data-draft="niwvisa_'+x[0]+'">'+esc(val)+'</textarea>':'<input type="'+x[2]+'" data-draft="niwvisa_'+x[0]+'" value="'+esc(val)+'">');
+ });
+ h+='<button class="btn sm pri" data-a="niw-visa">Save bulletin review</button><p class="small"><a href="https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html" target="_blank" rel="noopener noreferrer">State Department Visa Bulletin</a> · <a href="https://www.uscis.gov/visabulletininfo" target="_blank" rel="noopener noreferrer">USCIS adjustment filing chart</a></p></div>';
+ return h;
+}
+function niwCaseFlow(c,candidate){
+ var p=c.niwCase||{},decision=(((c.pathwayScreening||{}).review||{}).decision||'');
+ if(decision!=='niw'&&decision!=='both')return candidate?'':'<div class="panel"><h3>NIW case</h3><p class="small">An advisor must select NIW or both pathways in screening before starting this case.</p></div>';
+ var agreed=!!(p.agreement&&p.agreement.acceptedAt),active=!!p.activatedAt;
+ var h='<section class="panel"><div class="ph"><h3>EB-2 NIW case journey</h3>'+chip(active?'Active NIW case':agreed?'Awaiting advisor activation':'Agreement required',active?'ok':'mid')+'</div>'+
+ '<p class="small">This is a separate NIW petition workflow. It does not establish legal eligibility or replace attorney advice. NIW I-140 approval is not a green card or employment authorization.</p>';
+ if(!agreed){
+ h+='<div class="entry"><h4>Pathway confirmation</h4><p>The NIW path requires EB-2 qualification and evidence addressing the proposed endeavor, national importance, your ability to advance it, and why waiving a job offer and labor certification benefits the United States.</p><p class="small">Your acknowledgement confirms your chosen preparation pathway only. It is not a legal eligibility finding, attorney engagement, or agreement to pay fees.</p>'+
+ (S.locked?'<label><input type="checkbox" data-draft-chk="niw_agree" '+(S.draft.niw_agree?'checked':'')+'> I understand and agree to proceed with NIW case preparation.</label><div class="addrow"><button class="btn pri sm" data-a="niw-agree">Confirm NIW pathway</button></div>':'<p class="small">Candidate must sign in to record their own agreement.</p>')+'</div>';
+ }else{
+ h+='<div class="entry"><b>Candidate agreement recorded</b><p class="small">'+esc(fmt(p.agreement.acceptedAt))+' · '+esc(p.agreement.actor||'Candidate')+'</p></div>';
+ if(!active&&!candidate)h+='<button class="btn pri sm" data-a="niw-activate">Activate NIW case</button>';
+ if(!active&&candidate)h+='<p class="small">Your advisor will activate the NIW preparation workflow.</p>';
+ }
+ if(active&&candidate){
+ var requestDocs=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='request'&&String(d.pathwayKey||'').indexOf('pathway:niw:')===0});
+ var uploaded=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'});
+ var pending=requestDocs.filter(function(d){return !uploaded.some(function(f){return f.reqId===d.id})});
+ h+='<div class="entry"><div class="ph"><h4>Your NIW document requests</h4>'+chip(pending.length+' awaiting uploads',pending.length?'mid':'ok')+'</div>'+
+ '<p class="small">Your advisor reviews all evidence. An upload does not mean the evidence has been accepted.</p>';
+ if(!requestDocs.length)h+='<p class="small">Your advisor has not issued NIW-specific document requests yet.</p>';
+ pending.forEach(function(d){h+='<div class="formrow"><div><b>'+esc(d.label)+'</b><p class="small">'+esc(d.note||'')+'</p></div><button class="btn sm" data-a="cvscroll" data-id="cvdocs">Go to documents</button></div>'});
+ if(!pending.length&&requestDocs.length)h+='<p class="small">All requested categories have at least one uploaded document; advisor review may still be pending.</p>';
+ h+='</div>';
+ if(p.rfe&&p.rfe.status&&p.rfe.status!=='none'&&p.rfe.status!=='closed')h+='<div class="entry"><h4>USCIS additional evidence request</h4><p class="small">Your advisor has recorded an RFE. Contact your advisor for the official notice and response instructions. Recorded deadline: '+esc(p.rfe.deadline||'Not provided')+'. Do not rely on this display instead of the USCIS notice.</p></div>';
+ }
+ if(active){
+ var completed=NIW_PHASES.filter(function(x){return (p.phases||{})[x[0]]&&((p.phases||{})[x[0]].status==='completed')}).length;
+ h+='<p class="small"><b>'+completed+' of '+NIW_PHASES.length+' phases recorded complete</b>. Completion is a workflow status, not USCIS approval.</p>';
+ NIW_PHASES.forEach(function(x,i){
+ var record=(p.phases||{})[x[0]]||{},status=record.status||'not_started';
+ h+='<div class="entry"><div class="ph"><b>'+(i+1)+'. '+esc(x[1])+'</b>'+chip(status==='completed'?'Complete':status==='in_progress'?'In progress':status==='blocked'?'Blocked':'Not started',status==='completed'?'ok':status==='blocked'?'bad':'mid')+'</div><p class="small">'+esc(x[2])+'</p>';
+ if(record.note)h+='<p class="small">'+esc(record.note)+'</p>';
+ if(!candidate){
+ h+='<label class="f" for="niwstatus_'+x[0]+'">Phase status</label><select id="niwstatus_'+x[0]+'" data-draft="niwstatus_'+x[0]+'">'+[['not_started','Not started'],['in_progress','In progress'],['blocked','Blocked'],['completed','Complete']].map(function(o){var v=S.draft['niwstatus_'+x[0]]||status;return '<option value="'+o[0]+'"'+(v===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'+
+ '<label class="f" for="niwnote_'+x[0]+'">Advisor note</label><textarea id="niwnote_'+x[0]+'" data-draft="niwnote_'+x[0]+'">'+esc(S.draft['niwnote_'+x[0]]!==undefined?S.draft['niwnote_'+x[0]]:record.note||'')+'</textarea>'+
+ '<button class="btn sm" data-a="niw-phase" data-id="'+x[0]+'">Save phase</button>';
+ }
+ h+='</div>';
+ });
+ if(!candidate){h+=niwReadinessPanel(c);h+=niwAdvancedWorkspace(c)}
+ if(!candidate)h+='<div class="entry"><h4>USCIS filing details (advisor-recorded)</h4>'+
+ [['receipt','USCIS receipt number'],['filed','I-140 received / filed date'],['priority','Verified priority date'],['decision','I-140 decision (pending / approved / denied / withdrawn)']].map(function(x){return '<label class="f">'+esc(x[1])+'</label><input type="'+(x[0]==='filed'||x[0]==='priority'?'date':'text')+'" data-draft="niw_'+x[0]+'" value="'+esc(S.draft['niw_'+x[0]]!==undefined?S.draft['niw_'+x[0]]:(p.filing||{})[x[0]]||'')+'">' }).join('')+
+ '<button class="btn sm pri" data-a="niw-filing">Save filing details</button><p class="small">Do not infer priority date from approval date. Verify receipt notice and applicable rules.</p></div>';
+ if(p.filing&&p.filing.receipt)h+='<p class="small">USCIS receipt: '+esc(p.filing.receipt)+' · Priority date: '+esc(p.filing.priority||'Not verified')+' · I-140: '+esc(p.filing.decision||'Pending')+'</p>';
+ }
+ h+='</section>';return h;
 }
 function pathwayGuide(){
  var sections=[
@@ -296,6 +424,30 @@ function pathwayStrategy(c){
  var h='<section class="panel"><div class="ph"><h3>Pathway strategy</h3>'+chip(s.reviewedAt?'Strategy recorded':'Advisor review needed',s.reviewedAt?'ok':'mid')+'</div><p class="small">Assess EB-1A and EB-2 NIW independently. Visa Bulletin cutoffs are not calculated here; verify the current official charts. A priority date does not itself authorize I-485 filing.</p>';
  fields.forEach(function(f){var val=S.draft['strategy_'+f[0]]!==undefined?S.draft['strategy_'+f[0]]:s[f[0]]||'';h+='<label class="f" for="strategy_'+f[0]+'">'+esc(f[1])+'</label>'+(f[2]==='textarea'?'<textarea id="strategy_'+f[0]+'" data-draft="strategy_'+f[0]+'">'+esc(val)+'</textarea>':'<input id="strategy_'+f[0]+'" type="'+f[2]+'" data-draft="strategy_'+f[0]+'" value="'+esc(val)+'">')});
  h+='<div class="entry"><h4>Review prompts</h4><p><b>Current screening:</b> '+esc(r.decision||'Not decided')+'. <b>Education:</b> '+esc(d.degree||'Not recorded')+'. <b>Current status:</b> '+esc(d.status||'Not recorded')+'.</p><p class="small">For India chargeability, compare EB-1 and EB-2 Dates for Filing and Final Action Dates independently. Do not infer that EB-1A is viable from backlog length. Confirm priority-date retention and any prior I-140 revocation exceptions with counsel.</p></div><button class="btn pri sm" data-a="strategy-save">Save advisor strategy</button></section>';
+ return h;
+}
+function pathwayAudit(c){
+ var p=c.pathwayScreening||{},d=p.data||{},rev=p.review||{},elig=c.eligibilityReview||{},forms=S.tasks.filter(function(t){return t.owner==='Candidate'&&t.kind==='form'&&t.req!==false}),reviewTasks=S.tasks.filter(function(t){return t.owner!=='Candidate'&&t.kind==='form'&&t.req!==false});
+ forms=forms.filter(function(t){return t.cid===c.id});reviewTasks=reviewTasks.filter(function(t){return t.cid===c.id});
+ var missing=['degree','experience','status','field'].filter(function(k){return !String(d[k]||'').trim()});
+ var intakeReady=forms.length>0&&forms.every(function(t){return isDone(t.status)})&&reviewTasks.every(function(t){return isDone(t.status)});
+ var screened=!!(rev.decision&&rev.note&&rev.reviewedAt),eligible=!!(elig.reviewedAt&&elig.decision&&elig.note);
+ var foeReady=!!(c.foe&&c.foe.locked),criteriaReady=!!(c.chosen&&c.chosen.length&&c.criteriaFinalization&&c.criteriaFinalization.approvedAt&&c.criteriaFinalization.foe===(c.foe||{}).locked);
+ return {intakeReady:intakeReady,missing:missing,screened:screened,eligible:eligible,foeReady:foeReady,criteriaReady:criteriaReady,forms:forms.length,reviewTasks:reviewTasks.length};
+}
+function pathwayAuditPanel(c){
+ var a=pathwayAudit(c),e=c.eligibilityReview||{},f=c.criteriaFinalization||{};
+ var h='<section class="panel"><div class="ph"><h3>Case preparation checkpoints</h3>'+chip(a.intakeReady&&a.screened&&a.eligible&&a.foeReady&&a.criteriaReady?'All decisions recorded':'Review in progress','mid')+'</div>'+
+ '<p class="small">Advisor decisions are preparation records, not USCIS eligibility findings. Previously completed cases may require review to establish these checkpoints.</p>';
+ [['Candidate intake and form review',a.intakeReady],['Pathway screening',a.screened],['Eligibility assessment',a.eligible],['Final field of endeavor',a.foeReady],['EB-1A criteria finalization',a.criteriaReady]].forEach(function(x){h+='<div class="formrow"><b>'+esc(x[0])+'</b>'+chip(x[1]?'Recorded':'Pending',x[1]?'ok':'mid')+'</div>'});
+ h+='<p class="small">Required intake forms: '+a.forms+' · Advisor review tasks: '+a.reviewTasks+'. Screening details missing: '+esc(a.missing.join(', ')||'None')+'.</p>';
+ h+='<div class="entry"><h4>Advisor eligibility assessment</h4><p class="small">Evaluate the EB-1A criteria and final merits independently from the EB-2 threshold and NIW three prongs. Do not mark legal eligibility as confirmed by software.</p>'+
+ '<label class="f">Assessment outcome</label><select data-draft="elig_decision">'+[['','Select'],['develop','Evidence development recommended'],['attorney','Ready for independent attorney eligibility review'],['hold','Insufficient evidence / on hold'],['other','Alternative pathway review']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.elig_decision||e.decision||'')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
+ '<label class="f">EB-1A assessment, EB-2 threshold, NIW prongs, gaps and reasoning</label><textarea data-draft="elig_note">'+esc(S.draft.elig_note!==undefined?S.draft.elig_note:e.note||'')+'</textarea>'+
+ '<button class="btn sm pri" data-a="elig-save">Record assessment</button></div>';
+ h+='<div class="entry"><h4>Criteria approval record</h4><p class="small">Finalization requires the approved FOE and a written reason for each selected EB-1A criterion. NIW evidence requirements are tracked separately.</p>'+
+ '<label class="f">Final criteria rationale and evidence gaps</label><textarea data-draft="criteria_note">'+esc(S.draft.criteria_note!==undefined?S.draft.criteria_note:f.note||'')+'</textarea>'+
+ '<p class="small">'+(f.approvedAt?'Approved '+esc(fmt(f.approvedAt))+' · '+esc((f.criteria||[]).join(', ')):'No approved criteria record')+'</p></div></section>';
  return h;
 }
 function pathwayScreening(c){
@@ -743,7 +895,8 @@ function evidenceIntelligencePanel(c){
   return h+'</div><p class="small">EB-1A criteria and NIW considerations require separate legal analysis. These case records do not establish either classification, and an attorney must evaluate the complete petition and final merits.</p></section>';
 }
 /* Source-linked advisor findings: no automatic document extraction or legal determination. */
-function evidenceSourceReview(c){
+function evidenceSourceReview(c,tracks){
+  tracks=tracks||['eb1a'];
   var files=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'&&d.path});
   var findings=Array.isArray(c.evidenceFindings)?c.evidenceFindings:[];
   var h='<section class="panel" aria-label="Source-linked evidence review"><div class="ph"><h3>Source-linked evidence review</h3>'+chip(findings.length+' findings')+'</div>'+
@@ -752,7 +905,8 @@ function evidenceSourceReview(c){
     h+='<label class="f" for="evfile">Source document</label><select id="evfile" data-draft="evfile"><option value="">Select an uploaded file</option>';
     files.forEach(function(f){h+='<option value="'+esc(f.id)+'"'+(S.draft.evfile===f.id?' selected':'')+'>'+esc(f.name)+'</option>'});
     h+='</select><label class="f" for="evcriterion">Criterion to examine</label><select id="evcriterion" data-draft="evcriterion"><option value="">Choose a criterion</option>';
-    CRIT.forEach(function(k){if(!k.na)h+='<option value="'+esc(k.id)+'"'+(S.draft.evcriterion===k.id?' selected':'')+'>'+esc(k.n)+'</option>'});
+    if(tracks.indexOf('eb1a')>=0)CRIT.forEach(function(k){if(!k.na)h+='<option value="'+esc(k.id)+'"'+(S.draft.evcriterion===k.id?' selected':'')+'>'+esc('EB-1A — '+k.n)+'</option>'});
+    if(tracks.indexOf('niw')>=0)PATHWAY_REQUIREMENTS.niw.forEach(function(k){h+='<option value="'+esc(k[0])+'"'+(S.draft.evcriterion===k[0]?' selected':'')+'>'+esc('NIW — '+k[1])+'</option>'});
     h+='</select><label class="f" for="evlocator">Page / section / location in source</label><input id="evlocator" data-draft="evlocator" maxlength="180" value="'+esc(S.draft.evlocator||'')+'" placeholder="Page 2, paragraph 3">'+
       '<label class="f" for="evexcerpt">Exact source excerpt or factual description</label><textarea id="evexcerpt" data-draft="evexcerpt" maxlength="1600">'+esc(S.draft.evexcerpt||'')+'</textarea>'+
       '<label class="f" for="evnote">Advisor interpretation (separate from source)</label><textarea id="evnote" data-draft="evnote" maxlength="1600">'+esc(S.draft.evnote||'')+'</textarea>'+
@@ -762,7 +916,8 @@ function evidenceSourceReview(c){
   findings.forEach(function(f){
     var file=files.find(function(x){return x.id===f.fileId});
     var criterion=CRIT.find(function(x){return x.id===f.criterionId});
-    h+='<div class="entry"><div class="ph"><b>'+esc(criterion?criterion.n:'Criterion unavailable')+'</b>'+chip(f.status==='accepted'?'Reviewed':f.status==='rejected'?'Rejected':'Pending review',f.status==='accepted'?'ok':f.status==='rejected'?'bad':'mid')+'</div>'+
+    var niwItem=PATHWAY_REQUIREMENTS.niw.find(function(x){return x[0]===f.criterionId});
+    h+='<div class="entry"><div class="ph"><b>'+esc(criterion?criterion.n:niwItem?'NIW — '+niwItem[1]:'Criterion unavailable')+'</b>'+chip(f.status==='accepted'?'Reviewed':f.status==='rejected'?'Rejected':'Pending review',f.status==='accepted'?'ok':f.status==='rejected'?'bad':'mid')+'</div>'+
       '<p class="small">Source: '+esc(file?file.name:'File unavailable or deleted')+' · '+esc(f.locator||'Location unspecified')+'</p>'+
       '<p><b>Source excerpt:</b> '+esc(f.excerpt||'')+'</p>'+(f.note?'<p class="small"><b>Advisor interpretation:</b> '+esc(f.note)+'</p>':'')+
       (file?'<button class="btn sm" data-a="getfile" data-path="'+esc(file.path)+'">Open source</button> ':'')+
@@ -784,6 +939,7 @@ function scoreTab(c){
     });
   }
   h+='</div>';
+  h+=pathwayAuditPanel(c);
   h+=evidenceIntelligencePanel(c);
   h+=evidenceSourceReview(c);
   h+=targetsPanel(c);
@@ -861,7 +1017,7 @@ function candidateView(c){
   /* hero */
   h+='<section class="cv-hero"><div class="cv-hl"><p class="cv-eyebrow">'+esc(cvGreeting())+'</p><h2>'+esc(first)+', here is where you stand</h2><p class="cv-sub">Phase '+(st+1)+' of '+CV_STAGES.length+': <b>'+esc(ph.n)+'</b>. '+esc(ph.d)+'</p>'+
    '<div class="cv-meta">'+(c.visa?'<span>'+esc(c.visa)+(c.visaExpiry?' valid to '+esc(fmtDate(c.visaExpiry)):'')+'</span>':'')+(c.goal?'<span>Goal: '+esc(c.goal)+'</span>':'')+'</div></div><div class="cv-hr">'+cvRing(pct)+'<span>overall progress</span></div></section>';
-  h+=pathwayGuide();
+  h+=niwCaseFlow(c,true);
   /* next step */
   if(now.length){var n0=now[0];h+='<section class="cv-next"><div><p class="cv-eyebrow">Your next step</p><h3>'+esc(n0.title)+'</h3><p class="small">'+(n0.due?'Due '+esc(fmtDate(n0.due).replace(/, \d{4}$/,''))+'. ':'')+(now.length>1?(now.length-1)+' more after this one.':'This is the only thing we need from you right now.')+'</p></div>'+(n0.kind==='form'&&n0.form?'<button class="btn pri big" data-a="openform" data-id="'+n0.form+'">'+(getResp(c.id,n0.form).status==='In progress'?'Continue':'Start')+'</button>':'<button class="btn pri big" data-a="cvscroll" data-id="cv-todo">See what to do</button>')+'</section>'}
   else h+='<section class="cv-next calm"><div><p class="cv-eyebrow">Your next step</p><h3>Nothing needed from you right now</h3><p class="small">Our team is working on your case. We will list your next task here and in your messages as soon as it is ready.</p></div><span class="cv-ico ok">'+cvIcon('check')+'</span></section>';
@@ -881,6 +1037,7 @@ function candidateView(c){
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
   h+='<div class="cv-two"><div id="cv-docs">'+docsPanel(c,false)+'</div><div id="cv-msg">'+messagesPanel(c,false)+'</div></div>';
+  h+='<details class="panel cv-more" style="margin-top:16px"><summary style="cursor:pointer;font-weight:600">Immigration Pathway Guide <span class="small" style="font-weight:400">· Optional reference</span></summary><div style="padding-top:14px">'+pathwayGuide()+'</div></details>';
   h+='<p class="cv-foot">Arcanam Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p>';
   return h;
 }
@@ -996,6 +1153,91 @@ document.addEventListener('click',async function(e){
         ['chargeability','prior','niwFiled','statusEnd','rationale'].forEach(function(k){delete S.draft['strategy_'+k]});
         say('Advisor strategy saved.','ok');break;
       }
+      case 'niw-agree':{
+        var decision=(((c.pathwayScreening||{}).review||{}).decision||'');
+        if(decision!=='niw'&&decision!=='both'){say('NIW must be selected by the advisor first.','err');return}
+        if(!S.locked){say('Agreement must be submitted from the candidate’s authenticated account, not advisor preview.','err');return}
+        if(!S.draft.niw_agree){say('Please check the agreement acknowledgement.','err');return}
+        var p=c.niwCase||{};if(p.agreement&&p.agreement.acceptedAt)return;
+        await candRef(c.id).update({niwCase:Object.assign({},p,{agreement:{acceptedAt:nowIso(),actor:'Candidate',version:'niw-v1'}})});
+        delete S.draft.niw_agree;say('NIW pathway acknowledgement recorded.','ok');break;
+      }
+      case 'niw-activate':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.agreement||!p.agreement.acceptedAt){say('Candidate agreement required.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{activatedAt:p.activatedAt||nowIso(),phases:Object.assign({agreement:{status:'completed',note:'Candidate acknowledgement recorded',updatedAt:nowIso()}},p.phases||{})})});
+        say('NIW case activated.','ok');break;
+      }
+      case 'niw-phase':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{},key=id,phase=NIW_PHASES.find(function(x){return x[0]===key});
+        if(!p.activatedAt||!phase){say('Activate a valid NIW case first.','err');return}
+        var status=S.draft['niwstatus_'+key]||((p.phases||{})[key]||{}).status||'not_started';
+        if(!['not_started','in_progress','blocked','completed'].includes(status)){say('Invalid phase status.','err');return}
+        if(status==='completed'&&key==='draft'&&!NIW_PACKAGE_ITEMS.every(function(x){return (p.package||{})[x[0]]&&(p.package||{})[x[0]].ready})){say('Complete all petition package items first.','err');return}
+        if(status==='completed'&&['draft','legal','filing'].includes(key)&&!niwReadiness(c).ready){say('Complete NIW evidence review before closing this phase.','err');return}
+        if(status==='completed'&&['legal','filing'].includes(key)&&!(p.legalSignoff&&p.legalSignoff.signedAt)){say('Attorney review record required.','err');return}
+        if(status==='completed'&&key==='uscis'&&!['approved','denied','withdrawn'].includes(String((p.filing||{}).decision||'').toLowerCase())){say('Record a USCIS I-140 decision before completing adjudication.','err');return}
+        if(status==='completed'&&key==='visa'&&!(p.visaTracking&&p.visaTracking.reviewedAt)){say('Record a reviewed Visa Bulletin and USCIS chart before completing visa tracking.','err');return}
+        if(status==='completed'&&key==='filing'&&!(p.filing&&p.filing.receipt&&p.filing.filed)){say('Record USCIS receipt and filing date first.','err');return}
+        if(key==='agreement'&&status!=='completed') {say('Candidate agreement cannot be reset by an advisor.','err');return}
+        if(key==='agreement'&&status==='completed'&&!(p.agreement&&p.agreement.acceptedAt)){say('Candidate agreement is required.','err');return}
+        var note=String(S.draft['niwnote_'+key]!==undefined?S.draft['niwnote_'+key]:((p.phases||{})[key]||{}).note||'').trim().slice(0,3000);
+        var phases=Object.assign({},p.phases||{});phases[key]={status:status,note:note,updatedAt:nowIso()};
+        await candRef(c.id).update({niwCase:Object.assign({},p,{phases:phases})});
+        delete S.draft['niwstatus_'+key];delete S.draft['niwnote_'+key];say('NIW phase saved.','ok');break;
+      }
+      case 'niw-package':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{},item=NIW_PACKAGE_ITEMS.find(function(x){return x[0]===id});
+        if(!p.activatedAt||!item){say('Active NIW case required.','err');return}
+        var pack=Object.assign({},p.package||{}),old=pack[id]||{},note=String(S.draft['niwpkg_'+id]!==undefined?S.draft['niwpkg_'+id]:old.note||'').trim().slice(0,2000);
+        if(!old.ready&&!note){say('Add a document reference or preparation note first.','err');return}
+        pack[id]={ready:!old.ready,note:note,updatedAt:nowIso()};
+        await candRef(c.id).update({niwCase:Object.assign({},p,{package:pack})});
+        delete S.draft['niwpkg_'+id];say('Petition package item updated.','ok');break;
+      }
+      case 'niw-rfe':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Active NIW case required.','err');return}
+        var old=p.rfe||{},v={};
+        ['notice','deadline','issues','response','status'].forEach(function(k){v[k]=String(S.draft['niwrfe_'+k]!==undefined?S.draft['niwrfe_'+k]:old[k]||'').trim().slice(0,3000)});
+        v.status=v.status||'none';if(!['none','received','preparing','review','sent','closed'].includes(v.status)){say('Select a valid RFE status.','err');return}
+        if(v.status!=='none'&&(!v.notice||!v.deadline||!v.issues)){say('RFE notice, deadline and requested issues are required.','err');return}
+        if(v.status==='sent'&&!v.response){say('Record the response package reference before marking sent.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{rfe:Object.assign({},v,{updatedAt:nowIso()})})});
+        ['notice','deadline','issues','response','status'].forEach(function(k){delete S.draft['niwrfe_'+k]});say('RFE tracker saved.','ok');break;
+      }
+      case 'niw-visa':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Active NIW case required.','err');return}
+        var old=p.visaTracking||{},v={};
+        ['chargeability','bulletin','category','filingCutoff','finalCutoff','chart','notes'].forEach(function(k){v[k]=String(S.draft['niwvisa_'+k]!==undefined?S.draft['niwvisa_'+k]:old[k]||'').trim().slice(0,3000)});
+        if(!v.chargeability||!v.bulletin||!v.category||!v.chart){say('Record chargeability, bulletin month, category and USCIS chart.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{visaTracking:Object.assign({},v,{reviewedAt:nowIso()})})});
+        Object.keys(v).forEach(function(k){delete S.draft['niwvisa_'+k]});say('Visa Bulletin review saved.','ok');break;
+      }
+      case 'niw-signoff':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{},r=niwReadiness(c);
+        if(!p.activatedAt||!r.ready){say('NIW evidence requirements must be reviewed first.','err');return}
+        var reviewer=String(S.draft.niwreviewer||'').trim().slice(0,160),note=String(S.draft.niwreviewnote||'').trim().slice(0,3000);
+        if(!reviewer||!note||!S.draft.niwreviewconfirm){say('Enter reviewer, decision, and explicit confirmation.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{legalSignoff:{reviewer:reviewer,note:note,signedAt:nowIso(),recordedBy:'Advisor'}})});
+        delete S.draft.niwreviewconfirm;say('Attorney review record saved.','ok');break;
+      }
+      case 'niw-filing':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Activate NIW case first.','err');return}
+        if(!p.legalSignoff||!p.legalSignoff.signedAt){say('Record attorney review before filing details.','err');return}
+        var f={},old=p.filing||{};
+        ['receipt','filed','priority','decision'].forEach(function(k){f[k]=String(S.draft['niw_'+k]!==undefined?S.draft['niw_'+k]:old[k]||'').trim().slice(0,160)});
+        if(['filed','priority'].some(function(k){return f[k]&&!/^\d{4}-\d{2}-\d{2}$/.test(f[k])})){say('Enter valid filing and priority dates.','err');return}
+        if(f.decision&&!['pending','approved','denied','withdrawn'].includes(f.decision.toLowerCase())){say('Use pending, approved, denied or withdrawn.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{filing:f})});
+        ['receipt','filed','priority','decision'].forEach(function(k){delete S.draft['niw_'+k]});
+        say('NIW filing details saved.','ok');break;
+      }
       case 'ps-generate':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var ps=c.pathwayScreening||{},decision=(ps.review||{}).decision||'';
@@ -1020,12 +1262,24 @@ document.addEventListener('click',async function(e){
         await candRef(c.id).update({pathwayScreening:{data:data,review:old.review||{},updatedAt:nowIso()}});
         keys.forEach(function(k){delete S.draft['ps_'+k]});say('Screening intake saved.','ok');break;
       }
+      case 'elig-save':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var a=pathwayAudit(c),decision=String(S.draft.elig_decision||'').trim(),note=String(S.draft.elig_note||'').trim().slice(0,5000);
+        if(!a.screened){say('Complete pathway screening first.','err');return}
+        if(a.missing.length){say('Complete screening fields: '+a.missing.join(', ')+'.','err');return}
+        if(!['develop','attorney','hold','other'].includes(decision)||note.length<30){say('Select an outcome and provide detailed reasoning (at least 30 characters).','err');return}
+        var old=c.eligibilityReview||{},history=(old.history||[]).slice();
+        if(old.reviewedAt)history.push({decision:old.decision,note:old.note,reviewedAt:old.reviewedAt});
+        await candRef(c.id).update({eligibilityReview:{decision:decision,note:note,reviewedAt:nowIso(),history:history}});
+        delete S.draft.elig_decision;delete S.draft.elig_note;say('Eligibility assessment recorded for advisor review.','ok');break;
+      }
       case 'ps-review':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var old=(c.pathwayScreening||{}),decision=S.draft.ps_decision||((old.review||{}).decision||''),valid=['eb1a','niw','both','evidence','other'];
         if(valid.indexOf(decision)<0){say('Select a pathway decision.','err');return}
         var note=String(S.draft.ps_note!==undefined?S.draft.ps_note:((old.review||{}).note||'')).trim().slice(0,3000);
         if(!note){say('Record the reasoning and next evidence actions.','err');return}
+        var audit=pathwayAudit(c),missing=audit.missing;if(!audit.intakeReady&&decision!=='evidence'&&decision!=='other'){say('Complete required candidate intake and advisor form reviews before recommending a pathway.','err');return}if(missing.length&&decision!=='evidence'&&decision!=='other'){say('Complete screening fields: '+missing.join(', ')+'.','err');return}
         await candRef(c.id).update({pathwayScreening:{data:old.data||{},updatedAt:old.updatedAt||nowIso(),review:{decision:decision,note:note,reviewedAt:nowIso()}}});
         delete S.draft.ps_decision;delete S.draft.ps_note;say('Advisor screening decision recorded.','ok');break;
       }
@@ -1033,7 +1287,7 @@ document.addEventListener('click',async function(e){
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var fileId=(S.draft.evfile||'').trim(),criterionId=(S.draft.evcriterion||'').trim();
         var locator=(S.draft.evlocator||'').trim(),excerpt=(S.draft.evexcerpt||'').trim(),note=(S.draft.evnote||'').trim();
-        if(!S.docs.some(function(d){return d.id===fileId&&d.cid===c.id&&d.kind==='file'&&d.path})||!CRIT.some(function(k){return k.id===criterionId&&!k.na})){say('Choose a valid source and criterion.','err');return}
+        if(!S.docs.some(function(d){return d.id===fileId&&d.cid===c.id&&d.kind==='file'&&d.path})||!CRIT.some(function(k){return k.id===criterionId&&!k.na})&&!PATHWAY_REQUIREMENTS.niw.some(function(k){return k[0]===criterionId&&['niw','both'].indexOf((((c.pathwayScreening||{}).review||{}).decision||''))>=0})){say('Choose a valid source and criterion.','err');return}
         if(!locator||!excerpt){say('Add a source location and excerpt before saving.','err');return}
         var findings=(c.evidenceFindings||[]).slice();
         findings.push({id:'ev'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),fileId:fileId,criterionId:criterionId,locator:locator.slice(0,180),excerpt:excerpt.slice(0,1600),note:note.slice(0,1600),status:'pending',createdAt:nowIso()});
@@ -1064,7 +1318,7 @@ document.addEventListener('click',async function(e){
       case 'cvphase':S.cvp=+id;break;
       case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
       case 'cvscroll':{var se=document.getElementById(id);if(se)se.scrollIntoView({behavior:'smooth',block:'start'});return}
-      case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;try{window.scrollTo(0,0)}catch(e){}break;
+      case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;S.focusCaseTab=true;break;
       case 'view':S.view=id;break;
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
       case 'asCand':S.role='Candidate';S.openForm=false;break;
@@ -1130,9 +1384,15 @@ document.addEventListener('click',async function(e){
       case 'plan-release':{if(!(c.plan&&c.plan.status==='approved')){say('Approve the plan first.','err');return}await releasePlan();say('Released to the candidate.','ok');break}
       case 'foe-use':{S.draft.foeText=c.foe.options[+id].statement;break}
       case 'tgt-save':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        if(!pathwayAudit(c).foeReady||!pathwayAudit(c).eligible){say('Complete eligibility assessment and FOE lock first.','err');return}
+        var rationale=String(S.draft.criteria_note||'').trim().slice(0,4000);
+        if(rationale.length<30){say('Record criteria rationale (at least 30 characters).','err');return}
         var ch=CRIT.filter(function(k){return !k.na&&(S.draft['tg_'+k.id]!==undefined?S.draft['tg_'+k.id]:(c.chosen?c.chosen.indexOf(k.id)>=0:(c.targets||[]).indexOf(k.id)>=0))}).map(function(k){return k.id});
         if(!ch.length){say('Tick at least one criterion.','err');return}
-        await candRef(c.id).update({chosen:ch,chosenAt:nowIso()});
+        var prev=c.criteriaFinalization||{},history=(prev.history||[]).slice();if(prev.approvedAt)history.push({criteria:prev.criteria||[],note:prev.note||'',approvedAt:prev.approvedAt});
+        await candRef(c.id).update({chosen:ch,chosenAt:nowIso(),criteriaFinalization:{criteria:ch,note:rationale,approvedAt:nowIso(),foe:(c.foe||{}).locked,history:history}});
+        delete S.draft.criteria_note;
         var sk=0,rs=0;
         for(var ci=0;ci<CRIT.length;ci++){var kk=CRIT[ci].id,keys=CRIT_TASKS[kk]||[],on2=ch.indexOf(kk)>=0;
           for(var ki=0;ki<keys.length;ki++){var tt=taskByKey(c.id,keys[ki]);if(!tt)continue;
@@ -1144,11 +1404,14 @@ document.addEventListener('click',async function(e){
         await completeKey(c.id,'targets','Target criteria confirmed.');
         say('Target criteria confirmed: '+ch.length+'.');break}
       case 'foe-lock':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        if(!pathwayAudit(c).eligible){say('Record the eligibility assessment before locking the final FOE.','err');return}
         var ft2=(S.draft.foeText!==undefined?S.draft.foeText:((c.foe&&c.foe.locked)||'')).trim();
         if(!ft2){say('Write the final FOE statement.','err');return}
         if(!S.draft.foeOk){say('Tick the box to confirm you checked the US growth evidence.','err');return}
         var gs=Object.assign({},c.gates||{});gs.foe={status:'approved',at:nowIso()};
-        await candRef(c.id).update({foe:Object.assign({},c.foe||{},{locked:ft2}),gates:gs});
+        var oldFoe=(c.foe||{}).locked||'',foeHistory=((c.foe||{}).history||[]).slice();if(oldFoe&&oldFoe!==ft2)foeHistory.push({statement:oldFoe,replacedAt:nowIso()});
+        await candRef(c.id).update({foe:Object.assign({},c.foe||{},{locked:ft2,history:foeHistory}),gates:gs});
         await log(c.id,'FOE locked: '+ft2,'gate');await completeKey(c.id,'foe','FOE gate approved.');S.draft.foeOk=false;break}
       case 'att-ok':{var g2=Object.assign({},c.gates||{});g2.attorney={status:'approved',at:nowIso(),note:S.draft.atn||''};await candRef(c.id).update({gates:g2});await log(c.id,'Attorney approved for filing. '+(S.draft.atn||''),'gate');await completeKey(c.id,'attorney','Attorney gate approved.');break}
       case 'att-no':{var g3=Object.assign({},c.gates||{});g3.attorney={status:'changes',at:nowIso(),note:S.draft.atn||''};await candRef(c.id).update({gates:g3});var pk=taskByKey(c.id,'pack');if(pk)await setStatus(pk,'In progress');await log(c.id,'Attorney requested changes: '+(S.draft.atn||'no note'),'gate');break}
