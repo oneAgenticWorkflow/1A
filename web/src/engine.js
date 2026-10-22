@@ -173,6 +173,7 @@ async function seedFictionalIntake(c){
   try{
     for(var id of Object.keys(drafts)){
       var existing=getResp(c.id,id);
+      if(id==='f1'&&existing.status==='Not started'&&!existing.submittedAt){var w1=workResp(c.id,id);Object.keys(drafts.f1).forEach(function(part){w1.data[part]=Object.assign({},drafts.f1[part],w1.data[part]||{})});w1.status='In progress';await saveResp(c.id,id);saved++;continue}
       if(existing.updatedAt||existing.submittedAt||existing.status!=='Not started'||Object.keys(existing.data||{}).length){skipped++;continue}
       var w=workResp(c.id,id);w.data=drafts[id];w.status='In progress';await saveResp(c.id,id);saved++;
     }
