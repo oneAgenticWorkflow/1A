@@ -420,6 +420,30 @@ function pathwayStrategy(c){
  h+='<div class="entry"><h4>Review prompts</h4><p><b>Current screening:</b> '+esc(r.decision||'Not decided')+'. <b>Education:</b> '+esc(d.degree||'Not recorded')+'. <b>Current status:</b> '+esc(d.status||'Not recorded')+'.</p><p class="small">For India chargeability, compare EB-1 and EB-2 Dates for Filing and Final Action Dates independently. Do not infer that EB-1A is viable from backlog length. Confirm priority-date retention and any prior I-140 revocation exceptions with counsel.</p></div><button class="btn pri sm" data-a="strategy-save">Save advisor strategy</button></section>';
  return h;
 }
+function pathwayAudit(c){
+ var p=c.pathwayScreening||{},d=p.data||{},rev=p.review||{},elig=c.eligibilityReview||{},forms=S.tasks.filter(function(t){return t.owner==='Candidate'&&t.kind==='form'&&t.req!==false}),reviewTasks=S.tasks.filter(function(t){return t.owner!=='Candidate'&&t.kind==='form'&&t.req!==false});
+ forms=forms.filter(function(t){return t.cid===c.id});reviewTasks=reviewTasks.filter(function(t){return t.cid===c.id});
+ var missing=['degree','experience','status','field'].filter(function(k){return !String(d[k]||'').trim()});
+ var intakeReady=forms.length>0&&forms.every(function(t){return isDone(t.status)})&&reviewTasks.every(function(t){return isDone(t.status)});
+ var screened=!!(rev.decision&&rev.note&&rev.reviewedAt),eligible=!!(elig.reviewedAt&&elig.decision&&elig.note);
+ var foeReady=!!(c.foe&&c.foe.locked),criteriaReady=!!(c.chosen&&c.chosen.length&&c.criteriaFinalization&&c.criteriaFinalization.approvedAt);
+ return {intakeReady:intakeReady,missing:missing,screened:screened,eligible:eligible,foeReady:foeReady,criteriaReady:criteriaReady,forms:forms.length,reviewTasks:reviewTasks.length};
+}
+function pathwayAuditPanel(c){
+ var a=pathwayAudit(c),e=c.eligibilityReview||{},f=c.criteriaFinalization||{};
+ var h='<section class="panel"><div class="ph"><h3>Case preparation checkpoints</h3>'+chip(a.intakeReady&&a.screened&&a.eligible&&a.foeReady&&a.criteriaReady?'All decisions recorded':'Review in progress','mid')+'</div>'+
+ '<p class="small">Advisor decisions are preparation records, not USCIS eligibility findings. Previously completed cases may require review to establish these checkpoints.</p>';
+ [['Candidate intake and form review',a.intakeReady],['Pathway screening',a.screened],['Eligibility assessment',a.eligible],['Final field of endeavor',a.foeReady],['EB-1A criteria finalization',a.criteriaReady]].forEach(function(x){h+='<div class="formrow"><b>'+esc(x[0])+'</b>'+chip(x[1]?'Recorded':'Pending',x[1]?'ok':'mid')+'</div>'});
+ h+='<p class="small">Required intake forms: '+a.forms+' · Advisor review tasks: '+a.reviewTasks+'. Screening details missing: '+esc(a.missing.join(', ')||'None')+'.</p>';
+ h+='<div class="entry"><h4>Advisor eligibility assessment</h4><p class="small">Evaluate the EB-1A criteria and final merits independently from the EB-2 threshold and NIW three prongs. Do not mark legal eligibility as confirmed by software.</p>'+
+ '<label class="f">Assessment outcome</label><select data-draft="elig_decision">'+[['','Select'],['develop','Evidence development recommended'],['attorney','Ready for independent attorney eligibility review'],['hold','Insufficient evidence / on hold'],['other','Alternative pathway review']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.elig_decision||e.decision||'')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
+ '<label class="f">EB-1A assessment, EB-2 threshold, NIW prongs, gaps and reasoning</label><textarea data-draft="elig_note">'+esc(S.draft.elig_note!==undefined?S.draft.elig_note:e.note||'')+'</textarea>'+
+ '<button class="btn sm pri" data-a="elig-save">Record assessment</button></div>';
+ h+='<div class="entry"><h4>Criteria approval record</h4><p class="small">Finalization requires the approved FOE and a written reason for each selected EB-1A criterion. NIW evidence requirements are tracked separately.</p>'+
+ '<label class="f">Final criteria rationale and evidence gaps</label><textarea data-draft="criteria_note">'+esc(S.draft.criteria_note!==undefined?S.draft.criteria_note:f.note||'')+'</textarea>'+
+ '<p class="small">'+(f.approvedAt?'Approved '+esc(fmt(f.approvedAt))+' · '+esc((f.criteria||[]).join(', ')):'No approved criteria record')+'</p></div></section>';
+ return h;
+}
 function pathwayScreening(c){
  var p=c.pathwayScreening||{},d=p.data||{},review=p.review||{},fields=[
  ['degree','Highest completed degree','select',['','Bachelor','Master','PhD','Other']],
@@ -909,6 +933,7 @@ function scoreTab(c){
     });
   }
   h+='</div>';
+  h+=pathwayAuditPanel(c);
   h+=evidenceIntelligencePanel(c);
   h+=evidenceSourceReview(c);
   h+=targetsPanel(c);
@@ -1231,12 +1256,23 @@ document.addEventListener('click',async function(e){
         await candRef(c.id).update({pathwayScreening:{data:data,review:old.review||{},updatedAt:nowIso()}});
         keys.forEach(function(k){delete S.draft['ps_'+k]});say('Screening intake saved.','ok');break;
       }
+      case 'elig-save':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var a=pathwayAudit(c),decision=String(S.draft.elig_decision||'').trim(),note=String(S.draft.elig_note||'').trim().slice(0,5000);
+        if(!a.screened){say('Complete pathway screening first.','err');return}
+        if(!['develop','attorney','hold','other'].includes(decision)||note.length<30){say('Select an outcome and provide detailed reasoning (at least 30 characters).','err');return}
+        var old=c.eligibilityReview||{},history=(old.history||[]).slice();
+        if(old.reviewedAt)history.push({decision:old.decision,note:old.note,reviewedAt:old.reviewedAt});
+        await candRef(c.id).update({eligibilityReview:{decision:decision,note:note,reviewedAt:nowIso(),history:history}});
+        delete S.draft.elig_decision;delete S.draft.elig_note;say('Eligibility assessment recorded for advisor review.','ok');break;
+      }
       case 'ps-review':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var old=(c.pathwayScreening||{}),decision=S.draft.ps_decision||((old.review||{}).decision||''),valid=['eb1a','niw','both','evidence','other'];
         if(valid.indexOf(decision)<0){say('Select a pathway decision.','err');return}
         var note=String(S.draft.ps_note!==undefined?S.draft.ps_note:((old.review||{}).note||'')).trim().slice(0,3000);
         if(!note){say('Record the reasoning and next evidence actions.','err');return}
+        var missing=pathwayAudit(c).missing;if(missing.length&&decision!=='evidence'&&decision!=='other'){say('Complete screening fields: '+missing.join(', ')+'.','err');return}
         await candRef(c.id).update({pathwayScreening:{data:old.data||{},updatedAt:old.updatedAt||nowIso(),review:{decision:decision,note:note,reviewedAt:nowIso()}}});
         delete S.draft.ps_decision;delete S.draft.ps_note;say('Advisor screening decision recorded.','ok');break;
       }
@@ -1341,9 +1377,15 @@ document.addEventListener('click',async function(e){
       case 'plan-release':{if(!(c.plan&&c.plan.status==='approved')){say('Approve the plan first.','err');return}await releasePlan();say('Released to the candidate.','ok');break}
       case 'foe-use':{S.draft.foeText=c.foe.options[+id].statement;break}
       case 'tgt-save':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        if(!pathwayAudit(c).foeReady||!pathwayAudit(c).eligible){say('Complete eligibility assessment and FOE lock first.','err');return}
+        var rationale=String(S.draft.criteria_note||'').trim().slice(0,4000);
+        if(rationale.length<30){say('Record criteria rationale (at least 30 characters).','err');return}
         var ch=CRIT.filter(function(k){return !k.na&&(S.draft['tg_'+k.id]!==undefined?S.draft['tg_'+k.id]:(c.chosen?c.chosen.indexOf(k.id)>=0:(c.targets||[]).indexOf(k.id)>=0))}).map(function(k){return k.id});
         if(!ch.length){say('Tick at least one criterion.','err');return}
-        await candRef(c.id).update({chosen:ch,chosenAt:nowIso()});
+        var prev=c.criteriaFinalization||{},history=(prev.history||[]).slice();if(prev.approvedAt)history.push({criteria:prev.criteria||[],note:prev.note||'',approvedAt:prev.approvedAt});
+        await candRef(c.id).update({chosen:ch,chosenAt:nowIso(),criteriaFinalization:{criteria:ch,note:rationale,approvedAt:nowIso(),foe:(c.foe||{}).locked,history:history}});
+        delete S.draft.criteria_note;
         var sk=0,rs=0;
         for(var ci=0;ci<CRIT.length;ci++){var kk=CRIT[ci].id,keys=CRIT_TASKS[kk]||[],on2=ch.indexOf(kk)>=0;
           for(var ki=0;ki<keys.length;ki++){var tt=taskByKey(c.id,keys[ki]);if(!tt)continue;
@@ -1355,6 +1397,8 @@ document.addEventListener('click',async function(e){
         await completeKey(c.id,'targets','Target criteria confirmed.');
         say('Target criteria confirmed: '+ch.length+'.');break}
       case 'foe-lock':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        if(!pathwayAudit(c).eligible){say('Record the eligibility assessment before locking the final FOE.','err');return}
         var ft2=(S.draft.foeText!==undefined?S.draft.foeText:((c.foe&&c.foe.locked)||'')).trim();
         if(!ft2){say('Write the final FOE statement.','err');return}
         if(!S.draft.foeOk){say('Tick the box to confirm you checked the US growth evidence.','err');return}
