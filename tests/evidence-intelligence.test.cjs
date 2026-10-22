@@ -83,3 +83,21 @@ test('NIW evidence review supports independent source-linked prongs',()=>{
  assert.match(ui,/NIW — /);
  assert.match(ui,/\['niw','both'\]\.indexOf/);
 });
+
+test('NIW lifecycle requires candidate acknowledgement and advisor activation',()=>{
+ assert.match(ui,/var NIW_PHASES=/);
+ assert.match(ui,/case 'niw-agree'/);
+ assert.match(ui,/if\(!S\.locked\)/);
+ assert.match(ui,/case 'niw-activate'/);
+ assert.match(ui,/if\(!p\.agreement\|\|!p\.agreement\.acceptedAt\)/);
+ assert.match(ui,/data-draft-chk="niw_agree"/);
+});
+test('NIW case separates USCIS filing and visa availability',()=>{
+ assert.match(ui,/\['filing','I-140 filing'/);
+ assert.match(ui,/\['uscis','USCIS adjudication'/);
+ assert.match(ui,/\['visa','Visa availability'/);
+ assert.match(ui,/\['residence','Green-card process'/);
+ assert.match(ui,/case 'niw-filing'/);
+ assert.match(ui,/niwCaseFlow\(c,true\)/);
+ assert.match(ui,/niwCaseFlow\(c,false\)/);
+});
