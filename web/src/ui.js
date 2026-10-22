@@ -140,7 +140,7 @@ function casesView(){
   var active=sorted.filter(function(c){return caseProgress(c)<100}).length;
   var h='<section class="pathway-overview" aria-label="Case portfolio overview">'+
     '<div class="pathway-heading"><div><div class="pathway-eyebrow">ARCANAM / CASE INTELLIGENCE</div><h2>Case overview</h2><p>Priorities, evidence readiness, and progress across your portfolio.</p></div>'+
-    (S.staff==='admin'?'<button class="btn pri" data-a="newcase">+ New candidate</button>':'')+'</div>'+
+    '</div>'+
     '<div class="pathway-metrics">'+
     '<div class="pathway-metric"><span>Active cases</span><strong>'+active+'</strong><small>'+S.cands.length+' total candidates</small></div>'+
     '<div class="pathway-metric"><span>Open tasks</span><strong>'+open+'</strong><small>Currently in progress</small></div>'+
@@ -208,7 +208,8 @@ function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
   var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
    '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
-  h+=loginPanel(c);
+  if(S.staff==='admin')h+='<div class="addrow"><button class="btn sm" data-a="candidate-login-toggle" aria-expanded="'+(S.showCandidateLogin===c.id?'true':'false')+'">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button></div>';
+  if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   h+='<div class="steps">'+STAGES.map(function(s,i){return '<div class="step'+(i<st?' done':i===st?' now':'')+(s.gate?' g':'')+'" title="'+esc(s.d)+'"><i>'+(i+1)+'</i>'+esc(s.n)+'</div>'}).join('')+'</div>'+bar(caseProgress(c));
   var blockers=ts.filter(function(t){return t.stage===st&&t.req!==false&&!isDone(t.status)});
@@ -1313,7 +1314,7 @@ document.addEventListener('click',async function(e){
       case 'alltasks':S.cid=null;S.home='tasks';break;
       case 'newcase':S.cid=null;S.home='new';break;
       case 'create':await createCase();return;
-      case 'open':S.cid=id;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
+      case 'open':S.cid=id;S.showCandidateLogin=null;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
       case 'cvphase':S.cvp=+id;break;
       case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
@@ -1325,12 +1326,13 @@ document.addEventListener('click',async function(e){
       case 'asAdv':S.role='Advisor';S.openForm=false;break;
       case 'copy':S.copyText=summary(c);break;
       case 'copy-close':S.copyText=null;break;
+      case 'candidate-login-toggle':S.showCandidateLogin=S.showCandidateLogin===c.id?null:c.id;break;
       case 'delete':S.confirmDel=true;break;
       case 'delete-no':S.confirmDel=false;break;
       case 'reset':S.confirmReset=true;break;
       case 'reset-no':S.confirmReset=false;break;
       case 'reset-yes':{S.confirmReset=false;try{var rc=await db.rpc('reset_candidate',{p_case:c.id});S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour access has been reset. Open '+location.href.split('#')[0]+' and choose "First time? Create your password".\n  Email: '+(c.email||'your email')+'\n  New access code: '+rc+'\nThen pick a new password.\n';say('Access reset. Send the message below to the candidate.','ok')}catch(err){fail(err)}break}
-      case 'delete-yes':{var did=c.id;S.confirmDel=false;S.cid=null;schedule();await deleteCase(did);say('Case deleted.','ok');return}
+      case 'delete-yes':{if(S.staff!=='admin'||!c)return;var did=c.id;S.confirmDel=false;try{await db.deleteCase(did);S.cid=null;S.home='cases';S.showCandidateLogin=null;say('Case deleted.','ok')}catch(err){fail(err)}break}
       case 'check':{var t1=S.tasks.find(function(x){return x.id===id});if(t1){var nd=!isDone(t1.status);await setStatus(t1,nd?'Done':'To do');await log(t1.cid,(nd?'Done: ':'Reopened: ')+t1.title,'task',t1.id)}break}
       case 'task-add':{var title=(S.draft.tt||'').trim();if(!title){say('Enter a task title.','err');return}
         await db.collection('tasks').add({cid:c.id,key:'m'+Date.now().toString(36),stage:c.stage||0,title:title,detail:'',owner:S.draft.to||'Advisor',kind:'task',form:'',gate:'',deps:[],req:false,status:'To do',due:S.draft.td||addDays(today(),14),source:'You',createdAt:nowIso()});
