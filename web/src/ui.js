@@ -205,26 +205,44 @@ function allTasksView(){
 
 /* Planning forecast uses recorded task dates only; no speculative USCIS timing. */
 function filingReadinessForecast(c,ts){
-  var required=ts.filter(function(t){return t.req!==false}),remaining=required.filter(function(t){return !isDone(t.status)&&t.status!=='Skipped'});
-  var evidence=remaining.filter(function(t){return t.stage<=6}),attorney=remaining.filter(function(t){return t.stage===7}),filing=remaining.filter(function(t){return t.stage>=8});
-  function maxDate(items){var dates=items.map(function(t){return t.due}).filter(function(x){return /^\\d{4}-\\d{2}-\\d{2}$/.test(x||'')}).sort();return dates.length?dates[dates.length-1]:null}
-  function forecast(items,prev){
-    if(!items.length)return prev&&prev.kind!=='complete'?{label:'Awaiting prior milestone',kind:'unknown'}:{label:'No outstanding tasks',kind:'complete'};
-    var undated=items.filter(function(t){return !/^\\d{4}-\\d{2}-\\d{2}$/.test(t.due||'')}).length;
-    if(undated)return {label:'Needs '+undated+' task date'+(undated===1?'':'s'),kind:'unknown'};
-    var date=maxDate(items);
-    if(prev&&prev.kind==='unknown')return {label:'Waiting on earlier milestone',kind:'unknown'};
-    if(prev&&prev.date&&prev.date>date)date=prev.date;
-    return {label:'Not before '+fmtDate(date),date:date,kind:'estimate'};
+  var active=ts.filter(t=>t.req!==false&&t.status!=='Skipped'&&!isDone(t.status));
+  var all=Object.fromEntries(ts.filter(t=>t.key).map(t=>[t.key,t]));
+  var today=Math.floor(Date.now()/86400000),cache={},stack={},cycles=0,undated=0;
+  function parse(v){return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(v||'')?Math.floor(Date.parse(v+'T12:00:00Z')/86400000):null}
+  function work(start,n){var d=new Date(start*86400000);while(n>0){d.setUTCDate(d.getUTCDate()+1);if(d.getUTCDay()!==0&&d.getUTCDay()!==6)n--}return Math.floor(d.getTime()/86400000)}
+  function fmt(n){return fmtDate(new Date(n*86400000).toISOString().slice(0,10))}
+  function calc(t){
+    if(isDone(t.status))return {lo:today,hi:today,path:[]};
+    if(cache[t.id])return cache[t.id];
+    if(stack[t.id]){cycles++;return {lo:today,hi:today,path:[]}}
+    stack[t.id]=true;
+    var deps=(t.deps||[]).map(k=>all[k]).filter(Boolean).map(calc);
+    var lo=Math.max(today,...deps.map(x=>x.lo)),hi=Math.max(today,...deps.map(x=>x.hi));
+    var lead=t.owner==='Attorney'?7:t.owner==='Candidate'?5:t.owner==='Analysis'?3:4;
+    if(t.status==='In progress')lead=Math.max(2,Math.ceil(lead/2));
+    if(t.status==='Blocked')lead+=5;
+    lo=work(lo,lead);hi=work(hi,Math.ceil(lead*1.6)+2);
+    var due=parse(t.due);if(due===null)undated++;else{lo=Math.max(lo,due);hi=Math.max(hi,due)}
+    var longest=deps.slice().sort((x,y)=>y.hi-x.hi)[0];
+    var out={lo:lo,hi:hi,path:(longest?longest.path:[]).concat([t])};
+    delete stack[t.id];return cache[t.id]=out;
   }
-  var e=forecast(evidence),a=forecast(attorney,e),f=forecast(filing,a);
-  var allDone=!remaining.length;
-  var h='<section class="panel filing-forecast"><div class="filing-forecast-head"><div><p class="cv-work-eyebrow">CASE PLANNING</p><h3>Filing readiness forecast</h3><p>Based on recorded work and due dates. Update task deadlines to improve the forecast.</p></div>'+chip(allDone?'Tasks complete':remaining.length+' tasks remaining',allDone?'ok':'mid')+'</div><div class="filing-forecast-grid">';
-  [['Evidence preparation',e,evidence.length],['Attorney review',a,attorney.length],['Filing preparation',f,filing.length]].forEach(function(x,i){
-    h+='<div class="filing-forecast-step"><span>0'+(i+1)+' · '+esc(x[0])+'</span><b>'+esc(x[1].label)+'</b><small>'+x[2]+' outstanding required tasks</small></div>';
-  });
-  h+='</div><p class="filing-forecast-note">Planning estimates are not guaranteed dates. Attorney availability, legal review, filing eligibility and government processing are not predicted. A completed task list does not mean a petition is legally ready to file.</p></section>';
-  return h;
+  active.forEach(calc);
+  function phase(min,max,previous){
+    var tasks=active.filter(t=>t.stage>=min&&t.stage<=max),lo=previous?previous.lo:today,hi=previous?previous.hi:today,path=previous?previous.path:[];
+    tasks.forEach(t=>{var v=calc(t);lo=Math.max(lo,v.lo);if(v.hi>=hi){hi=v.hi;path=v.path}});
+    return {lo:lo,hi:hi,path:path,count:tasks.length};
+  }
+  var evidence=phase(0,6),attorney=phase(7,7,evidence),filing=phase(8,8,attorney);
+  var stages=[['Evidence preparation',evidence],['Attorney review',attorney],['Filing preparation',filing]];
+  var h='<section class="panel filing-forecast"><div class="filing-forecast-head"><div><p class="cv-work-eyebrow">CASE PLANNING</p><h3>Filing readiness forecast</h3><p>Provisional ranges based on dependencies, ownership, due dates and parallel work.</p></div>'+chip(active.length+' tasks remaining',active.length?'mid':'ok')+'</div><div class="filing-forecast-grid">';
+  stages.forEach((row,i)=>{var x=row[1];h+='<div class="filing-forecast-step"><span>0'+(i+1)+' · '+esc(row[0])+'</span><b>'+(active.length?esc(fmt(x.lo)+' – '+fmt(x.hi)):'Tracked work complete')+'</b><small>'+x.count+' outstanding tasks in this phase</small></div>'});
+  h+='</div>';
+  var critical=filing.path.filter(t=>!isDone(t.status));
+  if(critical.length)h+='<div class="filing-forecast-detail"><b>Potential critical path</b><p>'+critical.slice(0,5).map(t=>esc(t.title)).join(' → ')+(critical.length>5?' → +'+(critical.length-5)+' more':'')+'</p></div>';
+  if(undated)h+='<p class="filing-forecast-warning">'+undated+' tasks lack due dates. Provisional durations: candidate 5, advisor 4, analysis 3, attorney 7 working days; blocked work adds 5. Confirm dates and attorney availability.</p>';
+  if(cycles)h+='<p class="filing-forecast-warning">Circular dependencies detected; review task relationships.</p>';
+  return h+'<p class="filing-forecast-note">Planning scenarios only, not confidence intervals or promised dates. No historical throughput or staff capacity is modeled yet. Attorney review, legal signoff, filing eligibility and USCIS processing are not predicted. Filing requires attorney confirmation.</p></section>';
 }
 
 /* ----- case view ----- */
