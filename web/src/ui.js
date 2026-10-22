@@ -1157,7 +1157,7 @@ document.addEventListener('click',async function(e){
         var p=c.niwCase||{};if(!p.activatedAt){say('Active NIW case required.','err');return}
         var old=p.rfe||{},v={};
         ['notice','deadline','issues','response','status'].forEach(function(k){v[k]=String(S.draft['niwrfe_'+k]!==undefined?S.draft['niwrfe_'+k]:old[k]||'').trim().slice(0,3000)});
-        if(!['none','received','preparing','review','sent','closed'].includes(v.status)){say('Select a valid RFE status.','err');return}
+        v.status=v.status||'none';if(!['none','received','preparing','review','sent','closed'].includes(v.status)){say('Select a valid RFE status.','err');return}
         if(v.status!=='none'&&(!v.notice||!v.deadline||!v.issues)){say('RFE notice, deadline and requested issues are required.','err');return}
         if(v.status==='sent'&&!v.response){say('Record the response package reference before marking sent.','err');return}
         await candRef(c.id).update({niwCase:Object.assign({},p,{rfe:Object.assign({},v,{updatedAt:nowIso()})})});
