@@ -133,3 +133,11 @@ test('candidate NIW journey displays outstanding document requests and RFE guida
  assert.match(ui,/USCIS additional evidence request/);
  assert.match(ui,/niwCaseFlow\(c,true\)/);
 });
+
+test('NIW evidence findings must cite an upload linked to the corresponding request',()=>{
+ assert.match(ui,/linked\.some\(function\(d\)\{return d\.id===f\.fileId&&d\.path\}\)/);
+});
+test('NIW adjudication and visa milestones require documented decisions and bulletin review',()=>{
+ assert.match(ui,/Record a USCIS I-140 decision before completing adjudication/);
+ assert.match(ui,/Record a reviewed Visa Bulletin and USCIS chart before completing visa tracking/);
+});
