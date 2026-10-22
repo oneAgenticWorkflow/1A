@@ -26,7 +26,7 @@ test('unassessed cases receive a caution',()=>{
 });
 
 test('source review requires an uploaded file, source location, and excerpt',()=>{
- assert.match(ui,/function evidenceSourceReview\(c\)/);
+ assert.match(ui,/function evidenceSourceReview\(c,tracks\)/);
  assert.match(ui,/d\.cid===c\.id&&d\.kind==='file'&&d\.path/);
  assert.match(ui,/if\(!locator\|\|!excerpt\)/);
 });
@@ -113,4 +113,17 @@ test('NIW filing and legal milestones require advisor-recorded attorney review',
  assert.match(ui,/legalSignoff:/);
  assert.match(ui,/Record attorney review before filing details/);
  assert.match(ui,/Record USCIS receipt and filing date first/);
+});
+
+test('NIW petition package and RFE workspace are present',()=>{
+ assert.match(ui,/var NIW_PACKAGE_ITEMS=/);
+ assert.match(ui,/function niwAdvancedWorkspace\(c\)/);
+ assert.match(ui,/case 'niw-package'/);
+ assert.match(ui,/case 'niw-rfe'/);
+ assert.match(ui,/case 'niw-visa'/);
+});
+test('NIW filing readiness includes evidence and attorney review gates',()=>{
+ assert.match(ui,/Complete all petition package items first/);
+ assert.match(ui,/case 'niw-signoff'/);
+ assert.match(ui,/Record attorney review before filing details/);
 });
