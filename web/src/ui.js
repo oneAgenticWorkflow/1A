@@ -426,7 +426,7 @@ function pathwayAudit(c){
  var missing=['degree','experience','status','field'].filter(function(k){return !String(d[k]||'').trim()});
  var intakeReady=forms.length>0&&forms.every(function(t){return isDone(t.status)})&&reviewTasks.every(function(t){return isDone(t.status)});
  var screened=!!(rev.decision&&rev.note&&rev.reviewedAt),eligible=!!(elig.reviewedAt&&elig.decision&&elig.note);
- var foeReady=!!(c.foe&&c.foe.locked),criteriaReady=!!(c.chosen&&c.chosen.length&&c.criteriaFinalization&&c.criteriaFinalization.approvedAt);
+ var foeReady=!!(c.foe&&c.foe.locked),criteriaReady=!!(c.chosen&&c.chosen.length&&c.criteriaFinalization&&c.criteriaFinalization.approvedAt&&c.criteriaFinalization.foe===(c.foe||{}).locked);
  return {intakeReady:intakeReady,missing:missing,screened:screened,eligible:eligible,foeReady:foeReady,criteriaReady:criteriaReady,forms:forms.length,reviewTasks:reviewTasks.length};
 }
 function pathwayAuditPanel(c){
@@ -1260,6 +1260,7 @@ document.addEventListener('click',async function(e){
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var a=pathwayAudit(c),decision=String(S.draft.elig_decision||'').trim(),note=String(S.draft.elig_note||'').trim().slice(0,5000);
         if(!a.screened){say('Complete pathway screening first.','err');return}
+        if(a.missing.length){say('Complete screening fields: '+a.missing.join(', ')+'.','err');return}
         if(!['develop','attorney','hold','other'].includes(decision)||note.length<30){say('Select an outcome and provide detailed reasoning (at least 30 characters).','err');return}
         var old=c.eligibilityReview||{},history=(old.history||[]).slice();
         if(old.reviewedAt)history.push({decision:old.decision,note:old.note,reviewedAt:old.reviewedAt});
@@ -1403,7 +1404,8 @@ document.addEventListener('click',async function(e){
         if(!ft2){say('Write the final FOE statement.','err');return}
         if(!S.draft.foeOk){say('Tick the box to confirm you checked the US growth evidence.','err');return}
         var gs=Object.assign({},c.gates||{});gs.foe={status:'approved',at:nowIso()};
-        await candRef(c.id).update({foe:Object.assign({},c.foe||{},{locked:ft2}),gates:gs});
+        var oldFoe=(c.foe||{}).locked||'',foeHistory=((c.foe||{}).history||[]).slice();if(oldFoe&&oldFoe!==ft2)foeHistory.push({statement:oldFoe,replacedAt:nowIso()});
+        await candRef(c.id).update({foe:Object.assign({},c.foe||{},{locked:ft2,history:foeHistory}),gates:gs});
         await log(c.id,'FOE locked: '+ft2,'gate');await completeKey(c.id,'foe','FOE gate approved.');S.draft.foeOk=false;break}
       case 'att-ok':{var g2=Object.assign({},c.gates||{});g2.attorney={status:'approved',at:nowIso(),note:S.draft.atn||''};await candRef(c.id).update({gates:g2});await log(c.id,'Attorney approved for filing. '+(S.draft.atn||''),'gate');await completeKey(c.id,'attorney','Attorney gate approved.');break}
       case 'att-no':{var g3=Object.assign({},c.gates||{});g3.attorney={status:'changes',at:nowIso(),note:S.draft.atn||''};await candRef(c.id).update({gates:g3});var pk=taskByKey(c.id,'pack');if(pk)await setStatus(pk,'In progress');await log(c.id,'Attorney requested changes: '+(S.draft.atn||'no note'),'gate');break}
