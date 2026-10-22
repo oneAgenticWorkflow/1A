@@ -209,7 +209,7 @@ function filingReadinessForecast(c,ts){
   var evidence=remaining.filter(function(t){return t.stage<=6}),attorney=remaining.filter(function(t){return t.stage===7}),filing=remaining.filter(function(t){return t.stage>=8});
   function maxDate(items){var dates=items.map(function(t){return t.due}).filter(function(x){return /^\\d{4}-\\d{2}-\\d{2}$/.test(x||'')}).sort();return dates.length?dates[dates.length-1]:null}
   function forecast(items,prev){
-    if(!items.length)return {label:'Tasks complete',kind:'complete'};
+    if(!items.length)return prev&&prev.kind!=='complete'?{label:'Awaiting prior milestone',kind:'unknown'}:{label:'No outstanding tasks',kind:'complete'};
     var undated=items.filter(function(t){return !/^\\d{4}-\\d{2}-\\d{2}$/.test(t.due||'')}).length;
     if(undated)return {label:'Needs '+undated+' task date'+(undated===1?'':'s'),kind:'unknown'};
     var date=maxDate(items);
