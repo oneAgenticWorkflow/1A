@@ -203,6 +203,30 @@ function allTasksView(){
   return h+'</div>';
 }
 
+/* Planning forecast uses recorded task dates only; no speculative USCIS timing. */
+function filingReadinessForecast(c,ts){
+  var required=ts.filter(function(t){return t.req!==false}),remaining=required.filter(function(t){return !isDone(t.status)&&t.status!=='Skipped'});
+  var evidence=remaining.filter(function(t){return t.stage<=6}),attorney=remaining.filter(function(t){return t.stage===7}),filing=remaining.filter(function(t){return t.stage>=8});
+  function maxDate(items){var dates=items.map(function(t){return t.due}).filter(function(x){return /^\\d{4}-\\d{2}-\\d{2}$/.test(x||'')}).sort();return dates.length?dates[dates.length-1]:null}
+  function forecast(items,prev){
+    if(!items.length)return {label:'Tasks complete',kind:'complete'};
+    var undated=items.filter(function(t){return !/^\\d{4}-\\d{2}-\\d{2}$/.test(t.due||'')}).length;
+    if(undated)return {label:'Needs '+undated+' task date'+(undated===1?'':'s'),kind:'unknown'};
+    var date=maxDate(items);
+    if(prev&&prev.kind==='unknown')return {label:'Waiting on earlier milestone',kind:'unknown'};
+    if(prev&&prev.date&&prev.date>date)date=prev.date;
+    return {label:'Not before '+fmtDate(date),date:date,kind:'estimate'};
+  }
+  var e=forecast(evidence),a=forecast(attorney,e),f=forecast(filing,a);
+  var allDone=!remaining.length;
+  var h='<section class="panel filing-forecast"><div class="filing-forecast-head"><div><p class="cv-work-eyebrow">CASE PLANNING</p><h3>Filing readiness forecast</h3><p>Based on recorded work and due dates. Update task deadlines to improve the forecast.</p></div>'+chip(allDone?'Tasks complete':remaining.length+' tasks remaining',allDone?'ok':'mid')+'</div><div class="filing-forecast-grid">';
+  [['Evidence preparation',e,evidence.length],['Attorney review',a,attorney.length],['Filing preparation',f,filing.length]].forEach(function(x,i){
+    h+='<div class="filing-forecast-step"><span>0'+(i+1)+' · '+esc(x[0])+'</span><b>'+esc(x[1].label)+'</b><small>'+x[2]+' outstanding required tasks</small></div>';
+  });
+  h+='</div><p class="filing-forecast-note">Planning estimates are not guaranteed dates. Attorney availability, legal review, filing eligibility and government processing are not predicted. A completed task list does not mean a petition is legally ready to file.</p></section>';
+  return h;
+}
+
 /* ----- case view ----- */
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
@@ -218,6 +242,7 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
+  h+=filingReadinessForecast(c,ts);
   var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div><div class="case-tab-content">';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
