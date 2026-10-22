@@ -273,6 +273,32 @@ var NIW_PHASES=[
  ['visa','Visa availability','Monitor EB-2 chargeability, bulletin and adjustment eligibility'],
  ['residence','Green-card process','Separate I-485 or consular processing and final decision']
 ];
+function niwReadiness(c){
+ var docs=S.docs.filter(function(d){return d.cid===c.id}),reqs=docs.filter(function(d){return d.kind==='request'&&String(d.pathwayKey||'').indexOf('pathway:niw:')===0}),files=docs.filter(function(d){return d.kind==='file'});
+ var findings=(c.evidenceFindings||[]).filter(function(f){return PATHWAY_REQUIREMENTS.niw.some(function(x){return x[0]===f.criterionId})});
+ var checks=PATHWAY_REQUIREMENTS.niw.map(function(item){
+ var key='pathway:niw:'+item[0],req=reqs.find(function(d){return d.pathwayKey===key});
+ var linked=req?files.filter(function(f){return f.reqId===req.id}):[];
+ var accepted=findings.filter(function(f){return f.criterionId===item[0]&&f.status==='accepted'&&files.some(function(d){return d.id===f.fileId&&d.path})});
+ return {key:item[0],label:item[1],requested:!!req,uploaded:linked.length,reviewed:accepted.length};
+ });
+ var all=checks.every(function(x){return x.requested&&x.uploaded>0&&x.reviewed>0});
+ return {checks:checks,ready:all};
+}
+function niwReadinessPanel(c){
+ var r=niwReadiness(c),p=c.niwCase||{},sign=p.legalSignoff||{};
+ var h='<div class="entry"><div class="ph"><h4>NIW petition preparation checklist</h4>'+chip(r.ready?'Evidence checks satisfied':'Evidence review incomplete',r.ready?'ok':'mid')+'</div>'+
+ '<p class="small">Each requirement needs a document request, a linked upload and at least one advisor-reviewed, source-cited finding. These checks support preparation only; they do not establish legal sufficiency.</p>';
+ r.checks.forEach(function(x){h+='<div class="formrow"><div><b>'+esc(x.label)+'</b><p class="small">Request: '+(x.requested?'Created':'Missing')+' · Linked files: '+x.uploaded+' · Reviewed findings: '+x.reviewed+'</p></div>'+chip(x.requested&&x.uploaded&&x.reviewed?'Documented':'Needs work',x.requested&&x.uploaded&&x.reviewed?'ok':'mid')+'</div>'});
+ h+='<div class="entry"><h4>Attorney sign-off</h4><p class="small">Record the reviewing attorney and confirmation after independent review. This field is an advisor-entered record, not an authenticated attorney signature.</p>';
+ if(sign.signedAt)h+='<p class="small">Recorded: '+esc(sign.reviewer)+' · '+esc(fmt(sign.signedAt))+'</p>';
+ h+='<label class="f" for="niwreviewer">Reviewing attorney name</label><input id="niwreviewer" data-draft="niwreviewer" value="'+esc(S.draft.niwreviewer!==undefined?S.draft.niwreviewer:sign.reviewer||'')+'">'+
+ '<label class="f" for="niwreviewnote">Review decision and filing instructions</label><textarea id="niwreviewnote" data-draft="niwreviewnote">'+esc(S.draft.niwreviewnote!==undefined?S.draft.niwreviewnote:sign.note||'')+'</textarea>'+
+ '<label class="chk-l"><input type="checkbox" data-draft-chk="niwreviewconfirm"'+(S.draft.niwreviewconfirm?' checked':'')+'> I confirm an attorney has independently reviewed the NIW petition and authorized preparation for filing.</label>'+
+ '<button class="btn sm pri" data-a="niw-signoff"'+(!r.ready?' disabled':'')+'>Record attorney review</button>'+
+ (!r.ready?'<p class="small">Complete evidence review before recording sign-off.</p>':'')+'</div></div>';
+ return h;
+}
 function niwCaseFlow(c,candidate){
  var p=c.niwCase||{},decision=(((c.pathwayScreening||{}).review||{}).decision||'');
  if(decision!=='niw'&&decision!=='both')return candidate?'':'<div class="panel"><h3>NIW case</h3><p class="small">An advisor must select NIW or both pathways in screening before starting this case.</p></div>';
@@ -301,6 +327,7 @@ function niwCaseFlow(c,candidate){
  }
  h+='</div>';
  });
+ if(!candidate)h+=niwReadinessPanel(c);
  if(!candidate)h+='<div class="entry"><h4>USCIS filing details (advisor-recorded)</h4>'+
  [['receipt','USCIS receipt number'],['filed','I-140 received / filed date'],['priority','Verified priority date'],['decision','I-140 decision (pending / approved / denied / withdrawn)']].map(function(x){return '<label class="f">'+esc(x[1])+'</label><input type="'+(x[0]==='filed'||x[0]==='priority'?'date':'text')+'" data-draft="niw_'+x[0]+'" value="'+esc(S.draft['niw_'+x[0]]!==undefined?S.draft['niw_'+x[0]]:(p.filing||{})[x[0]]||'')+'">' }).join('')+
  '<button class="btn sm pri" data-a="niw-filing">Save filing details</button><p class="small">Do not infer priority date from approval date. Verify receipt notice and applicable rules.</p></div>';
@@ -1069,6 +1096,9 @@ document.addEventListener('click',async function(e){
         if(!p.activatedAt||!phase){say('Activate a valid NIW case first.','err');return}
         var status=S.draft['niwstatus_'+key]||((p.phases||{})[key]||{}).status||'not_started';
         if(!['not_started','in_progress','blocked','completed'].includes(status)){say('Invalid phase status.','err');return}
+        if(status==='completed'&&['draft','legal','filing'].includes(key)&&!niwReadiness(c).ready){say('Complete NIW evidence review before closing this phase.','err');return}
+        if(status==='completed'&&['legal','filing'].includes(key)&&!(p.legalSignoff&&p.legalSignoff.signedAt)){say('Attorney review record required.','err');return}
+        if(status==='completed'&&key==='filing'&&!(p.filing&&p.filing.receipt&&p.filing.filed)){say('Record USCIS receipt and filing date first.','err');return}
         if(key==='agreement'&&status!=='completed') {say('Candidate agreement cannot be reset by an advisor.','err');return}
         if(key==='agreement'&&status==='completed'&&!(p.agreement&&p.agreement.acceptedAt)){say('Candidate agreement is required.','err');return}
         var note=String(S.draft['niwnote_'+key]!==undefined?S.draft['niwnote_'+key]:((p.phases||{})[key]||{}).note||'').trim().slice(0,3000);
@@ -1076,9 +1106,19 @@ document.addEventListener('click',async function(e){
         await candRef(c.id).update({niwCase:Object.assign({},p,{phases:phases})});
         delete S.draft['niwstatus_'+key];delete S.draft['niwnote_'+key];say('NIW phase saved.','ok');break;
       }
+      case 'niw-signoff':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{},r=niwReadiness(c);
+        if(!p.activatedAt||!r.ready){say('NIW evidence requirements must be reviewed first.','err');return}
+        var reviewer=String(S.draft.niwreviewer||'').trim().slice(0,160),note=String(S.draft.niwreviewnote||'').trim().slice(0,3000);
+        if(!reviewer||!note||!S.draft.niwreviewconfirm){say('Enter reviewer, decision, and explicit confirmation.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{legalSignoff:{reviewer:reviewer,note:note,signedAt:nowIso(),recordedBy:'Advisor'}})});
+        delete S.draft.niwreviewconfirm;say('Attorney review record saved.','ok');break;
+      }
       case 'niw-filing':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var p=c.niwCase||{};if(!p.activatedAt){say('Activate NIW case first.','err');return}
+        if(!p.legalSignoff||!p.legalSignoff.signedAt){say('Record attorney review before filing details.','err');return}
         var f={},old=p.filing||{};
         ['receipt','filed','priority','decision'].forEach(function(k){f[k]=String(S.draft['niw_'+k]!==undefined?S.draft['niw_'+k]:old[k]||'').trim().slice(0,160)});
         if(['filed','priority'].some(function(k){return f[k]&&!/^\d{4}-\d{2}-\d{2}$/.test(f[k])})){say('Enter valid filing and priority dates.','err');return}
