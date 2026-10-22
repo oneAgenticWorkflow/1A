@@ -68,3 +68,11 @@ test('strategy is advisor-only and requires a written rationale',()=>{
  assert.match(ui,/if\(!v\.rationale\)/);
  assert.match(ui,/S\.locked\|\|S\.role==='Candidate'/);
 });
+
+test('pathway guide compares EB-1A and NIW and explains post-I-140 steps',()=>{
+ assert.match(ui,/Compare the two green-card pathways/);
+ assert.match(ui,/After an I-140 is approved/);
+ assert.match(ui,/NIW I-140 filed November 2026 and approved May 2027/);
+ assert.match(ui,/I-140 approval grants work authorization\?/);
+ assert.match(ui,/h\+=comparison/);
+});
