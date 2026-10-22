@@ -40,3 +40,17 @@ test('source-linked review is shown on advisor scorecard',()=>{
  const score=ui.slice(ui.indexOf('function scoreTab(c){'),ui.indexOf('function activityTab(c){'));
  assert.match(score,/evidenceSourceReview\(c\)/);
 });
+
+test('NIW evidence track covers EB-2 threshold and all three Dhanasar prongs',()=>{
+ assert.match(ui,/niw_endeavor/);
+ assert.match(ui,/niw_importance/);
+ assert.match(ui,/niw_position/);
+ assert.match(ui,/niw_balance/);
+ assert.match(ui,/eb2_degree/);
+});
+test('dual pathway development keeps distinct tracks and deduplicates requests',()=>{
+ assert.match(ui,/decision==='both'\?\['niw','eb1a'\]/);
+ assert.match(ui,/pathway:'\+track\+':'\+item\[0\]/);
+ assert.match(ui,/existing\.some\(function\(d\)\{return d\.pathwayKey===key\}\)/);
+ assert.match(ui,/function pathwayDevelopment\(c\)/);
+});
