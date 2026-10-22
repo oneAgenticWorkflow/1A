@@ -141,3 +141,17 @@ test('NIW adjudication and visa milestones require documented decisions and bull
  assert.match(ui,/Record a USCIS I-140 decision before completing adjudication/);
  assert.match(ui,/Record a reviewed Visa Bulletin and USCIS chart before completing visa tracking/);
 });
+
+test('workflow checkpoints require screening and eligibility before FOE and criteria approval',()=>{
+ assert.match(ui,/function pathwayAudit\(c\)/);
+ assert.match(ui,/function pathwayAuditPanel\(c\)/);
+ assert.match(ui,/case 'elig-save'/);
+ assert.match(ui,/Record the eligibility assessment before locking the final FOE/);
+ assert.match(ui,/Complete eligibility assessment and FOE lock first/);
+});
+test('screening and criteria finalization preserve advisor rationale and history',()=>{
+ assert.match(ui,/Complete screening fields:/);
+ assert.match(ui,/criteriaFinalization:\{criteria:ch,note:rationale/);
+ assert.match(ui,/history:foeHistory/);
+ assert.match(ui,/criteriaFinalization\.foe===\(c\.foe\|\|\{\}\)\.locked/);
+});
