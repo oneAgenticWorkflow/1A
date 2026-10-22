@@ -1,0 +1,28 @@
+name: Arcanam dashboard regression
+on:
+  pull_request:
+    paths:
+      - 'web/src/ui.js'
+      - 'tests/premium-dashboard.test.cjs'
+      - '.github/workflows/dashboard-regression.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'web/src/ui.js'
+      - 'tests/premium-dashboard.test.cjs'
+      - '.github/workflows/dashboard-regression.yml'
+permissions:
+  contents: read
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check dashboard JavaScript syntax
+        run: node --check web/src/ui.js
+      - name: Run dashboard regression checks
+        run: node --test tests/premium-dashboard.test.cjs
