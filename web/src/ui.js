@@ -45,7 +45,7 @@ function render(){
     var activeTab=app.querySelector('.nav.tabs .tab.on');
     var tabRow=app.querySelector('.nav.tabs');
     if(activeTab){try{activeTab.focus({preventScroll:true})}catch(e){}}
-    if(tabRow){tabRow.scrollIntoView({block:'start',behavior:'instant'});}
+    if(tabRow){var top=tabRow.getBoundingClientRect().top+window.scrollY-16;window.scrollTo({top:Math.max(0,top),behavior:'instant'});}
   }else if(typeof y==='number')window.scrollTo(0,y);
   reconcile();
 }
@@ -219,7 +219,7 @@ function caseView(c){
   }
   h+=lanes(c,ts);
   var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
-  h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
+  h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div><div class="case-tab-content">';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
@@ -234,7 +234,7 @@ function caseView(c){
   else if(S.tab==='plan')h+=planTab(c);
   else if(S.tab==='feas')h+=feasTab(c);
   else h+=activityTab(c);
-  return h;
+  return h+'</div>';
 }
 
 var PATHWAY_REQUIREMENTS={
