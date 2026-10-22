@@ -361,3 +361,22 @@ code{font-family:var(--mono);font-size:12px}
 .cv-work-history{margin-top:13px}
 .cv-work-history h3{margin-bottom:12px}
 @media(max-width:650px){.cv-work-hero{padding:22px;align-items:flex-start}.cv-work-progress{display:none}.cv-work-dashboard{gap:6px}.cv-work-stat{padding:12px}.cv-work-stat>span{font-size:9px}.cv-work-stat strong{font-size:23px}.cv-work-shortcuts{grid-template-columns:1fr}.cv-work-item{flex-wrap:wrap}.cv-work-item-action{width:100%;padding-left:44px}.cv-work-center{padding:16px!important}}
+
+/* Unified candidate workspace shell: every top-level module uses one grid. */
+#app:has(> .cv-work-hero) > :is(.cv-work-hero,.cv-work-dashboard,.cv-work-shortcuts,.cv-work-center,.cv-journey,.cv-work-history,.panel,.cv-two,.cv-foot,.candbar,.banner){
+  width:100%;max-width:1080px;margin-left:auto;margin-right:auto;box-sizing:border-box;
+}
+#app:has(> .cv-work-hero) > :is(.cv-work-hero,.cv-work-dashboard,.cv-work-shortcuts,.cv-work-center,.cv-journey,.cv-work-history,.panel,.cv-two){margin-bottom:14px}
+#app:has(> .cv-work-hero) > :is(.cv-work-hero,.cv-work-center,.cv-journey,.cv-work-history,.panel){border-radius:14px!important}
+#app:has(> .cv-work-hero) > .cv-work-hero{padding:25px 28px}
+#app:has(> .cv-work-hero) > .cv-work-dashboard{gap:12px}
+#app:has(> .cv-work-hero) > .cv-work-shortcuts{gap:12px}
+#app:has(> .cv-work-hero) > .cv-work-center{padding:22px 25px!important}
+#app:has(> .cv-work-hero) > .cv-journey{padding:22px 25px!important}
+#app:has(> .cv-work-hero) > .cv-two{align-items:start}
+#app:has(> .cv-work-hero) > .cv-two > div{min-width:0}
+#app:has(> .cv-work-hero) > .cv-work-shortcuts .cv-work-shortcut{border-radius:12px;min-height:76px}
+@media(max-width:700px){
+ #app:has(> .cv-work-hero) > .cv-work-hero{padding:20px}
+ #app:has(> .cv-work-hero) > .cv-work-center,#app:has(> .cv-work-hero) > .cv-journey{padding:16px!important}
+}
