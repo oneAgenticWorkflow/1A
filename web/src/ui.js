@@ -211,13 +211,14 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='pathway')h+=pathwayScreening(c);
+  else if(S.tab==='development')h+=pathwayDevelopment(c);
   else if(S.tab==='score')h+=scoreTab(c);
   else if(S.tab==='field')h+=fieldTab(c);
   else if(S.tab==='plan')h+=planTab(c);
@@ -226,6 +227,37 @@ function caseView(c){
   return h;
 }
 
+var PATHWAY_REQUIREMENTS={
+ niw:[
+ ['eb2_degree','EB-2 threshold','Qualifying completed degree and transcripts, or exceptional-ability evidence'],
+ ['niw_endeavor','Proposed endeavor','Specific U.S. endeavor statement, objectives, and implementation plan'],
+ ['niw_importance','NIW prong 1','Independent evidence of substantial merit and national importance'],
+ ['niw_position','NIW prong 2','Evidence of expertise, past results, progress, support, and ability to advance the endeavor'],
+ ['niw_balance','NIW prong 3','Evidence addressing why a waiver of job offer and labor certification is beneficial on balance']
+ ],
+ eb1a:[
+ ['eb1_recognition','Extraordinary ability','Evidence of sustained national or international acclaim'],
+ ['eb1_criteria','Regulatory evidence','Evidence for applicable EB-1A regulatory criteria or qualifying major award'],
+ ['eb1_contribution','Independent impact','Corroboration of original contributions, recognition, and field impact'],
+ ['eb1_merits','Final merits','Evidence supporting overall sustained acclaim and position among the small percentage at the top of the field']
+ ]
+};
+function pathwayDevelopment(c){
+ var ps=c.pathwayScreening||{},decision=(ps.review||{}).decision||'',tracks=decision==='both'?['niw','eb1a']:decision==='niw'||decision==='eb1a'?[decision]:[];
+ if(!tracks.length)return '<div class="panel"><h3>Pathway evidence development</h3><p class="small">Record an advisor pathway decision in Pathway screening before generating pathway-specific evidence requests.</p></div>';
+ var reqs=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='request'}),files=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'});
+ var h='<div class="panel"><div class="ph"><h3>Pathway evidence development</h3>'+chip(tracks.length===2?'Dual track':tracks[0]==='niw'?'EB-2 NIW':'EB-1A','ok')+'</div><p class="small">Separate legal tracks share the same private document vault. Requests are created only when an advisor confirms; existing requests are reused rather than duplicated. This checklist is not an eligibility finding.</p>';
+ tracks.forEach(function(track){
+ h+='<div class="entry"><div class="ph"><h4>'+(track==='niw'?'EB-2 NIW — threshold and three prongs':'EB-1A — extraordinary ability and final merits')+'</h4></div>';
+ PATHWAY_REQUIREMENTS[track].forEach(function(item){
+ var key='pathway:'+track+':'+item[0],r=reqs.find(function(x){return x.pathwayKey===key}),uploaded=r?files.filter(function(f){return f.reqId===r.id}).length:0;
+ h+='<div class="formrow"><div><b>'+esc(item[1])+'</b><p class="small">'+esc(item[2])+'</p></div><div class="chips">'+chip(r?(uploaded?uploaded+' uploaded':'Requested'):'Not requested',uploaded?'ok':r?'mid':'gate')+'</div></div>';
+ });
+ h+='</div>';
+ });
+ h+='<div class="addrow"><button class="btn pri sm" data-a="ps-generate">Create missing evidence requests</button><button class="btn sm" data-a="tab" data-id="docs">Open shared documents</button></div><p class="small">Advisor review required for all evidence and final legal conclusions.</p></div>';
+ return h;
+}
 function pathwayScreening(c){
  var p=c.pathwayScreening||{},d=p.data||{},review=p.review||{},fields=[
  ['degree','Highest completed degree','select',['','Bachelor','Master','PhD','Other']],
@@ -912,6 +944,22 @@ document.addEventListener('click',async function(e){
 
       case 'signout':await db.signOut();return;
       case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour Arcanam Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
+      case 'ps-generate':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var ps=c.pathwayScreening||{},decision=(ps.review||{}).decision||'';
+        var tracks=decision==='both'?['niw','eb1a']:decision==='niw'||decision==='eb1a'?[decision]:[];
+        if(!tracks.length){say('Record a pathway decision first.','err');return}
+        var existing=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='request'}),created=0;
+        for(var track of tracks){
+          for(var item of PATHWAY_REQUIREMENTS[track]){
+            var key='pathway:'+track+':'+item[0];
+            if(existing.some(function(d){return d.pathwayKey===key}))continue;
+            var doc={cid:c.id,kind:'request',label:(track==='niw'?'NIW':'EB-1A')+' — '+item[1],note:item[2],pathwayKey:key,by:'Admin',ts:nowIso()};
+            await db.collection('docs').add(doc);existing.push(doc);created++;
+          }
+        }
+        say(created?created+' pathway evidence requests created.':'All pathway evidence requests already exist.','ok');break;
+      }
       case 'ps-save':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var keys=['degree','phd','experience','status','field','endeavor','impact','positioned','recognition','statusNotes'],old=(c.pathwayScreening||{}),data={};
