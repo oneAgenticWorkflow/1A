@@ -380,3 +380,15 @@ code{font-family:var(--mono);font-size:12px}
  #app:has(> .cv-work-hero) > .cv-work-hero{padding:20px}
  #app:has(> .cv-work-hero) > .cv-work-center,#app:has(> .cv-work-hero) > .cv-journey{padding:16px!important}
 }
+
+.filing-forecast{margin:14px 0;padding:22px!important}
+.filing-forecast-head{display:flex;justify-content:space-between;align-items:start;gap:15px;margin-bottom:16px}
+.filing-forecast-head h3{font-size:19px;letter-spacing:-.025em;text-transform:none;color:var(--ink);margin:5px 0}
+.filing-forecast-head p:not(.cv-work-eyebrow){font-size:12px;color:var(--muted);margin:0}
+.filing-forecast-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.filing-forecast-step{border:1px solid var(--line);border-radius:12px;padding:15px;display:flex;flex-direction:column;gap:7px;background:var(--surface2)}
+.filing-forecast-step>span{font-size:11px;font-weight:700;color:var(--muted)}
+.filing-forecast-step>b{font-size:15px;color:var(--ink)}
+.filing-forecast-step>small{font-size:11px;color:var(--muted)}
+.filing-forecast-note{font-size:11px;color:var(--muted);margin:13px 0 0;line-height:1.6}
+@media(max-width:700px){.filing-forecast-grid{grid-template-columns:1fr}.filing-forecast-head{flex-wrap:wrap}}
