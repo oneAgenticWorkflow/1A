@@ -633,6 +633,35 @@ function evidenceIntelligencePanel(c){
   });
   return h+'</div><p class="small">EB-1A criteria and NIW considerations require separate legal analysis. These case records do not establish either classification, and an attorney must evaluate the complete petition and final merits.</p></section>';
 }
+/* Source-linked advisor findings: no automatic document extraction or legal determination. */
+function evidenceSourceReview(c){
+  var files=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'&&d.path});
+  var findings=Array.isArray(c.evidenceFindings)?c.evidenceFindings:[];
+  var h='<section class="panel" aria-label="Source-linked evidence review"><div class="ph"><h3>Source-linked evidence review</h3>'+chip(findings.length+' findings')+'</div>'+
+    '<p class="small">Create a finding only after reading the source document. Record an exact excerpt or page reference. A citation is a pointer to a file, not proof of authenticity or eligibility. Findings remain advisor-only and do not change criterion ratings automatically.</p>';
+  if(files.length){
+    h+='<label class="f" for="evfile">Source document</label><select id="evfile" data-draft="evfile"><option value="">Select an uploaded file</option>';
+    files.forEach(function(f){h+='<option value="'+esc(f.id)+'"'+(S.draft.evfile===f.id?' selected':'')+'>'+esc(f.name)+'</option>'});
+    h+='</select><label class="f" for="evcriterion">Criterion to examine</label><select id="evcriterion" data-draft="evcriterion"><option value="">Choose a criterion</option>';
+    CRIT.forEach(function(k){if(!k.na)h+='<option value="'+esc(k.id)+'"'+(S.draft.evcriterion===k.id?' selected':'')+'>'+esc(k.n)+'</option>'});
+    h+='</select><label class="f" for="evlocator">Page / section / location in source</label><input id="evlocator" data-draft="evlocator" maxlength="180" value="'+esc(S.draft.evlocator||'')+'" placeholder="Page 2, paragraph 3">'+
+      '<label class="f" for="evexcerpt">Exact source excerpt or factual description</label><textarea id="evexcerpt" data-draft="evexcerpt" maxlength="1600">'+esc(S.draft.evexcerpt||'')+'</textarea>'+
+      '<label class="f" for="evnote">Advisor interpretation (separate from source)</label><textarea id="evnote" data-draft="evnote" maxlength="1600">'+esc(S.draft.evnote||'')+'</textarea>'+
+      '<div class="addrow"><button class="btn sm pri" data-a="ev-add">Record finding for review</button></div>';
+  }else h+='<p class="empty">Upload a source document in Documents before recording a cited finding.</p>';
+  if(findings.length)h+='<h4>Recorded findings</h4>';
+  findings.forEach(function(f){
+    var file=files.find(function(x){return x.id===f.fileId});
+    var criterion=CRIT.find(function(x){return x.id===f.criterionId});
+    h+='<div class="entry"><div class="ph"><b>'+esc(criterion?criterion.n:'Criterion unavailable')+'</b>'+chip(f.status==='accepted'?'Reviewed':f.status==='rejected'?'Rejected':'Pending review',f.status==='accepted'?'ok':f.status==='rejected'?'bad':'mid')+'</div>'+
+      '<p class="small">Source: '+esc(file?file.name:'File unavailable or deleted')+' · '+esc(f.locator||'Location unspecified')+'</p>'+
+      '<p><b>Source excerpt:</b> '+esc(f.excerpt||'')+'</p>'+(f.note?'<p class="small"><b>Advisor interpretation:</b> '+esc(f.note)+'</p>':'')+
+      (file?'<button class="btn sm" data-a="getfile" data-path="'+esc(file.path)+'">Open source</button> ':'')+
+      (f.status==='pending'?'<button class="btn sm" data-a="ev-accept" data-id="'+esc(f.id)+'">Mark reviewed</button> <button class="btn sm" data-a="ev-reject" data-id="'+esc(f.id)+'">Reject finding</button>':'')+
+      '<button class="btn sm" data-a="ev-remove" data-id="'+esc(f.id)+'">Remove</button></div>';
+  });
+  return h+'</section>';
+}
 function scoreTab(c){
   var n=counts(c),rd=readiness(c);
   var h='<div class="panel"><div class="ph"><h3>Criteria scorecard</h3><div class="chips">'+chip(n.High+' High','ok')+chip(n.Medium+' Medium','mid')+chip(n.Low+' Low or not met','bad')+chip(rd.k,rd.cls)+'</div></div>';
@@ -647,6 +676,7 @@ function scoreTab(c){
   }
   h+='</div>';
   h+=evidenceIntelligencePanel(c);
+  h+=evidenceSourceReview(c);
   h+=targetsPanel(c);
   var mr=c.meritsRisk;
   if(mr&&mr.level){h+='<div class="panel"><div class="ph"><h3>Final-merits risk</h3><div class="chips">'+chip(mr.level,mr.level==='Low'?'ok':mr.level==='Medium'?'mid':'bad')+'</div></div>'+(mr.drivers&&mr.drivers.length?'<ul>'+mr.drivers.map(function(d){return '<li>'+esc(d)+'</li>'}).join('')+'</ul>':'')+(mr.advice?'<p>'+esc(mr.advice)+'</p>':'')+'<p class="small">Internal view for advisors. Not shown to candidates.</p></div>'}
@@ -845,6 +875,26 @@ document.addEventListener('click',async function(e){
 
       case 'signout':await db.signOut();return;
       case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour Arcanam Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
+      case 'ev-add':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var fileId=(S.draft.evfile||'').trim(),criterionId=(S.draft.evcriterion||'').trim();
+        var locator=(S.draft.evlocator||'').trim(),excerpt=(S.draft.evexcerpt||'').trim(),note=(S.draft.evnote||'').trim();
+        if(!S.docs.some(function(d){return d.id===fileId&&d.cid===c.id&&d.kind==='file'&&d.path})||!CRIT.some(function(k){return k.id===criterionId&&!k.na})){say('Choose a valid source and criterion.','err');return}
+        if(!locator||!excerpt){say('Add a source location and excerpt before saving.','err');return}
+        var findings=(c.evidenceFindings||[]).slice();
+        findings.push({id:'ev'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),fileId:fileId,criterionId:criterionId,locator:locator.slice(0,180),excerpt:excerpt.slice(0,1600),note:note.slice(0,1600),status:'pending',createdAt:nowIso()});
+        await candRef(c.id).update({evidenceFindings:findings});
+        ['evfile','evcriterion','evlocator','evexcerpt','evnote'].forEach(function(k){delete S.draft[k]});
+        say('Source-linked finding saved for review.','ok');break;
+      }
+      case 'ev-accept':case 'ev-reject':case 'ev-remove':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var current=(c.evidenceFindings||[]).slice(),found=current.find(function(f){return f.id===id});
+        if(!found)return;
+        if(a==='ev-remove')current=current.filter(function(f){return f.id!==id});
+        else if(found.status==='pending'){current=current.map(function(f){return f.id===id?Object.assign({},f,{status:a==='ev-accept'?'accepted':'rejected',reviewedAt:nowIso()}):f})}
+        await candRef(c.id).update({evidenceFindings:current});say('Finding updated.','ok');break;
+      }
       case 'getfile':{var url=await db.signedUrl(el.dataset.path);window.open(url,'_blank','noopener');return}
       case 'file-del':{var fd0=S.docs.find(function(x){return x.id===id});if(fd0){await db.doc('docs/'+id).delete();if(fd0.path)await db.removeFiles([fd0.path])}break}
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
