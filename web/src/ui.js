@@ -211,12 +211,13 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
+  else if(S.tab==='pathway')h+=pathwayScreening(c);
   else if(S.tab==='score')h+=scoreTab(c);
   else if(S.tab==='field')h+=fieldTab(c);
   else if(S.tab==='plan')h+=planTab(c);
@@ -225,6 +226,42 @@ function caseView(c){
   return h;
 }
 
+function pathwayScreening(c){
+ var p=c.pathwayScreening||{},d=p.data||{},review=p.review||{},fields=[
+ ['degree','Highest completed degree','select',['','Bachelor','Master','PhD','Other']],
+ ['phd','Currently pursuing a PhD?','select',['','Yes','No']],
+ ['experience','Years of professional experience','number'],
+ ['status','Current immigration / work authorization','select',['','F-1 CPT','F-1 OPT','F-1 STEM OPT','H-1B','Other','Unknown']],
+ ['field','Professional and research field','text'],
+ ['endeavor','Specific proposed U.S. endeavor','textarea'],
+ ['impact','Evidence of broader U.S. or national importance','textarea'],
+ ['positioned','Evidence of ability to advance the endeavor','textarea'],
+ ['recognition','Independent recognition, publications, judging, awards, original contributions','textarea'],
+ ['statusNotes','Status expiration and employment authorization questions','textarea']
+ ];
+ var h='<section class="panel"><div class="ph"><h3>Candidate pathway screening</h3>'+chip(review.decision?'Advisor decision recorded':'Screening needed',review.decision?'ok':'mid')+'</div><p class="small">Separate EB-1A and EB-2 NIW intake. Preliminary screening only: no automated eligibility finding, approval prediction, or immigration-status advice.</p>';
+ fields.forEach(function(f){
+ var val=S.draft['ps_'+f[0]]!==undefined?S.draft['ps_'+f[0]]:(d[f[0]]||'');
+ h+='<label class="f" for="ps_'+f[0]+'">'+esc(f[1])+'</label>';
+ if(f[2]==='select')h+='<select id="ps_'+f[0]+'" data-draft="ps_'+f[0]+'">'+f[3].map(function(o){return '<option value="'+esc(o)+'"'+(String(val)===o?' selected':'')+'>'+esc(o||'Not provided')+'</option>'}).join('')+'</select>';
+ else if(f[2]==='textarea')h+='<textarea id="ps_'+f[0]+'" data-draft="ps_'+f[0]+'">'+esc(val)+'</textarea>';
+ else h+='<input id="ps_'+f[0]+'" type="'+f[2]+'" '+(f[2]==='number'?'min="0" max="70" step="1" ':'')+'data-draft="ps_'+f[0]+'" value="'+esc(val)+'">';
+ });
+ h+='<div class="addrow"><button class="btn pri sm" data-a="ps-save">Save screening intake</button></div>';
+ if(p.updatedAt){
+ var degree=d.degree||'',threshold=degree==='Master'||degree==='PhD'?'Completed advanced degree reported; verify credentials.':degree==='Bachelor'?'Review qualifying progressive post-degree experience or exceptional ability.':'EB-2 threshold requires additional information.';
+ h+='<div class="entry"><h4>Independent pathway reviews</h4><p><b>EB-2 threshold:</b> '+esc(threshold)+'</p>'+
+ '<p><b>NIW:</b> Evaluate the specific proposed endeavor for substantial merit and national importance, whether the candidate is well positioned, and whether the waiver is beneficial on balance. '+(!d.endeavor?'Proposed endeavor is missing.':'Proposed endeavor recorded; supporting evidence still requires review.')+'</p>'+
+ '<p><b>EB-1A:</b> Evaluate qualifying criteria and sustained recognition, followed by final merits. '+(!d.recognition?'Independent recognition details are missing.':'Reported recognition is unverified.')+'</p>'+
+ '<p><b>F-1 / timing:</b> '+(/F-1/.test(d.status||'')?'Attorney must separately review status maintenance, authorized employment, immigrant intent, travel, and filing timing.':'Confirm current status and filing implications with counsel.')+'</p></div>';
+ }
+ h+='<div class="entry"><h4>Advisor pathway decision</h4><label class="f" for="psdecision">Recommended development track</label><select id="psdecision" data-draft="ps_decision">'+
+ [['','Not decided'],['eb1a','EB-1A'],['niw','EB-2 NIW'],['both','Both independently'],['evidence','More evidence needed'],['other','Other options / attorney referral']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.ps_decision||review.decision||'')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
+ '<label class="f" for="psnote">Reason and next evidence actions</label><textarea id="psnote" data-draft="ps_note">'+esc(S.draft.ps_note!==undefined?S.draft.ps_note:review.note||'')+'</textarea>'+
+ '<div class="addrow"><button class="btn sm" data-a="ps-review">Record advisor decision</button></div>'+
+ '<p class="small">An attorney must validate legal conclusions. This screening does not automatically unlock petition steps or change existing case decisions.</p></div></section>';
+ return h;
+}
 function profileSummary(c){
   var p=c.profile;if(!p)return '<p class="empty">Run the profile screen first.</p>';
   function ul(a){return a&&a.length?'<ul>'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':'<p class="small">None listed.</p>'}
@@ -875,6 +912,23 @@ document.addEventListener('click',async function(e){
 
       case 'signout':await db.signOut();return;
       case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour Arcanam Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
+      case 'ps-save':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var keys=['degree','phd','experience','status','field','endeavor','impact','positioned','recognition','statusNotes'],old=(c.pathwayScreening||{}),data={};
+        keys.forEach(function(k){data[k]=String(S.draft['ps_'+k]!==undefined?S.draft['ps_'+k]:(old.data||{})[k]||'').trim().slice(0,3000)});
+        if(data.experience&&(!/^\d{1,2}$/.test(data.experience)||Number(data.experience)>70)){say('Enter valid years of experience.','err');return}
+        await candRef(c.id).update({pathwayScreening:{data:data,review:old.review||{},updatedAt:nowIso()}});
+        keys.forEach(function(k){delete S.draft['ps_'+k]});say('Screening intake saved.','ok');break;
+      }
+      case 'ps-review':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var old=(c.pathwayScreening||{}),decision=S.draft.ps_decision||((old.review||{}).decision||''),valid=['eb1a','niw','both','evidence','other'];
+        if(valid.indexOf(decision)<0){say('Select a pathway decision.','err');return}
+        var note=String(S.draft.ps_note!==undefined?S.draft.ps_note:((old.review||{}).note||'')).trim().slice(0,3000);
+        if(!note){say('Record the reasoning and next evidence actions.','err');return}
+        await candRef(c.id).update({pathwayScreening:{data:old.data||{},updatedAt:old.updatedAt||nowIso(),review:{decision:decision,note:note,reviewedAt:nowIso()}}});
+        delete S.draft.ps_decision;delete S.draft.ps_note;say('Advisor screening decision recorded.','ok');break;
+      }
       case 'ev-add':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var fileId=(S.draft.evfile||'').trim(),criterionId=(S.draft.evcriterion||'').trim();
