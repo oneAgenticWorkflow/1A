@@ -257,6 +257,7 @@ function pathwayDevelopment(c){
  });
  h+='</div>';
  });
+ h+=evidenceSourceReview(c,tracks);
  h+='<div class="addrow"><button class="btn pri sm" data-a="ps-generate">Create missing evidence requests</button><button class="btn sm" data-a="tab" data-id="docs">Open shared documents</button></div><p class="small">Advisor review required for all evidence and final legal conclusions.</p></div>';
  return h;
 }
@@ -743,7 +744,8 @@ function evidenceIntelligencePanel(c){
   return h+'</div><p class="small">EB-1A criteria and NIW considerations require separate legal analysis. These case records do not establish either classification, and an attorney must evaluate the complete petition and final merits.</p></section>';
 }
 /* Source-linked advisor findings: no automatic document extraction or legal determination. */
-function evidenceSourceReview(c){
+function evidenceSourceReview(c,tracks){
+  tracks=tracks||['eb1a'];
   var files=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'&&d.path});
   var findings=Array.isArray(c.evidenceFindings)?c.evidenceFindings:[];
   var h='<section class="panel" aria-label="Source-linked evidence review"><div class="ph"><h3>Source-linked evidence review</h3>'+chip(findings.length+' findings')+'</div>'+
@@ -752,7 +754,8 @@ function evidenceSourceReview(c){
     h+='<label class="f" for="evfile">Source document</label><select id="evfile" data-draft="evfile"><option value="">Select an uploaded file</option>';
     files.forEach(function(f){h+='<option value="'+esc(f.id)+'"'+(S.draft.evfile===f.id?' selected':'')+'>'+esc(f.name)+'</option>'});
     h+='</select><label class="f" for="evcriterion">Criterion to examine</label><select id="evcriterion" data-draft="evcriterion"><option value="">Choose a criterion</option>';
-    CRIT.forEach(function(k){if(!k.na)h+='<option value="'+esc(k.id)+'"'+(S.draft.evcriterion===k.id?' selected':'')+'>'+esc(k.n)+'</option>'});
+    if(tracks.indexOf('eb1a')>=0)CRIT.forEach(function(k){if(!k.na)h+='<option value="'+esc(k.id)+'"'+(S.draft.evcriterion===k.id?' selected':'')+'>'+esc('EB-1A — '+k.n)+'</option>'});
+    if(tracks.indexOf('niw')>=0)PATHWAY_REQUIREMENTS.niw.forEach(function(k){h+='<option value="'+esc(k[0])+'"'+(S.draft.evcriterion===k[0]?' selected':'')+'>'+esc('NIW — '+k[1])+'</option>'});
     h+='</select><label class="f" for="evlocator">Page / section / location in source</label><input id="evlocator" data-draft="evlocator" maxlength="180" value="'+esc(S.draft.evlocator||'')+'" placeholder="Page 2, paragraph 3">'+
       '<label class="f" for="evexcerpt">Exact source excerpt or factual description</label><textarea id="evexcerpt" data-draft="evexcerpt" maxlength="1600">'+esc(S.draft.evexcerpt||'')+'</textarea>'+
       '<label class="f" for="evnote">Advisor interpretation (separate from source)</label><textarea id="evnote" data-draft="evnote" maxlength="1600">'+esc(S.draft.evnote||'')+'</textarea>'+
@@ -762,7 +765,8 @@ function evidenceSourceReview(c){
   findings.forEach(function(f){
     var file=files.find(function(x){return x.id===f.fileId});
     var criterion=CRIT.find(function(x){return x.id===f.criterionId});
-    h+='<div class="entry"><div class="ph"><b>'+esc(criterion?criterion.n:'Criterion unavailable')+'</b>'+chip(f.status==='accepted'?'Reviewed':f.status==='rejected'?'Rejected':'Pending review',f.status==='accepted'?'ok':f.status==='rejected'?'bad':'mid')+'</div>'+
+    var niwItem=PATHWAY_REQUIREMENTS.niw.find(function(x){return x[0]===f.criterionId});
+    h+='<div class="entry"><div class="ph"><b>'+esc(criterion?criterion.n:niwItem?'NIW — '+niwItem[1]:'Criterion unavailable')+'</b>'+chip(f.status==='accepted'?'Reviewed':f.status==='rejected'?'Rejected':'Pending review',f.status==='accepted'?'ok':f.status==='rejected'?'bad':'mid')+'</div>'+
       '<p class="small">Source: '+esc(file?file.name:'File unavailable or deleted')+' · '+esc(f.locator||'Location unspecified')+'</p>'+
       '<p><b>Source excerpt:</b> '+esc(f.excerpt||'')+'</p>'+(f.note?'<p class="small"><b>Advisor interpretation:</b> '+esc(f.note)+'</p>':'')+
       (file?'<button class="btn sm" data-a="getfile" data-path="'+esc(file.path)+'">Open source</button> ':'')+
@@ -1033,7 +1037,7 @@ document.addEventListener('click',async function(e){
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var fileId=(S.draft.evfile||'').trim(),criterionId=(S.draft.evcriterion||'').trim();
         var locator=(S.draft.evlocator||'').trim(),excerpt=(S.draft.evexcerpt||'').trim(),note=(S.draft.evnote||'').trim();
-        if(!S.docs.some(function(d){return d.id===fileId&&d.cid===c.id&&d.kind==='file'&&d.path})||!CRIT.some(function(k){return k.id===criterionId&&!k.na})){say('Choose a valid source and criterion.','err');return}
+        if(!S.docs.some(function(d){return d.id===fileId&&d.cid===c.id&&d.kind==='file'&&d.path})||!CRIT.some(function(k){return k.id===criterionId&&!k.na})&&!PATHWAY_REQUIREMENTS.niw.some(function(k){return k[0]===criterionId})){say('Choose a valid source and criterion.','err');return}
         if(!locator||!excerpt){say('Add a source location and excerpt before saving.','err');return}
         var findings=(c.evidenceFindings||[]).slice();
         findings.push({id:'ev'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),fileId:fileId,criterionId:criterionId,locator:locator.slice(0,180),excerpt:excerpt.slice(0,1600),note:note.slice(0,1600),status:'pending',createdAt:nowIso()});
