@@ -39,8 +39,10 @@
       if(a.length<8){err('Use at least 8 characters.');return}
       if(a!==b){err('The two passwords do not match.');return}
       var u=await sb.auth.updateUser({password:a});if(u.error){err(u.error.message);return}
-      var c=await sb.rpc('password_changed');if(c.error){err(c.error.message);return}
-      enter(session,true);
+      var p=await sb.from('profiles').select('must_change').eq('id',session.user.id).single();
+      if(p.error){err('Password updated, but account verification failed: '+p.error.message);return}
+      if(p.data.must_change){err('Password updated, but verification is still pending. Please sign out and sign in again.');return}
+      enter(session);
     };
   }
   function pwTool(){
@@ -55,13 +57,13 @@
         var r=await sb.auth.updateUser({password:v});document.getElementById('pwm').textContent=r.error?r.error.message:'Password saved.';if(!r.error)setTimeout(function(){d.remove();pwTool()},1500)}
     };
   }
-  async function enter(session,changed){
+  async function enter(session){
     shell('<p class="small">Loading…</p>');
     var uid=session.user.id;
     var p=await sb.from('profiles').select('role,case_id,email,username,display_name,must_change').eq('id',uid).maybeSingle();
     if(p.error){shell('<p>Could not load your account: '+esc2(p.error.message)+'</p>');return}
     var prof=p.data||{role:'candidate',case_id:null,email:session.user.email};
-    if(prof.must_change&&!changed){mustChange(session);return}
+    if(prof.must_change){mustChange(session);return}
     app.innerHTML='';
     var isAdmin=prof.role==='admin',isStaff=isAdmin||prof.role==='supervisor';
     if(!isStaff&&!prof.case_id){shell('<p>Your login is not linked to a case yet. Ask your administrator.</p><div class="addrow"><button class="btn" id="so">Sign out</button></div>');document.getElementById('so').onclick=function(){sb.auth.signOut().then(function(){location.reload()})};return}
