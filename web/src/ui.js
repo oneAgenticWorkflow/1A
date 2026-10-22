@@ -113,17 +113,39 @@ function usersView(){
 function casesView(){
   var open=0,late=0,wait=0;
   S.tasks.forEach(function(t){if(t.status==='Not started'||isDone(t.status))return;open++;if(t.due&&daysUntil(t.due)<0)late++;if(t.owner==='Candidate')wait++});
-  var h='<div class="stats"><div class="stat"><b>'+S.cands.length+'</b><span>Candidates</span></div><div class="stat"><b>'+open+'</b><span>Open tasks</span></div><div class="stat'+(late?' warn':'')+'"><b>'+late+'</b><span>Overdue</span></div><div class="stat"><b>'+wait+'</b><span>Waiting on candidates</span></div></div>';
-  if(!S.cands.length)return h+'<div class="panel"><h2>No candidates yet</h2><p>Add a candidate. The whole workflow, '+TEMPLATE.length+' tasks across '+STAGES.length+' stages, is created for you and starts with the welcome call.</p><button class="btn pri" data-a="newcase">New candidate</button></div>';
-  h+='<div class="cards">';
-  S.cands.slice().sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?1:-1}).forEach(function(c){
-    var ts=tasksOf(c.id),n=counts(c),rd=readiness(c);
+  var sorted=S.cands.slice().sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?1:-1});
+  var active=sorted.filter(function(c){return caseProgress(c)<100}).length;
+  var h='<section class="pathway-overview" aria-label="Case portfolio overview">'+
+    '<div class="pathway-heading"><div><div class="pathway-eyebrow">ARCANAM / CASE INTELLIGENCE</div><h2>Case overview</h2><p>Priorities, evidence readiness, and progress across your portfolio.</p></div>'+
+    (S.staff==='admin'?'<button class="btn pri" data-a="newcase">+ New candidate</button>':'')+'</div>'+
+    '<div class="pathway-metrics">'+
+    '<div class="pathway-metric"><span>Active cases</span><strong>'+active+'</strong><small>'+S.cands.length+' total candidates</small></div>'+
+    '<div class="pathway-metric"><span>Open tasks</span><strong>'+open+'</strong><small>Currently in progress</small></div>'+
+    '<div class="pathway-metric'+(late?' pathway-urgent':'')+'"><span>Overdue tasks</span><strong>'+late+'</strong><small>'+ (late?'Require attention':'No overdue work')+'</small></div>'+
+    '<div class="pathway-metric"><span>Candidate actions</span><strong>'+wait+'</strong><small>Waiting on candidates</small></div></div></section>';
+  if(!sorted.length)return h+'<div class="panel"><h2>No candidates yet</h2><p>Add a candidate to start the '+TEMPLATE.length+'-task workflow across '+STAGES.length+' stages.</p><button class="btn pri" data-a="newcase">New candidate</button></div>';
+  var attention=[];
+  S.tasks.forEach(function(t){
+    if(t.status==='Not started'||isDone(t.status)||!t.due||daysUntil(t.due)>=0)return;
+    var owner=sorted.find(function(c){return c.id===t.cid});if(owner)attention.push({t:t,c:owner});
+  });
+  attention.sort(function(a,b){return a.t.due<b.t.due?-1:1});
+  if(attention.length){
+    h+='<section class="pathway-attention"><div class="pathway-section-title"><h3>Needs attention</h3><span>'+attention.length+' overdue</span></div>';
+    attention.slice(0,3).forEach(function(x){h+='<button class="pathway-alert" data-a="gotask" data-id="'+esc(x.t.id)+'"><span><b>'+esc(x.t.title)+'</b><small>'+esc(x.c.name)+' · '+esc(x.t.owner)+'</small></span><span class="pathway-alert-due">'+esc(dueTxt(x.t))+' &rarr;</span></button>'});
+    h+='</section>';
+  }
+  h+='<div class="pathway-section-title"><h3>Candidate portfolio</h3><span>'+sorted.length+' cases</span></div><div class="pathway-cases">';
+  sorted.forEach(function(c){
+    var ts=tasksOf(c.id),n=counts(c),rd=readiness(c),progress=caseProgress(c);
     var next=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.due}).sort(function(a,b){return a.due<b.due?-1:1})[0];
-    var late=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.due&&daysUntil(t.due)<0}).length;
-    h+='<button class="cardc big" data-a="open" data-id="'+c.id+'"><b>'+esc(c.name)+'</b><small>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</small>'+
-      '<div class="chips">'+chip('Stage '+((c.stage||0)+1)+': '+STAGES[c.stage||0].n,STAGES[c.stage||0].gate?'gate':'')+chip(rd.k,rd.cls)+(late?chip(late+' overdue','bad'):'')+'</div>'+
-      bar(caseProgress(c))+'<small>'+caseProgress(c)+'% of required tasks done · '+n.High+' High criteria</small>'+
-      (next?'<small>Next: '+esc(next.title)+' ('+esc(next.owner)+', '+esc(dueTxt(next))+')</small>':'')+'</button>';
+    var overdue=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.due&&daysUntil(t.due)<0}).length;
+    var stage=STAGES[c.stage||0];
+    h+='<button class="pathway-case" data-a="open" data-id="'+esc(c.id)+'">'+
+      '<span class="pathway-case-top"><span><b>'+esc(c.name)+'</b><small>'+esc(c.visa||'Status not specified')+(c.visaExpiry?' · Expires '+esc(c.visaExpiry):'')+'</small></span><span class="pathway-case-arrow" aria-hidden="true">&rarr;</span></span>'+
+      '<span class="pathway-case-tags">'+chip('Stage '+((c.stage||0)+1)+' · '+stage.n,stage.gate?'gate':'')+chip(rd.k,rd.cls)+(overdue?chip(overdue+' overdue','bad'):'')+'</span>'+
+      '<span class="pathway-case-progress"><span>Workflow progress</span><strong>'+progress+'%</strong></span>'+bar(progress)+
+      '<span class="pathway-case-foot"><span>'+n.High+' high-strength criteria</span><span>'+(next?'Next · '+esc(next.title):'No upcoming dated task')+'</span></span></button>';
   });
   return h+'</div>';
 }
