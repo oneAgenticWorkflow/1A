@@ -175,7 +175,7 @@ function casesView(){
 
 function newCaseView(){
   return '<div class="panel newcase"><h2>New candidate</h2><p class="small">Creating the case builds the whole workflow: '+TEMPLATE.length+' tasks across '+STAGES.length+' stages, with owners, due dates and dependencies. Later steps unlock as earlier ones finish.</p>'+
-   '<div class="addrow"><button class="btn sm" data-a="demo-prefill">Prefill fictional test candidate</button><span class="small">Fills this form only. Review before creating.</span></div>'+ 
+   
    '<label class="f" for="nn">Full name</label><input id="nn" type="text" data-draft="nn" value="'+esc(S.draft.nn||'')+'">'+
    '<div class="two"><div><label class="f" for="ndob">Date of birth</label><input id="ndob" type="date" data-draft="ndob" max="'+today()+'" value="'+esc(S.draft.ndob||'')+'"></div>'+
    '<div><label class="f" for="nsex">Gender</label><select id="nsex" data-draft="nsex"><option value="">Select gender</option><option value="Male"'+(S.draft.nsex==='Male'?' selected':'')+'>Male</option><option value="Female"'+(S.draft.nsex==='Female'?' selected':'')+'>Female</option></select></div></div>'+
@@ -253,7 +253,7 @@ function filingReadinessForecast(c,ts){
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
   var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
-   '<div class="chips"><button class="btn sm" data-a="demo-intake">Fill fictional intake drafts</button><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
+   '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
   if(S.staff==='admin')h+='<div class="addrow"><button class="btn sm" data-a="candidate-login-toggle" aria-expanded="'+(S.showCandidateLogin===c.id?'true':'false')+'">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button></div>';
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
@@ -835,7 +835,6 @@ function renderFields(def,part,idx,vals,ro){
 function formEditor(c,fid){
   var def=formDef(fid),r=getResp(c.id,fid),ro=S.role==='Candidate'&&(r.status==='Submitted'||r.status==='Reviewed');
   var h='<div class="panel"><div class="ph"><div><button class="link" data-a="closeform">&larr; All forms</button><h2>'+esc(def.n)+'</h2></div><div class="chips">'+chip(r.status,r.status==='Reviewed'?'ok':r.status==='Submitted'?'mid':'')+chip(progress(def,r)+'% required')+'</div></div><p class="small">'+esc(def.intro||'')+' Answers save as you type.</p>';
-  if(c.name==='Arjun Mehta'&&S.staff==='admin'&&!S.locked){h+='<div class="banner">TEST MODE — Fictional data. Use Test validation to inspect missing fields without accepting legal attestations or submitting a form. The normal Submit action still requires all declarations.</div><button class="btn sm" data-a="test-validate">Test validation (no submission)</button>';}\n  if(fid==='f10'&&r.data.guide&&r.data.guide.length)h+='<div class="panel cv-guide"><h3>Example ideas for your field</h3><p class="small">Only to spark ideas. Write your own in your own words.</p><ul class="cv-list" style="display:block">'+r.data.guide.map(function(g){return '<li style="display:block;margin:6px 0"><b>'+esc(g.cat)+':</b> '+esc(g.title)+'<br><span class="small">'+esc(g.line)+'</span></li>'}).join('')+'</ul></div>';
   if(S.errs&&S.errs.length)h+='<div class="banner err" role="alert"><b>Fix these before submitting:</b><ul>'+S.errs.slice(0,12).map(function(e){return '<li>'+esc(e)+'</li>'}).join('')+(S.errs.length>12?'<li>and '+(S.errs.length-12)+' more</li>':'')+'</ul></div>';
   if(ro)h+='<div class="banner ok">Submitted. Your advisor is reviewing it. '+(S.role==='Candidate'?'':'')+'</div>';
   def.parts.forEach(function(p){
@@ -1373,9 +1372,7 @@ document.addEventListener('click',async function(e){
       case 'home':S.cid=null;S.home='cases';S.openForm=false;S.role='Advisor';break;
       case 'alltasks':S.cid=null;S.home='tasks';break;
       case 'newcase':S.cid=null;S.home='new';break;
-      case 'demo-prefill':Object.assign(S.draft,{nn:'Arjun Mehta',ne:'arjun.mehta.test@example.com',ndob:'1994-06-15',nsex:'Male',nemp:'Northstar Enterprise Solutions LLC',nv:'H-1B',nx:'2028-09-30',ng:'12 months'});say('Fictional test candidate details filled. Review and create when ready.');break;
       case 'create':await createCase();return;
-      case 'demo-intake':await seedFictionalIntake(c);return;
       case 'open':S.cid=id;S.showCandidateLogin=null;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
       case 'cvphase':S.cvp=+id;break;
@@ -1409,7 +1406,7 @@ document.addEventListener('click',async function(e){
       case 'entry-del':{var p2=parsePath(el.dataset.fp);var r2=workResp(c.id,p2[0]);(r2.data[p2[1]]||[]).splice(+p2[2],1);await saveResp(c.id,p2[0]);break}
       case 'row-add':{var x1=resolveHolder(el.dataset.fp+'|0|x');var rws=x1.holder[x1.f.k]=x1.holder[x1.f.k]||[];if(!rws.length)rws.push({});rws.push({});touch(x1.p[0]);await saveResp(c.id,x1.p[0]);break}
       case 'row-del':{var q=parsePath(el.dataset.fp);var x2=resolveHolder(q.slice(0,4).join('|')+'|0|x');var rr=x2.holder[x2.f.k]||[];rr.splice(+q[4],1);await saveResp(c.id,q[0]);break}
-      case 'test-validate':{if(S.locked||S.staff!=='admin'||c.name!=='Arjun Mehta'){say('Admin test case only.','err');break}var testDef=formDef(S.form),testResp=workResp(c.id,S.form),testErrors=validate(testDef,testResp).filter(function(msg){return !(S.form==='f1'&&testDef.parts.some(function(p){return p.id==='consent'&&p.fields.some(function(f){return msg.indexOf(f.l.split(' (')[0])>=0})}))});S.errs=testErrors;if(testErrors.length){say(testErrors.length+' non-attestation fields need attention.','err')}else{say('Simulation passed non-attestation validation. Form remains a draft; no consent or submission recorded.','ok')}break}\n      case 'submit':{
+      case 'submit':{
         var def=formDef(S.form),r=workResp(c.id,S.form),errs=validate(def,r);
         if(errs.length){S.errs=errs;window.scrollTo(0,0);break}
         S.errs=null;clearTimeout(saveTimer[S.form]);await saveResp(c.id,S.form);
