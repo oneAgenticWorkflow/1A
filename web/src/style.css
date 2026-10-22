@@ -319,3 +319,45 @@ code{font-family:var(--mono);font-size:12px}
 .cv-phase-empty p{font-size:13px;margin:6px 0}
 .cv-phase-privacy{font-size:11px;color:#77847f;margin:15px 0 0}
 @media(max-width:700px){.cv-journey{padding:15px!important}.cv-journey-head{flex-direction:column;gap:8px}.cv-phase-rich{padding:14px}.cv-phase-activity{padding:12px}}
+
+/* Candidate action-first workspace */
+#app:has(.cv-work-hero)>.cv-work-hero,#app:has(.cv-work-hero)>.cv-work-dashboard,#app:has(.cv-work-hero)>.cv-work-shortcuts{max-width:920px;margin-left:auto;margin-right:auto}
+.cv-work-hero{display:flex;justify-content:space-between;align-items:center;gap:24px;background:linear-gradient(120deg,#173e36,#245a48);color:#fff;border-radius:18px;padding:28px 32px;margin-bottom:12px}
+.cv-work-intro h2{font-size:clamp(25px,3.4vw,36px);letter-spacing:-.04em;line-height:1.12;margin:5px 0 9px;font-weight:650}
+.cv-work-intro>p:not(.cv-work-eyebrow){font-size:14px;opacity:.88;margin:0 0 17px}
+.cv-work-eyebrow{font-size:10px;font-weight:750;letter-spacing:.13em;margin:0;color:#5a9b77}
+.cv-work-hero .cv-work-eyebrow{color:#b6dfc9}
+.cv-work-meta{display:flex;flex-wrap:wrap;gap:8px}
+.cv-work-meta span{border:1px solid #ffffff38;background:#ffffff12;border-radius:6px;padding:6px 10px;font-size:12px}
+.cv-work-progress{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:11px;white-space:nowrap;color:#dcebe2}
+.cv-work-progress .cv-ring{width:95px;height:95px}
+.cv-work-dashboard{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:13px}
+.cv-work-stat{background:#fff;border:1px solid #dfe6e2;border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;gap:4px}
+.cv-work-stat>span{font-size:10px;letter-spacing:.075em;color:#60746a;font-weight:750}
+.cv-work-stat strong{font-size:27px;color:#183a2e;line-height:1.2}
+.cv-work-stat small{font-size:11px;color:#6d7c74}
+.cv-work-center{border-radius:15px!important;padding:22px!important;margin-bottom:12px}
+.cv-work-section-title{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:13px}
+.cv-work-section-title h3{font-size:21px;color:#1d3029;text-transform:none;letter-spacing:-.025em;margin:4px 0}
+.cv-work-section-title p:not(.cv-work-eyebrow){margin:0;font-size:13px;color:#64756a}
+.cv-work-item{display:flex;align-items:center;gap:13px;padding:16px 0;border-top:1px solid #e5ebe6}
+.cv-work-item-num{display:grid;place-items:center;background:#e8f2ec;color:#2a6b4c;width:31px;height:31px;border-radius:9px;flex-shrink:0;font-weight:750}
+.cv-work-item-main{flex:1;min-width:0}
+.cv-work-item-main>b{font-size:14px;color:#1a3027}
+.cv-work-item-main>p{font-size:12px;color:#687970;margin:4px 0 8px}
+.cv-work-item-tags{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.cv-work-due{font-size:11px;color:#687970}
+.cv-work-item-action{flex-shrink:0}
+.cv-work-empty{display:flex;gap:13px;align-items:center;background:#f2f8f3;border-radius:11px;padding:18px;color:#21633f}
+.cv-work-empty p{font-size:12px;color:#5d7866;margin:3px 0 0}
+.cv-work-shortcuts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px}
+.cv-work-shortcut{display:flex;align-items:center;text-align:left;gap:12px;padding:16px;border:1px solid #dfe7e1;background:#fff;border-radius:12px;cursor:pointer}
+.cv-work-shortcut:hover{border-color:#7ba98a;background:#f9fcfa}
+.cv-work-shortcut-icon{display:grid;place-items:center;background:#eaf4ed;color:#286948;width:38px;height:38px;border-radius:10px}
+.cv-work-shortcut>span:nth-child(2){flex:1;display:flex;flex-direction:column;gap:3px}
+.cv-work-shortcut b{font-size:14px}
+.cv-work-shortcut small{font-size:11px;color:#687970}
+.cv-work-arrow{color:#4d8061;font-size:20px}
+.cv-work-history{margin-top:13px}
+.cv-work-history h3{margin-bottom:12px}
+@media(max-width:650px){.cv-work-hero{padding:22px;align-items:flex-start}.cv-work-progress{display:none}.cv-work-dashboard{gap:6px}.cv-work-stat{padding:12px}.cv-work-stat>span{font-size:9px}.cv-work-stat strong{font-size:23px}.cv-work-shortcuts{grid-template-columns:1fr}.cv-work-item{flex-wrap:wrap}.cv-work-item-action{width:100%;padding-left:44px}.cv-work-center{padding:16px!important}}
