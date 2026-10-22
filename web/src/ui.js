@@ -1022,12 +1022,21 @@ function candidateView(c){
   /* next step */
   if(now.length){var n0=now[0];h+='<section class="cv-next"><div><p class="cv-eyebrow">Your next step</p><h3>'+esc(n0.title)+'</h3><p class="small">'+(n0.due?'Due '+esc(fmtDate(n0.due).replace(/, \d{4}$/,''))+'. ':'')+(now.length>1?(now.length-1)+' more after this one.':'This is the only thing we need from you right now.')+'</p></div>'+(n0.kind==='form'&&n0.form?'<button class="btn pri big" data-a="openform" data-id="'+n0.form+'">'+(getResp(c.id,n0.form).status==='In progress'?'Continue':'Start')+'</button>':'<button class="btn pri big" data-a="cvscroll" data-id="cv-todo">See what to do</button>')+'</section>'}
   else h+='<section class="cv-next calm"><div><p class="cv-eyebrow">Your next step</p><h3>Nothing needed from you right now</h3><p class="small">Our team is working on your case. We will list your next task here and in your messages as soon as it is ready.</p></div><span class="cv-ico ok">'+cvIcon('check')+'</span></section>';
-  /* lifecycle */
-  h+='<section class="panel cv-life"><div class="ph"><h3>Your journey</h3><span class="small">Tap a phase to see what happens in it</span></div><ol class="cv-rail">'+CV_STAGES.map(function(s,i){
-    var cls=i<st?'done':i===st?'now':'next';return '<li class="'+cls+(i===sel?' sel':'')+'"><button data-a="cvphase" data-id="'+i+'" aria-label="Phase '+(i+1)+': '+esc(s.n)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span></button></li>'}).join('')+'</ol>';
-  var mine=ts.filter(function(t){return t.stage===sel}).sort(by),sc=sel<st?'Complete':sel===st?'You are here':'Coming up';
-  h+='<div class="cv-phase"><div class="cv-ph"><b>'+(sel+1)+'. '+esc(CV_STAGES[sel].n)+'</b>'+chip(sc,sel<st?'ok':sel===st?'gate':'')+'</div><p>'+esc(CV_STAGES[sel].d)+'</p>'+
-   (mine.length?'<ul class="cv-list">'+mine.map(function(t){var d2=isDone(t.status);return '<li class="'+(d2?'d':t.status==='Not started'?'l':'')+'"><span>'+(d2?cvIcon('check'):t.status==='Not started'?cvIcon('lock'):'')+'</span>'+esc(t.title)+'</li>'}).join('')+'</ul>':'<p class="small">Nothing is needed from you in this phase. Our team handles it.</p>')+'</div></section>';
+  /* Candidate journey: full, accessible phase history with real task data. */
+  h+='<section class="panel cv-life cv-journey"><div class="cv-journey-head"><div><p class="cv-eyebrow">YOUR CASE JOURNEY</p><h3>Every step, clearly explained</h3><p class="small">Select any phase to review what happened, what is next, and the work recorded for you.</p></div><span class="cv-journey-count">Phase '+(st+1)+' / '+CV_STAGES.length+'</span></div><ol class="cv-rail">'+CV_STAGES.map(function(s,i){
+    var cls=i<st?'done':i===st?'now':'next';return '<li class="'+cls+(i===sel?' sel':'')+'"><button data-a="cvphase" data-id="'+i+'" aria-current="'+(i===sel?'step':'false')+'" aria-expanded="'+(i===sel?'true':'false')+'" aria-controls="cv-phase-detail" aria-label="View phase '+(i+1)+': '+esc(s.n)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span></button></li>'}).join('')+'</ol>';
+  var mine=ts.filter(function(t){return t.stage===sel}).sort(by),sc=sel<st?'Completed':sel===st?'Current phase':'Upcoming';
+  var finished=mine.filter(function(t){return isDone(t.status)}).length;
+  h+='<div class="cv-phase cv-phase-rich" id="cv-phase-detail" tabindex="-1"><div class="cv-ph"><div><span class="cv-phase-kicker">PHASE '+(sel+1)+' OF '+CV_STAGES.length+'</span><h4>'+esc(CV_STAGES[sel].n)+'</h4></div>'+chip(sc,sel<st?'ok':sel===st?'gate':'')+'</div><p class="cv-phase-desc">'+esc(CV_STAGES[sel].d)+'</p>';
+  if(mine.length){
+    h+='<div class="cv-phase-summary"><b>'+finished+' of '+mine.length+'</b> candidate activities completed</div><div class="cv-phase-activities">';
+    mine.forEach(function(t){
+      var completed=isDone(t.status),isForm=t.kind==='form'&&t.form,rs=isForm?getResp(c.id,t.form):null;
+      h+='<article class="cv-phase-activity"><span class="cv-phase-task-icon '+(completed?'complete':'')+'">'+cvIcon(completed?'check':isForm?'form':'file')+'</span><div class="cv-phase-task-body"><b>'+esc(t.title)+'</b><p>'+(t.detail?esc(t.detail):completed?'This activity is recorded as complete.':'This activity is part of your case journey.')+'</p><div class="cv-phase-task-meta">'+chip(completed?'Completed':t.status==='Not started'?'Not started':t.status,completed?'ok':'')+(t.doneAt?'<span>Completed '+esc(fmtDate(t.doneAt))+'</span>':'')+(t.due?'<span>Due '+esc(fmtDate(t.due))+'</span>':'')+(rs&&rs.status?'<span>Form: '+esc(rs.status)+'</span>':'')+'</div>'+(isForm?'<button class="btn sm" data-a="openform" data-id="'+esc(t.form)+'">'+(completed?'View submitted details':'Open form')+'</button>':'')+'</div></article>';
+    });
+    h+='</div>';
+  }else h+='<div class="cv-phase-empty"><b>No candidate activities recorded for this phase</b><p>Some work is handled by your advisory team. When candidate tasks are assigned, they will appear here.</p></div>';
+  h+='<p class="cv-phase-privacy">This timeline shows your candidate-facing activities and recorded statuses. Internal advisor notes and legal assessments are not displayed.</p></div></section>';
   /* to do */
   h+='<section class="panel" id="cv-todo"><div class="ph"><h3>Your to-do</h3>'+(now.length?chip(now.length+' open','gate'):chip('All caught up','ok'))+'</div>';
   if(!now.length)h+='<p class="empty">You are all caught up. Thank you.</p>';
