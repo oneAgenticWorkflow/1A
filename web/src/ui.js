@@ -598,6 +598,41 @@ function costPanel(c){
   h+='<div class="log">'+r.slice().reverse().map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.label)+' · '+esc(String(x.model||'').replace('claude-',''))+' · '+(x.input||0).toLocaleString()+' in / '+(x.output||0).toLocaleString()+' out'+(x.searches?' / '+x.searches+' searches':'')+' · <b>$'+(x.usd||0).toFixed(3)+'</b></span></div>'}).join('')+'</div></div>';
   return h;
 }
+/* Advisor-only evidence triage. Descriptive, not a legal eligibility model. */
+function evidenceIntelligence(c){
+  var criteria=c.criteria||{},chosen=Array.isArray(c.chosen)?c.chosen:[],items=[];
+  CRIT.forEach(function(k){
+    if(k.na)return;
+    var x=criteria[k.id]||{},targeted=chosen.indexOf(k.id)>=0;
+    if(!targeted&&!x.rating&&!x.evidence&&!x.gaps)return;
+    var evidence=String(x.evidence||'').trim(),gap=String(x.gaps||'').trim();
+    var rating=x.rating||'Not assessed',priority,reason,action;
+    if(targeted&&!evidence){priority='High';reason='Target criterion without a recorded evidence explanation';action='Document the claimed contribution and link supporting primary evidence for advisor review.'}
+    else if(targeted&&gap){priority='High';reason='Target criterion with a recorded evidence gap';action=gap}
+    else if(!evidence){priority='Medium';reason='Evidence has not been described';action='Review this criterion and record whether relevant evidence exists.'}
+    else if(gap){priority='Medium';reason='Existing analysis identifies an unresolved gap';action=gap}
+    else{priority='Review';reason='Evidence described; sufficiency and authenticity are not independently verified';action='Verify source, relevance, authorship, dates, and supporting documents.'}
+    items.push({id:k.id,name:k.n,priority:priority,reason:reason,action:action,rating:rating,targeted:targeted,hasEvidence:!!evidence});
+  });
+  var order={High:0,Medium:1,Review:2};
+  items.sort(function(a,b){return order[a.priority]-order[b.priority]||Number(b.targeted)-Number(a.targeted)||a.name.localeCompare(b.name)});
+  return items;
+}
+function evidenceIntelligencePanel(c){
+  var items=evidenceIntelligence(c),high=items.filter(function(x){return x.priority==='High'}).length,
+    medium=items.filter(function(x){return x.priority==='Medium'}).length,
+    review=items.filter(function(x){return x.priority==='Review'}).length;
+  var h='<section class="panel" aria-label="Evidence intelligence"><div class="ph"><h3>Evidence intelligence</h3><div class="chips">'+chip(high+' high priority',high?'bad':'')+chip(medium+' to develop',medium?'mid':'')+chip(review+' to verify')+'</div></div>'+
+    '<p class="small">Advisor work queue based on recorded criteria, selected targets, and written evidence gaps. Priority reflects documentation work, not petition eligibility, likelihood of approval, or legal advice. No independent document verification has occurred.</p>';
+  if(!c.scoredAt)h+='<div class="banner">A full evidence assessment has not been recorded. These are intake and documentation prompts only.</div>';
+  if(!items.length)return h+'<p class="empty">No criterion evidence has been assessed or targeted yet. Complete intake and review the scorecard to build a case-specific action queue.</p></section>';
+  h+='<div class="pathway-evidence-list">';
+  items.forEach(function(x){
+    h+='<div class="pathway-evidence-item"><div class="ph"><b>'+esc(x.name)+'</b><div class="chips">'+chip(x.priority==='Review'?'Verify':x.priority+' priority',x.priority==='High'?'bad':x.priority==='Medium'?'mid':'')+(x.targeted?chip('Selected target','ok'):'')+'</div></div>'+
+      '<p class="small">'+esc(x.reason)+' · Current assessment: '+esc(x.rating)+'</p><p><b>Next action:</b> '+esc(x.action)+'</p></div>';
+  });
+  return h+'</div><p class="small">EB-1A criteria and NIW considerations require separate legal analysis. These case records do not establish either classification, and an attorney must evaluate the complete petition and final merits.</p></section>';
+}
 function scoreTab(c){
   var n=counts(c),rd=readiness(c);
   var h='<div class="panel"><div class="ph"><h3>Criteria scorecard</h3><div class="chips">'+chip(n.High+' High','ok')+chip(n.Medium+' Medium','mid')+chip(n.Low+' Low or not met','bad')+chip(rd.k,rd.cls)+'</div></div>';
@@ -611,6 +646,7 @@ function scoreTab(c){
     });
   }
   h+='</div>';
+  h+=evidenceIntelligencePanel(c);
   h+=targetsPanel(c);
   var mr=c.meritsRisk;
   if(mr&&mr.level){h+='<div class="panel"><div class="ph"><h3>Final-merits risk</h3><div class="chips">'+chip(mr.level,mr.level==='Low'?'ok':mr.level==='Medium'?'mid':'bad')+'</div></div>'+(mr.drivers&&mr.drivers.length?'<ul>'+mr.drivers.map(function(d){return '<li>'+esc(d)+'</li>'}).join('')+'</ul>':'')+(mr.advice?'<p>'+esc(mr.advice)+'</p>':'')+'<p class="small">Internal view for advisors. Not shown to candidates.</p></div>'}
