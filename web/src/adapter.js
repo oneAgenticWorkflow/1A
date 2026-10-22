@@ -48,6 +48,28 @@ function makeDb(sb,isAdmin,caseId,cfg){
         }};
     },
     rpc:async function(name,args){var r=await sb.rpc(name,args);if(r.error)throw fail(r.error);if(name!=='my_case')bump();return r.data},
+    deleteCase:async function(cid){
+      if(!isAdmin)throw new Error('Only administrators can delete cases.');
+      if(!cid)throw new Error('Missing case ID.');
+      // Do not leave an orphaned authentication account with access to a deleted case.
+      var users=await sb.from('profiles').select('id').eq('case_id',cid).limit(1);
+      if(users.error)throw fail(users.error);
+      if(users.data&&users.data.length)throw new Error('This case has a linked login. Remove the candidate login through People before deleting the case.');
+      var docs=await sb.from('docs').select('data').eq('case_id',cid);
+      if(docs.error)throw fail(docs.error);
+      var paths=(docs.data||[]).map(function(x){return x.data&&x.data.path}).filter(Boolean);
+      // Delete dependent rows before the case record; surface any database permission failure.
+      for(var i=0,colls=['adv_notes','responses','log','tasks','docs','assignments','invites'];i<colls.length;i++){
+        var d=await sb.from(colls[i]).delete().eq('case_id',cid);
+        if(d.error)throw fail(d.error);
+      }
+      var removed=await sb.from('candidates').delete().eq('id',cid).select('id');
+      if(removed.error)throw fail(removed.error);
+      if(!removed.data||!removed.data.length)throw new Error('Case could not be deleted. Verify administrator permissions and retry.');
+      bump();
+      if(paths.length){var storage=await sb.storage.from('case-files').remove(paths);if(storage.error)throw new Error('Case deleted, but uploaded files could not be removed: '+storage.error.message)}
+      return true;
+    },
     invite:async function(email,cid){var al='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);var code='';for(var i=0;i<8;i++)code+=al[b[i]%al.length];var r=await sb.from('invites').upsert({email:email.trim().toLowerCase(),case_id:cid,code:code});if(r.error)throw fail(r.error);return code},
     accounts:async function(body){
       var ss=await sb.auth.getSession(),tk=ss.data.session&&ss.data.session.access_token;
