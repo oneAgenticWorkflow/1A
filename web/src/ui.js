@@ -279,7 +279,7 @@ function niwReadiness(c){
  var checks=PATHWAY_REQUIREMENTS.niw.map(function(item){
  var key='pathway:niw:'+item[0],req=reqs.find(function(d){return d.pathwayKey===key});
  var linked=req?files.filter(function(f){return f.reqId===req.id}):[];
- var accepted=findings.filter(function(f){return f.criterionId===item[0]&&f.status==='accepted'&&files.some(function(d){return d.id===f.fileId&&d.path})});
+ var accepted=findings.filter(function(f){return f.criterionId===item[0]&&f.status==='accepted'&&linked.some(function(d){return d.id===f.fileId&&d.path})});
  return {key:item[0],label:item[1],requested:!!req,uploaded:linked.length,reviewed:accepted.length};
  });
  var all=checks.every(function(x){return x.requested&&x.uploaded>0&&x.reviewed>0});
@@ -1146,6 +1146,8 @@ document.addEventListener('click',async function(e){
         if(status==='completed'&&key==='draft'&&!NIW_PACKAGE_ITEMS.every(function(x){return (p.package||{})[x[0]]&&(p.package||{})[x[0]].ready})){say('Complete all petition package items first.','err');return}
         if(status==='completed'&&['draft','legal','filing'].includes(key)&&!niwReadiness(c).ready){say('Complete NIW evidence review before closing this phase.','err');return}
         if(status==='completed'&&['legal','filing'].includes(key)&&!(p.legalSignoff&&p.legalSignoff.signedAt)){say('Attorney review record required.','err');return}
+        if(status==='completed'&&key==='uscis'&&!['approved','denied','withdrawn'].includes(String((p.filing||{}).decision||'').toLowerCase())){say('Record a USCIS I-140 decision before completing adjudication.','err');return}
+        if(status==='completed'&&key==='visa'&&!(p.visaTracking&&p.visaTracking.reviewedAt)){say('Record a reviewed Visa Bulletin and USCIS chart before completing visa tracking.','err');return}
         if(status==='completed'&&key==='filing'&&!(p.filing&&p.filing.receipt&&p.filing.filed)){say('Record USCIS receipt and filing date first.','err');return}
         if(key==='agreement'&&status!=='completed') {say('Candidate agreement cannot be reset by an advisor.','err');return}
         if(key==='agreement'&&status==='completed'&&!(p.agreement&&p.agreement.acceptedAt)){say('Candidate agreement is required.','err');return}
