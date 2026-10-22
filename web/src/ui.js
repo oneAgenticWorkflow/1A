@@ -1037,7 +1037,7 @@ document.addEventListener('click',async function(e){
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var fileId=(S.draft.evfile||'').trim(),criterionId=(S.draft.evcriterion||'').trim();
         var locator=(S.draft.evlocator||'').trim(),excerpt=(S.draft.evexcerpt||'').trim(),note=(S.draft.evnote||'').trim();
-        if(!S.docs.some(function(d){return d.id===fileId&&d.cid===c.id&&d.kind==='file'&&d.path})||!CRIT.some(function(k){return k.id===criterionId&&!k.na})&&!PATHWAY_REQUIREMENTS.niw.some(function(k){return k[0]===criterionId})){say('Choose a valid source and criterion.','err');return}
+        if(!S.docs.some(function(d){return d.id===fileId&&d.cid===c.id&&d.kind==='file'&&d.path})||!CRIT.some(function(k){return k.id===criterionId&&!k.na})&&!PATHWAY_REQUIREMENTS.niw.some(function(k){return k[0]===criterionId&&['niw','both'].indexOf((((c.pathwayScreening||{}).review||{}).decision||''))>=0})){say('Choose a valid source and criterion.','err');return}
         if(!locator||!excerpt){say('Add a source location and excerpt before saving.','err');return}
         var findings=(c.evidenceFindings||[]).slice();
         findings.push({id:'ev'+Date.now().toString(36)+Math.random().toString(36).slice(2,8),fileId:fileId,criterionId:criterionId,locator:locator.slice(0,180),excerpt:excerpt.slice(0,1600),note:note.slice(0,1600),status:'pending',createdAt:nowIso()});
