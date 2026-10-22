@@ -253,7 +253,7 @@ function filingReadinessForecast(c,ts){
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
   var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
-   '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
+   '<div class="chips"><button class="btn sm" data-a="demo-intake">Fill fictional intake drafts</button><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
   if(S.staff==='admin')h+='<div class="addrow"><button class="btn sm" data-a="candidate-login-toggle" aria-expanded="'+(S.showCandidateLogin===c.id?'true':'false')+'">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button></div>';
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
@@ -1375,6 +1375,7 @@ document.addEventListener('click',async function(e){
       case 'newcase':S.cid=null;S.home='new';break;
       case 'demo-prefill':Object.assign(S.draft,{nn:'Arjun Mehta',ne:'arjun.mehta.test@example.com',ndob:'1994-06-15',nsex:'Male',nemp:'Northstar Enterprise Solutions LLC',nv:'H-1B',nx:'2028-09-30',ng:'12 months'});say('Fictional test candidate details filled. Review and create when ready.');break;
       case 'create':await createCase();return;
+      case 'demo-intake':await seedFictionalIntake(c);return;
       case 'open':S.cid=id;S.showCandidateLogin=null;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
       case 'cvphase':S.cvp=+id;break;
