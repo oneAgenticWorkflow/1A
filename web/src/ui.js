@@ -299,6 +299,41 @@ function niwReadinessPanel(c){
  (!r.ready?'<p class="small">Complete evidence review before recording sign-off.</p>':'')+'</div></div>';
  return h;
 }
+var NIW_PACKAGE_ITEMS=[
+ ['i140','Form I-140 and applicable filing documents'],
+ ['endeavor','Proposed endeavor statement'],
+ ['eb2','EB-2 qualifying degree or exceptional ability'],
+ ['prong1','National importance evidence and analysis'],
+ ['prong2','Well-positioned evidence and analysis'],
+ ['prong3','On-balance waiver argument'],
+ ['exhibits','Exhibit index and cited source documents'],
+ ['letters','Supporting letters, where appropriate'],
+ ['review','Final attorney-reviewed petition narrative']
+];
+function niwAdvancedWorkspace(c){
+ var p=c.niwCase||{},pkg=p.package||{},rfe=p.rfe||{},visa=p.visaTracking||{};
+ var h='<div class="entry"><h4>Petition package workspace</h4><p class="small">Track preparation of the I-140 package. Marking an item ready is an advisor work record, not verification of its legal sufficiency.</p>';
+ NIW_PACKAGE_ITEMS.forEach(function(x){
+ var item=pkg[x[0]]||{},val=S.draft['niwpkg_'+x[0]]!==undefined?S.draft['niwpkg_'+x[0]]:item.note||'';
+ h+='<div class="entry"><div class="ph"><b>'+esc(x[1])+'</b>'+chip(item.ready?'Prepared':'Open',item.ready?'ok':'mid')+'</div>'+
+ '<label class="f">Document location / preparation notes</label><input data-draft="niwpkg_'+x[0]+'" value="'+esc(val)+'">'+
+ '<button class="btn sm" data-a="niw-package" data-id="'+x[0]+'">'+(item.ready?'Reopen item':'Mark prepared')+'</button></div>';
+ });
+ h+='</div><div class="entry"><h4>USCIS RFE response tracker</h4><p class="small">Use only when USCIS has actually issued a Request for Evidence. An RFE deadline must be verified against the notice; this app does not calculate or extend deadlines.</p>';
+ [['notice','RFE notice date','date'],['deadline','Response due date on USCIS notice','date'],['issues','USCIS requested issues / evidence','textarea'],['response','Response package and evidence references','textarea']].forEach(function(x){
+ var val=S.draft['niwrfe_'+x[0]]!==undefined?S.draft['niwrfe_'+x[0]]:rfe[x[0]]||'';
+ h+='<label class="f">'+esc(x[1])+'</label>'+(x[2]==='textarea'?'<textarea data-draft="niwrfe_'+x[0]+'">'+esc(val)+'</textarea>':'<input type="date" data-draft="niwrfe_'+x[0]+'" value="'+esc(val)+'">');
+ });
+ h+='<label class="f">RFE status</label><select data-draft="niwrfe_status">'+[['none','No RFE'],['received','Received'],['preparing','Preparing response'],['review','Attorney review'],['sent','Response sent'],['closed','Closed']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.niwrfe_status||rfe.status||'none')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
+ '<button class="btn sm pri" data-a="niw-rfe">Save RFE tracker</button></div>';
+ h+='<div class="entry"><h4>Post-approval visa availability</h4><p class="small">Record the bulletin actually reviewed. Visa Bulletin dates change monthly, and USCIS separately selects the adjustment filing chart. This tracker does not automatically determine I-485 eligibility.</p>';
+ [['chargeability','Country of chargeability','text'],['bulletin','Visa Bulletin month (YYYY-MM)','month'],['category','Employment-based category','text'],['filingCutoff','Dates for Filing cutoff','date'],['finalCutoff','Final Action cutoff','date'],['chart','USCIS adjustment chart selected that month','text'],['notes','Counsel review / I-485 or consular-processing next steps','textarea']].forEach(function(x){
+ var val=S.draft['niwvisa_'+x[0]]!==undefined?S.draft['niwvisa_'+x[0]]:visa[x[0]]||'';
+ h+='<label class="f">'+esc(x[1])+'</label>'+(x[2]==='textarea'?'<textarea data-draft="niwvisa_'+x[0]+'">'+esc(val)+'</textarea>':'<input type="'+x[2]+'" data-draft="niwvisa_'+x[0]+'" value="'+esc(val)+'">');
+ });
+ h+='<button class="btn sm pri" data-a="niw-visa">Save bulletin review</button><p class="small"><a href="https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html" target="_blank" rel="noopener noreferrer">State Department Visa Bulletin</a> · <a href="https://www.uscis.gov/visabulletininfo" target="_blank" rel="noopener noreferrer">USCIS adjustment filing chart</a></p></div>';
+ return h;
+}
 function niwCaseFlow(c,candidate){
  var p=c.niwCase||{},decision=(((c.pathwayScreening||{}).review||{}).decision||'');
  if(decision!=='niw'&&decision!=='both')return candidate?'':'<div class="panel"><h3>NIW case</h3><p class="small">An advisor must select NIW or both pathways in screening before starting this case.</p></div>';
@@ -327,7 +362,7 @@ function niwCaseFlow(c,candidate){
  }
  h+='</div>';
  });
- if(!candidate)h+=niwReadinessPanel(c);
+ if(!candidate){h+=niwReadinessPanel(c);h+=niwAdvancedWorkspace(c)}
  if(!candidate)h+='<div class="entry"><h4>USCIS filing details (advisor-recorded)</h4>'+
  [['receipt','USCIS receipt number'],['filed','I-140 received / filed date'],['priority','Verified priority date'],['decision','I-140 decision (pending / approved / denied / withdrawn)']].map(function(x){return '<label class="f">'+esc(x[1])+'</label><input type="'+(x[0]==='filed'||x[0]==='priority'?'date':'text')+'" data-draft="niw_'+x[0]+'" value="'+esc(S.draft['niw_'+x[0]]!==undefined?S.draft['niw_'+x[0]]:(p.filing||{})[x[0]]||'')+'">' }).join('')+
  '<button class="btn sm pri" data-a="niw-filing">Save filing details</button><p class="small">Do not infer priority date from approval date. Verify receipt notice and applicable rules.</p></div>';
@@ -1096,6 +1131,7 @@ document.addEventListener('click',async function(e){
         if(!p.activatedAt||!phase){say('Activate a valid NIW case first.','err');return}
         var status=S.draft['niwstatus_'+key]||((p.phases||{})[key]||{}).status||'not_started';
         if(!['not_started','in_progress','blocked','completed'].includes(status)){say('Invalid phase status.','err');return}
+        if(status==='completed'&&key==='draft'&&!NIW_PACKAGE_ITEMS.every(function(x){return (p.package||{})[x[0]]&&(p.package||{})[x[0]].ready})){say('Complete all petition package items first.','err');return}
         if(status==='completed'&&['draft','legal','filing'].includes(key)&&!niwReadiness(c).ready){say('Complete NIW evidence review before closing this phase.','err');return}
         if(status==='completed'&&['legal','filing'].includes(key)&&!(p.legalSignoff&&p.legalSignoff.signedAt)){say('Attorney review record required.','err');return}
         if(status==='completed'&&key==='filing'&&!(p.filing&&p.filing.receipt&&p.filing.filed)){say('Record USCIS receipt and filing date first.','err');return}
@@ -1105,6 +1141,36 @@ document.addEventListener('click',async function(e){
         var phases=Object.assign({},p.phases||{});phases[key]={status:status,note:note,updatedAt:nowIso()};
         await candRef(c.id).update({niwCase:Object.assign({},p,{phases:phases})});
         delete S.draft['niwstatus_'+key];delete S.draft['niwnote_'+key];say('NIW phase saved.','ok');break;
+      }
+      case 'niw-package':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{},item=NIW_PACKAGE_ITEMS.find(function(x){return x[0]===id});
+        if(!p.activatedAt||!item){say('Active NIW case required.','err');return}
+        var pack=Object.assign({},p.package||{}),old=pack[id]||{},note=String(S.draft['niwpkg_'+id]!==undefined?S.draft['niwpkg_'+id]:old.note||'').trim().slice(0,2000);
+        if(!old.ready&&!note){say('Add a document reference or preparation note first.','err');return}
+        pack[id]={ready:!old.ready,note:note,updatedAt:nowIso()};
+        await candRef(c.id).update({niwCase:Object.assign({},p,{package:pack})});
+        delete S.draft['niwpkg_'+id];say('Petition package item updated.','ok');break;
+      }
+      case 'niw-rfe':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Active NIW case required.','err');return}
+        var old=p.rfe||{},v={};
+        ['notice','deadline','issues','response','status'].forEach(function(k){v[k]=String(S.draft['niwrfe_'+k]!==undefined?S.draft['niwrfe_'+k]:old[k]||'').trim().slice(0,3000)});
+        if(!['none','received','preparing','review','sent','closed'].includes(v.status)){say('Select a valid RFE status.','err');return}
+        if(v.status!=='none'&&(!v.notice||!v.deadline||!v.issues)){say('RFE notice, deadline and requested issues are required.','err');return}
+        if(v.status==='sent'&&!v.response){say('Record the response package reference before marking sent.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{rfe:Object.assign({},v,{updatedAt:nowIso()})})});
+        ['notice','deadline','issues','response','status'].forEach(function(k){delete S.draft['niwrfe_'+k]});say('RFE tracker saved.','ok');break;
+      }
+      case 'niw-visa':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Active NIW case required.','err');return}
+        var old=p.visaTracking||{},v={};
+        ['chargeability','bulletin','category','filingCutoff','finalCutoff','chart','notes'].forEach(function(k){v[k]=String(S.draft['niwvisa_'+k]!==undefined?S.draft['niwvisa_'+k]:old[k]||'').trim().slice(0,3000)});
+        if(!v.chargeability||!v.bulletin||!v.category||!v.chart){say('Record chargeability, bulletin month, category and USCIS chart.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{visaTracking:Object.assign({},v,{reviewedAt:nowIso()})})});
+        Object.keys(v).forEach(function(k){delete S.draft['niwvisa_'+k]});say('Visa Bulletin review saved.','ok');break;
       }
       case 'niw-signoff':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
