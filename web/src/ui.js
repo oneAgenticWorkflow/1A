@@ -1273,7 +1273,7 @@ document.addEventListener('click',async function(e){
         if(valid.indexOf(decision)<0){say('Select a pathway decision.','err');return}
         var note=String(S.draft.ps_note!==undefined?S.draft.ps_note:((old.review||{}).note||'')).trim().slice(0,3000);
         if(!note){say('Record the reasoning and next evidence actions.','err');return}
-        var missing=pathwayAudit(c).missing;if(missing.length&&decision!=='evidence'&&decision!=='other'){say('Complete screening fields: '+missing.join(', ')+'.','err');return}
+        var audit=pathwayAudit(c),missing=audit.missing;if(!audit.intakeReady&&decision!=='evidence'&&decision!=='other'){say('Complete required candidate intake and advisor form reviews before recommending a pathway.','err');return}if(missing.length&&decision!=='evidence'&&decision!=='other'){say('Complete screening fields: '+missing.join(', ')+'.','err');return}
         await candRef(c.id).update({pathwayScreening:{data:old.data||{},updatedAt:old.updatedAt||nowIso(),review:{decision:decision,note:note,reviewedAt:nowIso()}}});
         delete S.draft.ps_decision;delete S.draft.ps_note;say('Advisor screening decision recorded.','ok');break;
       }
