@@ -211,7 +211,7 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
@@ -219,6 +219,7 @@ function caseView(c){
   else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='pathway')h+=pathwayScreening(c);
   else if(S.tab==='development')h+=pathwayDevelopment(c);
+  else if(S.tab==='niwcase')h+=niwCaseFlow(c,false);
   else if(S.tab==='strategy')h+=pathwayStrategy(c);
   else if(S.tab==='guide')h+=pathwayGuide();
   else if(S.tab==='score')h+=scoreTab(c);
@@ -260,6 +261,52 @@ function pathwayDevelopment(c){
  h+=evidenceSourceReview(c,tracks);
  h+='<div class="addrow"><button class="btn pri sm" data-a="ps-generate">Create missing evidence requests</button><button class="btn sm" data-a="tab" data-id="docs">Open shared documents</button></div><p class="small">Advisor review required for all evidence and final legal conclusions.</p></div>';
  return h;
+}
+var NIW_PHASES=[
+ ['agreement','Candidate agreement','Candidate acknowledges NIW pathway and authorizes case preparation'],
+ ['intake','NIW intake','Education, work history, status, chargeability, and proposed endeavor'],
+ ['evidence','Evidence collection','EB-2 threshold, proposed endeavor and each Dhanasar prong'],
+ ['draft','Petition drafting','Endeavor statement, supporting exhibits, letters, and petition narrative'],
+ ['legal','Attorney review','Counsel validates petition, evidence, and filing strategy'],
+ ['filing','I-140 filing','Record actual USCIS receipt and priority date'],
+ ['uscis','USCIS adjudication','Track receipt, RFE, response, approval or denial'],
+ ['visa','Visa availability','Monitor EB-2 chargeability, bulletin and adjustment eligibility'],
+ ['residence','Green-card process','Separate I-485 or consular processing and final decision']
+];
+function niwCaseFlow(c,candidate){
+ var p=c.niwCase||{},decision=(((c.pathwayScreening||{}).review||{}).decision||'');
+ if(decision!=='niw'&&decision!=='both')return candidate?'':'<div class="panel"><h3>NIW case</h3><p class="small">An advisor must select NIW or both pathways in screening before starting this case.</p></div>';
+ var agreed=!!(p.agreement&&p.agreement.acceptedAt),active=!!p.activatedAt;
+ var h='<section class="panel"><div class="ph"><h3>EB-2 NIW case journey</h3>'+chip(active?'Active NIW case':agreed?'Awaiting advisor activation':'Agreement required',active?'ok':'mid')+'</div>'+
+ '<p class="small">This is a separate NIW petition workflow. It does not establish legal eligibility or replace attorney advice. NIW I-140 approval is not a green card or employment authorization.</p>';
+ if(!agreed){
+ h+='<div class="entry"><h4>Pathway confirmation</h4><p>The NIW path requires EB-2 qualification and evidence addressing the proposed endeavor, national importance, your ability to advance it, and why waiving a job offer and labor certification benefits the United States.</p><p class="small">Your acknowledgement confirms your chosen preparation pathway only. It is not a legal eligibility finding, attorney engagement, or agreement to pay fees.</p>'+
+ '<label><input type="checkbox" data-draft="niw_agree" '+(S.draft.niw_agree?'checked':'')+'> I understand and agree to proceed with NIW case preparation.</label><div class="addrow"><button class="btn pri sm" data-a="niw-agree">Confirm NIW pathway</button></div></div>';
+ }else{
+ h+='<div class="entry"><b>Candidate agreement recorded</b><p class="small">'+esc(fmt(p.agreement.acceptedAt))+' · '+esc(p.agreement.actor||'Candidate')+'</p></div>';
+ if(!active&&!candidate)h+='<button class="btn pri sm" data-a="niw-activate">Activate NIW case</button>';
+ if(!active&&candidate)h+='<p class="small">Your advisor will activate the NIW preparation workflow.</p>';
+ }
+ if(active){
+ var completed=NIW_PHASES.filter(function(x){return (p.phases||{})[x[0]]&&((p.phases||{})[x[0]].status==='completed')}).length;
+ h+='<p class="small"><b>'+completed+' of '+NIW_PHASES.length+' phases recorded complete</b>. Completion is a workflow status, not USCIS approval.</p>';
+ NIW_PHASES.forEach(function(x,i){
+ var record=(p.phases||{})[x[0]]||{},status=record.status||'not_started';
+ h+='<div class="entry"><div class="ph"><b>'+(i+1)+'. '+esc(x[1])+'</b>'+chip(status==='completed'?'Complete':status==='in_progress'?'In progress':status==='blocked'?'Blocked':'Not started',status==='completed'?'ok':status==='blocked'?'bad':'mid')+'</div><p class="small">'+esc(x[2])+'</p>';
+ if(record.note)h+='<p class="small">'+esc(record.note)+'</p>';
+ if(!candidate){
+ h+='<label class="f" for="niwstatus_'+x[0]+'">Phase status</label><select id="niwstatus_'+x[0]+'" data-draft="niwstatus_'+x[0]+'">'+[['not_started','Not started'],['in_progress','In progress'],['blocked','Blocked'],['completed','Complete']].map(function(o){var v=S.draft['niwstatus_'+x[0]]||status;return '<option value="'+o[0]+'"'+(v===o[0]?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'+
+ '<label class="f" for="niwnote_'+x[0]+'">Advisor note</label><textarea id="niwnote_'+x[0]+'" data-draft="niwnote_'+x[0]+'">'+esc(S.draft['niwnote_'+x[0]]!==undefined?S.draft['niwnote_'+x[0]]:record.note||'')+'</textarea>'+
+ '<button class="btn sm" data-a="niw-phase" data-id="'+x[0]+'">Save phase</button>';
+ }
+ h+='</div>';
+ });
+ if(!candidate)h+='<div class="entry"><h4>USCIS filing details (advisor-recorded)</h4>'+
+ [['receipt','USCIS receipt number'],['filed','I-140 received / filed date'],['priority','Verified priority date'],['decision','I-140 decision (pending / approved / denied / withdrawn)']].map(function(x){return '<label class="f">'+esc(x[1])+'</label><input type="'+(x[0]==='filed'||x[0]==='priority'?'date':'text')+'" data-draft="niw_'+x[0]+'" value="'+esc(S.draft['niw_'+x[0]]!==undefined?S.draft['niw_'+x[0]]:(p.filing||{})[x[0]]||'')+'">' }).join('')+
+ '<button class="btn sm pri" data-a="niw-filing">Save filing details</button><p class="small">Do not infer priority date from approval date. Verify receipt notice and applicable rules.</p></div>';
+ if(p.filing&&p.filing.receipt)h+='<p class="small">USCIS receipt: '+esc(p.filing.receipt)+' · Priority date: '+esc(p.filing.priority||'Not verified')+' · I-140: '+esc(p.filing.decision||'Pending')+'</p>';
+ }
+ h+='</section>';return h;
 }
 function pathwayGuide(){
  var sections=[
@@ -865,6 +912,7 @@ function candidateView(c){
   /* hero */
   h+='<section class="cv-hero"><div class="cv-hl"><p class="cv-eyebrow">'+esc(cvGreeting())+'</p><h2>'+esc(first)+', here is where you stand</h2><p class="cv-sub">Phase '+(st+1)+' of '+CV_STAGES.length+': <b>'+esc(ph.n)+'</b>. '+esc(ph.d)+'</p>'+
    '<div class="cv-meta">'+(c.visa?'<span>'+esc(c.visa)+(c.visaExpiry?' valid to '+esc(fmtDate(c.visaExpiry)):'')+'</span>':'')+(c.goal?'<span>Goal: '+esc(c.goal)+'</span>':'')+'</div></div><div class="cv-hr">'+cvRing(pct)+'<span>overall progress</span></div></section>';
+  h+=niwCaseFlow(c,true);
   h+=pathwayGuide();
   /* next step */
   if(now.length){var n0=now[0];h+='<section class="cv-next"><div><p class="cv-eyebrow">Your next step</p><h3>'+esc(n0.title)+'</h3><p class="small">'+(n0.due?'Due '+esc(fmtDate(n0.due).replace(/, \d{4}$/,''))+'. ':'')+(now.length>1?(now.length-1)+' more after this one.':'This is the only thing we need from you right now.')+'</p></div>'+(n0.kind==='form'&&n0.form?'<button class="btn pri big" data-a="openform" data-id="'+n0.form+'">'+(getResp(c.id,n0.form).status==='In progress'?'Continue':'Start')+'</button>':'<button class="btn pri big" data-a="cvscroll" data-id="cv-todo">See what to do</button>')+'</section>'}
@@ -999,6 +1047,42 @@ document.addEventListener('click',async function(e){
         await candRef(c.id).update({pathwayScreening:{data:ps.data||{},review:ps.review||{},updatedAt:ps.updatedAt||nowIso(),strategy:v}});
         ['chargeability','prior','niwFiled','statusEnd','rationale'].forEach(function(k){delete S.draft['strategy_'+k]});
         say('Advisor strategy saved.','ok');break;
+      }
+      case 'niw-agree':{
+        var decision=(((c.pathwayScreening||{}).review||{}).decision||'');
+        if(decision!=='niw'&&decision!=='both'){say('NIW must be selected by the advisor first.','err');return}
+        if(!S.draft.niw_agree){say('Please check the agreement acknowledgement.','err');return}
+        var p=c.niwCase||{};if(p.agreement&&p.agreement.acceptedAt)return;
+        await candRef(c.id).update({niwCase:Object.assign({},p,{agreement:{acceptedAt:nowIso(),actor:S.locked||S.role==='Candidate'?'Candidate':'Candidate (advisor preview)',version:'niw-v1'}})});
+        delete S.draft.niw_agree;say('NIW pathway acknowledgement recorded.','ok');break;
+      }
+      case 'niw-activate':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.agreement||!p.agreement.acceptedAt){say('Candidate agreement required.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{activatedAt:p.activatedAt||nowIso(),phases:Object.assign({agreement:{status:'completed',note:'Candidate acknowledgement recorded',updatedAt:nowIso()}},p.phases||{})})});
+        say('NIW case activated.','ok');break;
+      }
+      case 'niw-phase':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{},key=id,phase=NIW_PHASES.find(function(x){return x[0]===key});
+        if(!p.activatedAt||!phase){say('Activate a valid NIW case first.','err');return}
+        var status=S.draft['niwstatus_'+key]||((p.phases||{})[key]||{}).status||'not_started';
+        if(!['not_started','in_progress','blocked','completed'].includes(status)){say('Invalid phase status.','err');return}
+        if(key==='agreement'&&status==='completed'&&!(p.agreement&&p.agreement.acceptedAt)){say('Candidate agreement is required.','err');return}
+        var note=String(S.draft['niwnote_'+key]!==undefined?S.draft['niwnote_'+key]:((p.phases||{})[key]||{}).note||'').trim().slice(0,3000);
+        var phases=Object.assign({},p.phases||{});phases[key]={status:status,note:note,updatedAt:nowIso()};
+        await candRef(c.id).update({niwCase:Object.assign({},p,{phases:phases})});
+        delete S.draft['niwstatus_'+key];delete S.draft['niwnote_'+key];say('NIW phase saved.','ok');break;
+      }
+      case 'niw-filing':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Activate NIW case first.','err');return}
+        var f={},old=p.filing||{};
+        ['receipt','filed','priority','decision'].forEach(function(k){f[k]=String(S.draft['niw_'+k]!==undefined?S.draft['niw_'+k]:old[k]||'').trim().slice(0,160)});
+        if(f.decision&&!['pending','approved','denied','withdrawn'].includes(f.decision.toLowerCase())){say('Use pending, approved, denied or withdrawn.','err');return}
+        await candRef(c.id).update({niwCase:Object.assign({},p,{filing:f})});
+        ['receipt','filed','priority','decision'].forEach(function(k){delete S.draft['niw_'+k]});
+        say('NIW filing details saved.','ok');break;
       }
       case 'ps-generate':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
