@@ -76,3 +76,10 @@ test('pathway guide compares EB-1A and NIW and explains post-I-140 steps',()=>{
  assert.match(ui,/I-140 approval grants work authorization\?/);
  assert.match(ui,/h\+=comparison/);
 });
+
+test('NIW evidence review supports independent source-linked prongs',()=>{
+ assert.match(ui,/evidenceSourceReview\(c,tracks\)/);
+ assert.match(ui,/PATHWAY_REQUIREMENTS\.niw\.forEach/);
+ assert.match(ui,/NIW — /);
+ assert.match(ui,/\['niw','both'\]\.indexOf/);
+});
