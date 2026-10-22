@@ -208,7 +208,7 @@ function filingReadinessForecast(c,ts){
   var active=ts.filter(t=>t.req!==false&&t.status!=='Skipped'&&!isDone(t.status));
   var all=Object.fromEntries(ts.filter(t=>t.key).map(t=>[t.key,t]));
   var today=Math.floor(Date.now()/86400000),cache={},stack={},cycles=0,undated=0;
-  function parse(v){return /^\\d{4}-\\d{2}-\\d{2}$/.test(v||'')?Math.floor(Date.parse(v+'T12:00:00Z')/86400000):null}
+  function parse(v){return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(v||'')?Math.floor(Date.parse(v+'T12:00:00Z')/86400000):null}
   function work(start,n){var d=new Date(start*86400000);while(n>0){d.setUTCDate(d.getUTCDate()+1);if(d.getUTCDay()!==0&&d.getUTCDay()!==6)n--}return Math.floor(d.getTime()/86400000)}
   function fmt(n){return fmtDate(new Date(n*86400000).toISOString().slice(0,10))}
   function calc(t){
