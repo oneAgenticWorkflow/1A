@@ -175,6 +175,7 @@ function casesView(){
 
 function newCaseView(){
   return '<div class="panel newcase"><h2>New candidate</h2><p class="small">Creating the case builds the whole workflow: '+TEMPLATE.length+' tasks across '+STAGES.length+' stages, with owners, due dates and dependencies. Later steps unlock as earlier ones finish.</p>'+
+   '<div class="addrow"><button class="btn sm" data-a="demo-prefill">Prefill fictional test candidate</button><span class="small">Fills this form only. Review before creating.</span></div>'+ 
    '<label class="f" for="nn">Full name</label><input id="nn" type="text" data-draft="nn" value="'+esc(S.draft.nn||'')+'">'+
    '<div class="two"><div><label class="f" for="ndob">Date of birth</label><input id="ndob" type="date" data-draft="ndob" max="'+today()+'" value="'+esc(S.draft.ndob||'')+'"></div>'+
    '<div><label class="f" for="nsex">Gender</label><select id="nsex" data-draft="nsex"><option value="">Select gender</option><option value="Male"'+(S.draft.nsex==='Male'?' selected':'')+'>Male</option><option value="Female"'+(S.draft.nsex==='Female'?' selected':'')+'>Female</option></select></div></div>'+
@@ -1372,6 +1373,7 @@ document.addEventListener('click',async function(e){
       case 'home':S.cid=null;S.home='cases';S.openForm=false;S.role='Advisor';break;
       case 'alltasks':S.cid=null;S.home='tasks';break;
       case 'newcase':S.cid=null;S.home='new';break;
+      case 'demo-prefill':Object.assign(S.draft,{nn:'Arjun Mehta',ne:'arjun.mehta.test@example.com',ndob:'1994-06-15',nsex:'Male',nemp:'Northstar Enterprise Solutions LLC',nv:'H-1B',nx:'2028-09-30',ng:'12 months'});say('Fictional test candidate details filled. Review and create when ready.');break;
       case 'create':await createCase();return;
       case 'open':S.cid=id;S.showCandidateLogin=null;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
