@@ -1406,7 +1406,7 @@ document.addEventListener('click',async function(e){
       case 'entry-del':{var p2=parsePath(el.dataset.fp);var r2=workResp(c.id,p2[0]);(r2.data[p2[1]]||[]).splice(+p2[2],1);await saveResp(c.id,p2[0]);break}
       case 'row-add':{var x1=resolveHolder(el.dataset.fp+'|0|x');var rws=x1.holder[x1.f.k]=x1.holder[x1.f.k]||[];if(!rws.length)rws.push({});rws.push({});touch(x1.p[0]);await saveResp(c.id,x1.p[0]);break}
       case 'row-del':{var q=parsePath(el.dataset.fp);var x2=resolveHolder(q.slice(0,4).join('|')+'|0|x');var rr=x2.holder[x2.f.k]||[];rr.splice(+q[4],1);await saveResp(c.id,q[0]);break}
-      case 'test-validate':{if(S.locked||S.staff!=='admin'||c.name!=='Arjun Mehta'){say('Admin test case only.','err');break}var testDef=formDef(S.form),testResp=workResp(c.id,S.form),testErrors=validate(testDef,testResp).filter(function(msg){return !(S.form==='f1'&&testDef.parts.some(function(p){return p.id==='consent'&&p.fields.some(function(f){return msg.indexOf(f.l.split(' (')[0])>=0})}))});S.errs=testErrors;if(testErrors.length){say(testErrors.length+' non-attestation fields need attention.','err')}else{say('Simulation passed non-attestation validation. Form remains a draft; no consent or submission recorded.','ok')}break}\n      case 'submit':{
+      case 'submit':{
         var def=formDef(S.form),r=workResp(c.id,S.form),errs=validate(def,r);
         if(errs.length){S.errs=errs;window.scrollTo(0,0);break}
         S.errs=null;clearTimeout(saveTimer[S.form]);await saveResp(c.id,S.form);
