@@ -176,6 +176,9 @@ function casesView(){
 function newCaseView(){
   return '<div class="panel newcase"><h2>New candidate</h2><p class="small">Creating the case builds the whole workflow: '+TEMPLATE.length+' tasks across '+STAGES.length+' stages, with owners, due dates and dependencies. Later steps unlock as earlier ones finish.</p>'+
    '<label class="f" for="nn">Full name</label><input id="nn" type="text" data-draft="nn" value="'+esc(S.draft.nn||'')+'">'+
+   '<div class="two"><div><label class="f" for="ndob">Date of birth</label><input id="ndob" type="date" data-draft="ndob" max="'+today()+'" value="'+esc(S.draft.ndob||'')+'"></div>'+
+   '<div><label class="f" for="nsex">Gender</label><select id="nsex" data-draft="nsex"><option value="">Select gender</option><option value="Male"'+(S.draft.nsex==='Male'?' selected':'')+'>Male</option><option value="Female"'+(S.draft.nsex==='Female'?' selected':'')+'>Female</option></select></div></div>'+
+   '<label class="f" for="nemp">Employer name</label><input id="nemp" type="text" data-draft="nemp" value="'+esc(S.draft.nemp||'')+'" placeholder="Current employer">'+
    '<div class="two"><div><label class="f" for="ne">Email</label><input id="ne" type="text" data-draft="ne" value="'+esc(S.draft.ne||'')+'"></div>'+
    '<div><label class="f" for="nv">Current status</label><select id="nv" data-draft="nv">'+options(VISAS,S.draft.nv||'H-1B')+'</select></div>'+
    '<div><label class="f" for="nx">Status expiry</label><input id="nx" type="date" data-draft="nx" value="'+esc(S.draft.nx||'')+'"></div>'+
