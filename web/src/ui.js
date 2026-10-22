@@ -146,7 +146,7 @@ function casesView(){
     '<div class="pathway-metric"><span>Open tasks</span><strong>'+open+'</strong><small>Currently in progress</small></div>'+
     '<div class="pathway-metric'+(late?' pathway-urgent':'')+'"><span>Overdue tasks</span><strong>'+late+'</strong><small>'+ (late?'Require attention':'No overdue work')+'</small></div>'+
     '<div class="pathway-metric"><span>Candidate actions</span><strong>'+wait+'</strong><small>Waiting on candidates</small></div></div></section>';
-  if(!sorted.length)return h+'<div class="panel"><h2>No candidates yet</h2><p>Add a candidate to start the '+TEMPLATE.length+'-task workflow across '+STAGES.length+' stages.</p><button class="btn pri" data-a="newcase">New candidate</button></div>';
+  if(!sorted.length)return h;
   var attention=[];
   S.tasks.forEach(function(t){
     if(t.status==='Not started'||isDone(t.status)||!t.due||daysUntil(t.due)>=0)return;
