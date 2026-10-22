@@ -1080,7 +1080,7 @@ document.addEventListener('click',async function(e){
         var p=c.niwCase||{};if(!p.activatedAt){say('Activate NIW case first.','err');return}
         var f={},old=p.filing||{};
         ['receipt','filed','priority','decision'].forEach(function(k){f[k]=String(S.draft['niw_'+k]!==undefined?S.draft['niw_'+k]:old[k]||'').trim().slice(0,160)});
-        if(['filed','priority'].some(function(k){return f[k]&&!/^\\d{4}-\\d{2}-\\d{2}$/.test(f[k])})){say('Enter valid filing and priority dates.','err');return}
+        if(['filed','priority'].some(function(k){return f[k]&&!/^\d{4}-\d{2}-\d{2}$/.test(f[k])})){say('Enter valid filing and priority dates.','err');return}
         if(f.decision&&!['pending','approved','denied','withdrawn'].includes(f.decision.toLowerCase())){say('Use pending, approved, denied or withdrawn.','err');return}
         await candRef(c.id).update({niwCase:Object.assign({},p,{filing:f})});
         ['receipt','filed','priority','decision'].forEach(function(k){delete S.draft['niw_'+k]});
