@@ -40,7 +40,13 @@ function render(){
   else if(c)h+=(S.role==='Candidate'?candidateView(c):caseView(c));
   else h+=casesView();
   app.innerHTML=h;
-  if(typeof y==='number')window.scrollTo(0,y);
+  if(S.focusCaseTab&&!S.locked&&c&&S.role!=='Candidate'){
+    S.focusCaseTab=false;
+    var activeTab=app.querySelector('.nav.tabs .tab.on');
+    var tabRow=app.querySelector('.nav.tabs');
+    if(activeTab){try{activeTab.focus({preventScroll:true})}catch(e){}}
+    if(tabRow){tabRow.scrollIntoView({block:'start',behavior:'instant'});}
+  }else if(typeof y==='number')window.scrollTo(0,y);
   reconcile();
 }
 
@@ -1312,7 +1318,7 @@ document.addEventListener('click',async function(e){
       case 'cvphase':S.cvp=+id;break;
       case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
       case 'cvscroll':{var se=document.getElementById(id);if(se)se.scrollIntoView({behavior:'smooth',block:'start'});return}
-      case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;try{window.scrollTo(0,0)}catch(e){}break;
+      case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;S.focusCaseTab=true;break;
       case 'view':S.view=id;break;
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
       case 'asCand':S.role='Candidate';S.openForm=false;break;
