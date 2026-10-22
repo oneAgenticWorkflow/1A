@@ -101,3 +101,16 @@ test('NIW case separates USCIS filing and visa availability',()=>{
  assert.match(ui,/niwCaseFlow\(c,true\)/);
  assert.match(ui,/niwCaseFlow\(c,false\)/);
 });
+
+test('NIW readiness checks requested documents, uploads and reviewed source findings',()=>{
+ assert.match(ui,/function niwReadiness\(c\)/);
+ assert.match(ui,/pathway:niw:/);
+ assert.match(ui,/f\.status==='accepted'/);
+ assert.match(ui,/function niwReadinessPanel\(c\)/);
+});
+test('NIW filing and legal milestones require advisor-recorded attorney review',()=>{
+ assert.match(ui,/case 'niw-signoff'/);
+ assert.match(ui,/legalSignoff:/);
+ assert.match(ui,/Record attorney review before filing details/);
+ assert.match(ui,/Record USCIS receipt and filing date first/);
+});
