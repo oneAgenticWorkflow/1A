@@ -348,6 +348,18 @@ function niwCaseFlow(c,candidate){
  if(!active&&!candidate)h+='<button class="btn pri sm" data-a="niw-activate">Activate NIW case</button>';
  if(!active&&candidate)h+='<p class="small">Your advisor will activate the NIW preparation workflow.</p>';
  }
+ if(active&&candidate){
+ var requestDocs=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='request'&&String(d.pathwayKey||'').indexOf('pathway:niw:')===0});
+ var uploaded=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'});
+ var pending=requestDocs.filter(function(d){return !uploaded.some(function(f){return f.reqId===d.id})});
+ h+='<div class="entry"><div class="ph"><h4>Your NIW document requests</h4>'+chip(pending.length+' awaiting uploads',pending.length?'mid':'ok')+'</div>'+
+ '<p class="small">Your advisor reviews all evidence. An upload does not mean the evidence has been accepted.</p>';
+ if(!requestDocs.length)h+='<p class="small">Your advisor has not issued NIW-specific document requests yet.</p>';
+ pending.forEach(function(d){h+='<div class="formrow"><div><b>'+esc(d.label)+'</b><p class="small">'+esc(d.note||'')+'</p></div><button class="btn sm" data-a="cvscroll" data-id="cvdocs">Go to documents</button></div>'});
+ if(!pending.length&&requestDocs.length)h+='<p class="small">All requested categories have at least one uploaded document; advisor review may still be pending.</p>';
+ h+='</div>';
+ if(p.rfe&&p.rfe.status&&p.rfe.status!=='none'&&p.rfe.status!=='closed')h+='<div class="entry"><h4>USCIS additional evidence request</h4><p class="small">Your advisor has recorded an RFE. Contact your advisor for the official notice and response instructions. Recorded deadline: '+esc(p.rfe.deadline||'Not provided')+'. Do not rely on this display instead of the USCIS notice.</p></div>';
+ }
  if(active){
  var completed=NIW_PHASES.filter(function(x){return (p.phases||{})[x[0]]&&((p.phases||{})[x[0]].status==='completed')}).length;
  h+='<p class="small"><b>'+completed+' of '+NIW_PHASES.length+' phases recorded complete</b>. Completion is a workflow status, not USCIS approval.</p>';
