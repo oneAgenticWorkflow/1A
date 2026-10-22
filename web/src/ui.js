@@ -211,7 +211,7 @@ function caseView(c){
     h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
   }
   h+=lanes(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
@@ -219,6 +219,8 @@ function caseView(c){
   else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='pathway')h+=pathwayScreening(c);
   else if(S.tab==='development')h+=pathwayDevelopment(c);
+  else if(S.tab==='strategy')h+=pathwayStrategy(c);
+  else if(S.tab==='guide')h+=pathwayGuide();
   else if(S.tab==='score')h+=scoreTab(c);
   else if(S.tab==='field')h+=fieldTab(c);
   else if(S.tab==='plan')h+=planTab(c);
@@ -256,6 +258,29 @@ function pathwayDevelopment(c){
  h+='</div>';
  });
  h+='<div class="addrow"><button class="btn pri sm" data-a="ps-generate">Create missing evidence requests</button><button class="btn sm" data-a="tab" data-id="docs">Open shared documents</button></div><p class="small">Advisor review required for all evidence and final legal conclusions.</p></div>';
+ return h;
+}
+function pathwayGuide(){
+ var sections=[
+ ['EB-1A — Extraordinary Ability','EB-1A is a first-preference immigrant category for people who can demonstrate extraordinary ability and sustained national or international acclaim. A degree, job title, or years of experience alone is not enough. The petition requires qualifying evidence and a final-merits evaluation.'],
+ ['EB-2 NIW — National Interest Waiver','NIW is a waiver within EB-2, not a separate visa queue. First, the person must qualify for EB-2 through an advanced degree or exceptional ability. Then the proposed U.S. endeavor must have substantial merit and national importance, the person must be well positioned to advance it, and on balance the waiver must benefit the United States.'],
+ ['Master\'s degree and ongoing PhD','A qualifying completed master\'s degree may satisfy the EB-2 advanced-degree threshold even while a PhD is in progress. Neither degree automatically establishes NIW or EB-1A eligibility. H-1B is not required to file either I-140.'],
+ ['I-140 approval versus a green card','An approved I-140 establishes an approved immigrant petition, not a green card, lawful status, or employment authorization by itself. Visa availability and eligibility for adjustment of status or consular processing are separate requirements.'],
+ ['Priority dates and India backlogs','For a self-petitioned NIW without labor certification, the priority date generally is the properly filed I-140 receipt date, not its approval date. An India-chargeable NIW case is in the EB-2 India queue, not a special NIW queue. The Visa Bulletin changes monthly; no fixed waiting-time prediction is reliable.'],
+ ['NIW first, EB-1A later?','A qualifying priority date from an approved EB-2 I-140 can generally be retained for a later EB-1A I-140, subject to regulatory exceptions. This is priority-date retention, not automatic green-card eligibility. EB-1A must independently be approved.'],
+ ['F-1, CPT, OPT and STEM OPT','An I-140 does not extend F-1 status or grant work authorization. Filing decisions can raise immigrant-intent, travel, visa renewal, and status questions; consult qualified immigration counsel.']
+ ];
+ var h='<section class="panel"><div class="ph"><h3>Immigration Pathway Guide</h3>'+chip('Educational reference','gate')+'</div><p class="small">Understand the options before choosing a petition track. This guide is general information, not legal advice or a determination of eligibility.</p>';
+ sections.forEach(function(s){h+='<details class="entry"><summary><b>'+esc(s[0])+'</b></summary><p>'+esc(s[1])+'</p></details>'});
+ h+='<div class="entry"><h4>Official resources</h4><p><a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-first-preference-eb-1" target="_blank" rel="noopener noreferrer">USCIS: EB-1</a> · <a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-second-preference-eb-2" target="_blank" rel="noopener noreferrer">USCIS: EB-2</a> · <a href="https://www.uscis.gov/policy-manual/volume-6-part-f-chapter-5" target="_blank" rel="noopener noreferrer">USCIS: National Interest Waiver</a> · <a href="https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html" target="_blank" rel="noopener noreferrer">State Department: Visa Bulletin</a></p><p class="small">Check the latest Visa Bulletin and USCIS adjustment filing chart each month. Eligibility, filing, and final approval are distinct decisions.</p></div></section>';
+ return h;
+}
+function pathwayStrategy(c){
+ var ps=c.pathwayScreening||{},d=ps.data||{},r=ps.review||{},s=ps.strategy||{};
+ var fields=[['chargeability','Country of chargeability (usually country of birth)','text'],['prior','Existing approved I-140 priority date (if any)','date'],['niwFiled','NIW I-140 filing / receipt date (if any)','date'],['statusEnd','Current status or work authorization expiration (if known)','date'],['rationale','Advisor analysis of evidence strength, visa backlog, status risks and next steps','textarea']];
+ var h='<section class="panel"><div class="ph"><h3>Pathway strategy</h3>'+chip(s.reviewedAt?'Strategy recorded':'Advisor review needed',s.reviewedAt?'ok':'mid')+'</div><p class="small">Assess EB-1A and EB-2 NIW independently. Visa Bulletin cutoffs are not calculated here; verify the current official charts. A priority date does not itself authorize I-485 filing.</p>';
+ fields.forEach(function(f){var val=S.draft['strategy_'+f[0]]!==undefined?S.draft['strategy_'+f[0]]:s[f[0]]||'';h+='<label class="f" for="strategy_'+f[0]+'">'+esc(f[1])+'</label>'+(f[2]==='textarea'?'<textarea id="strategy_'+f[0]+'" data-draft="strategy_'+f[0]+'">'+esc(val)+'</textarea>':'<input id="strategy_'+f[0]+'" type="'+f[2]+'" data-draft="strategy_'+f[0]+'" value="'+esc(val)+'">')});
+ h+='<div class="entry"><h4>Review prompts</h4><p><b>Current screening:</b> '+esc(r.decision||'Not decided')+'. <b>Education:</b> '+esc(d.degree||'Not recorded')+'. <b>Current status:</b> '+esc(d.status||'Not recorded')+'.</p><p class="small">For India chargeability, compare EB-1 and EB-2 Dates for Filing and Final Action Dates independently. Do not infer that EB-1A is viable from backlog length. Confirm priority-date retention and any prior I-140 revocation exceptions with counsel.</p></div><button class="btn pri sm" data-a="strategy-save">Save advisor strategy</button></section>';
  return h;
 }
 function pathwayScreening(c){
@@ -821,6 +846,7 @@ function candidateView(c){
   /* hero */
   h+='<section class="cv-hero"><div class="cv-hl"><p class="cv-eyebrow">'+esc(cvGreeting())+'</p><h2>'+esc(first)+', here is where you stand</h2><p class="cv-sub">Phase '+(st+1)+' of '+CV_STAGES.length+': <b>'+esc(ph.n)+'</b>. '+esc(ph.d)+'</p>'+
    '<div class="cv-meta">'+(c.visa?'<span>'+esc(c.visa)+(c.visaExpiry?' valid to '+esc(fmtDate(c.visaExpiry)):'')+'</span>':'')+(c.goal?'<span>Goal: '+esc(c.goal)+'</span>':'')+'</div></div><div class="cv-hr">'+cvRing(pct)+'<span>overall progress</span></div></section>';
+  h+=pathwayGuide();
   /* next step */
   if(now.length){var n0=now[0];h+='<section class="cv-next"><div><p class="cv-eyebrow">Your next step</p><h3>'+esc(n0.title)+'</h3><p class="small">'+(n0.due?'Due '+esc(fmtDate(n0.due).replace(/, \d{4}$/,''))+'. ':'')+(now.length>1?(now.length-1)+' more after this one.':'This is the only thing we need from you right now.')+'</p></div>'+(n0.kind==='form'&&n0.form?'<button class="btn pri big" data-a="openform" data-id="'+n0.form+'">'+(getResp(c.id,n0.form).status==='In progress'?'Continue':'Start')+'</button>':'<button class="btn pri big" data-a="cvscroll" data-id="cv-todo">See what to do</button>')+'</section>'}
   else h+='<section class="cv-next calm"><div><p class="cv-eyebrow">Your next step</p><h3>Nothing needed from you right now</h3><p class="small">Our team is working on your case. We will list your next task here and in your messages as soon as it is ready.</p></div><span class="cv-ico ok">'+cvIcon('check')+'</span></section>';
@@ -944,6 +970,17 @@ document.addEventListener('click',async function(e){
 
       case 'signout':await db.signOut();return;
       case 'invite':{var site=location.href.split('#')[0];var icode=db.inviteCode?await db.inviteCode(c.id):'';S.copyText='Hello '+c.name.split(' ')[0]+',\n\nYour Arcanam Pathway workspace is ready: '+site+'\n\nFirst time: choose "First time? Create your password" and enter\n  Email: '+(c.email||'your email')+'\n  Access code: '+(icode||'(ask your advisor)')+'\nThen pick a password. After that, just sign in with your email and password.\nYou can fill in forms and upload documents there. You will only ever see your own case.\n';break}
+      case 'strategy-save':{
+        if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
+        var ps=c.pathwayScreening||{},old=ps.strategy||{},v={};
+        ['chargeability','prior','niwFiled','statusEnd','rationale'].forEach(function(k){v[k]=String(S.draft['strategy_'+k]!==undefined?S.draft['strategy_'+k]:old[k]||'').trim().slice(0,3000)});
+        if(!v.rationale){say('Record an advisor rationale before saving.','err');return}
+        for(var dateKey of ['prior','niwFiled','statusEnd'])if(v[dateKey]&&!/^\d{4}-\d{2}-\d{2}$/.test(v[dateKey])){say('Use valid dates.','err');return}
+        v.reviewedAt=nowIso();
+        await candRef(c.id).update({pathwayScreening:{data:ps.data||{},review:ps.review||{},updatedAt:ps.updatedAt||nowIso(),strategy:v}});
+        ['chargeability','prior','niwFiled','statusEnd','rationale'].forEach(function(k){delete S.draft['strategy_'+k]});
+        say('Advisor strategy saved.','ok');break;
+      }
       case 'ps-generate':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var ps=c.pathwayScreening||{},decision=(ps.review||{}).decision||'';
