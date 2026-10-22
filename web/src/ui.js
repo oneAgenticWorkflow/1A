@@ -281,7 +281,7 @@ function niwCaseFlow(c,candidate){
  '<p class="small">This is a separate NIW petition workflow. It does not establish legal eligibility or replace attorney advice. NIW I-140 approval is not a green card or employment authorization.</p>';
  if(!agreed){
  h+='<div class="entry"><h4>Pathway confirmation</h4><p>The NIW path requires EB-2 qualification and evidence addressing the proposed endeavor, national importance, your ability to advance it, and why waiving a job offer and labor certification benefits the United States.</p><p class="small">Your acknowledgement confirms your chosen preparation pathway only. It is not a legal eligibility finding, attorney engagement, or agreement to pay fees.</p>'+
- '<label><input type="checkbox" data-draft-chk="niw_agree" '+(S.draft.niw_agree?'checked':'')+'> I understand and agree to proceed with NIW case preparation.</label><div class="addrow"><button class="btn pri sm" data-a="niw-agree">Confirm NIW pathway</button></div></div>';
+ (S.locked?'<label><input type="checkbox" data-draft-chk="niw_agree" '+(S.draft.niw_agree?'checked':'')+'> I understand and agree to proceed with NIW case preparation.</label><div class="addrow"><button class="btn pri sm" data-a="niw-agree">Confirm NIW pathway</button></div>':'<p class="small">Candidate must sign in to record their own agreement.</p>')+'</div>';
  }else{
  h+='<div class="entry"><b>Candidate agreement recorded</b><p class="small">'+esc(fmt(p.agreement.acceptedAt))+' · '+esc(p.agreement.actor||'Candidate')+'</p></div>';
  if(!active&&!candidate)h+='<button class="btn pri sm" data-a="niw-activate">Activate NIW case</button>';
@@ -1051,9 +1051,10 @@ document.addEventListener('click',async function(e){
       case 'niw-agree':{
         var decision=(((c.pathwayScreening||{}).review||{}).decision||'');
         if(decision!=='niw'&&decision!=='both'){say('NIW must be selected by the advisor first.','err');return}
+        if(!S.locked){say('Agreement must be submitted from the candidate’s authenticated account, not advisor preview.','err');return}
         if(!S.draft.niw_agree){say('Please check the agreement acknowledgement.','err');return}
         var p=c.niwCase||{};if(p.agreement&&p.agreement.acceptedAt)return;
-        await candRef(c.id).update({niwCase:Object.assign({},p,{agreement:{acceptedAt:nowIso(),actor:S.locked||S.role==='Candidate'?'Candidate':'Candidate (advisor preview)',version:'niw-v1'}})});
+        await candRef(c.id).update({niwCase:Object.assign({},p,{agreement:{acceptedAt:nowIso(),actor:'Candidate',version:'niw-v1'}})});
         delete S.draft.niw_agree;say('NIW pathway acknowledgement recorded.','ok');break;
       }
       case 'niw-activate':{
