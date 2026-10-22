@@ -270,7 +270,22 @@ function pathwayGuide(){
  ['NIW first, EB-1A later?','A qualifying priority date from an approved EB-2 I-140 can generally be retained for a later EB-1A I-140, subject to regulatory exceptions. This is priority-date retention, not automatic green-card eligibility. EB-1A must independently be approved.'],
  ['F-1, CPT, OPT and STEM OPT','An I-140 does not extend F-1 status or grant work authorization. Filing decisions can raise immigrant-intent, travel, visa renewal, and status questions; consult qualified immigration counsel.']
  ];
+ var comparison='<div class="entry"><h4>Compare the two green-card pathways</h4><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th scope="col" style="padding:10px">Question</th><th scope="col" style="padding:10px">EB-1A</th><th scope="col" style="padding:10px">EB-2 NIW</th></tr></thead><tbody>'+
+ [
+ ['Main test','Extraordinary ability and sustained acclaim','EB-2 qualification plus national-interest waiver'],
+ ['Completed master\'s required?','No','No, if another EB-2 qualification route applies'],
+ ['Proposed U.S. endeavor','Not assessed under the NIW three-prong test','Central to the NIW three-prong test'],
+ ['Employer sponsorship','Self-petition permitted','Self-petition permitted'],
+ ['Visa queue','EB-1 by chargeability','EB-2 by chargeability; no separate NIW queue'],
+ ['I-140 approval grants work authorization?','No','No']
+ ].map(function(x){return '<tr><th scope="row" style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[0])+'</th><td style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[1])+'</td><td style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[2])+'</td></tr>'}).join('')+'</tbody></table></div><p class="small">Both require evidence and independent legal assessment. A long EB-2 backlog does not itself make a person eligible for EB-1A.</p></div>'+
+ '<div class="entry"><h4>After an I-140 is approved</h4><div class="cols3">'+
+ '<div><b>1. Petition approved</b><p class="small">USCIS approved an immigrant classification. This is not a green card or work permit.</p></div>'+
+ '<div><b>2. Check visa availability</b><p class="small">Compare the priority date against the correct category and country in the monthly Visa Bulletin and USCIS filing chart.</p></div>'+
+ '<div><b>3. Apply when eligible</b><p class="small">Adjustment of status (I-485) or consular processing may follow when the applicable requirements are met. Final approval requires visa availability.</p></div></div>'+
+ '<p class="small"><b>Example:</b> NIW I-140 filed November 2026 and approved May 2027 generally has a November 2026 priority date. An India-chargeable applicant remains in the EB-2 India queue; approval does not make the priority date current.</p></div>';
  var h='<section class="panel"><div class="ph"><h3>Immigration Pathway Guide</h3>'+chip('Educational reference','gate')+'</div><p class="small">Understand the options before choosing a petition track. This guide is general information, not legal advice or a determination of eligibility.</p>';
+ h+=comparison;
  sections.forEach(function(s){h+='<details class="entry"><summary><b>'+esc(s[0])+'</b></summary><p>'+esc(s[1])+'</p></details>'});
  h+='<div class="entry"><h4>Official resources</h4><p><a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-first-preference-eb-1" target="_blank" rel="noopener noreferrer">USCIS: EB-1</a> · <a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-second-preference-eb-2" target="_blank" rel="noopener noreferrer">USCIS: EB-2</a> · <a href="https://www.uscis.gov/policy-manual/volume-6-part-f-chapter-5" target="_blank" rel="noopener noreferrer">USCIS: National Interest Waiver</a> · <a href="https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html" target="_blank" rel="noopener noreferrer">State Department: Visa Bulletin</a></p><p class="small">Check the latest Visa Bulletin and USCIS adjustment filing chart each month. Eligibility, filing, and final approval are distinct decisions.</p></div></section>';
  return h;
