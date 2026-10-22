@@ -127,3 +127,9 @@ test('NIW filing readiness includes evidence and attorney review gates',()=>{
  assert.match(ui,/case 'niw-signoff'/);
  assert.match(ui,/Record attorney review before filing details/);
 });
+
+test('candidate NIW journey displays outstanding document requests and RFE guidance',()=>{
+ assert.match(ui,/Your NIW document requests/);
+ assert.match(ui,/USCIS additional evidence request/);
+ assert.match(ui,/niwCaseFlow\(c,true\)/);
+});
