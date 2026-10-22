@@ -12,8 +12,8 @@ test('portfolio overview uses actual case and task collections',()=>{
   assert.match(portfolio,/caseProgress\(c\)/);
 });
 test('case navigation and overdue task actions preserve existing handlers',()=>{
-  assert.match(portfolio,/data-a=\\"open\\"/);
-  assert.match(portfolio,/data-a=\\"gotask\\"/);
+  assert.match(portfolio,/data-a="open"/);
+  assert.match(portfolio,/data-a="gotask"/);
 });
 test('portfolio readiness and evidence labels come from existing calculations',()=>{
   assert.match(portfolio,/readiness\(c\)/);
