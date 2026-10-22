@@ -57,10 +57,11 @@
         var r=await sb.auth.updateUser({password:v});document.getElementById('pwm').textContent=r.error?r.error.message:'Password saved.';if(!r.error)setTimeout(function(){d.remove();pwTool()},1500)}
     };
   }
+  function bounded(p,ms){return Promise.race([p,new Promise(function(_,reject){setTimeout(function(){reject(new Error('Account request timed out. Check your connection and reload.'))},ms)})])}
   async function enter(session){
     shell('<p class="small">Loading…</p>');
     var uid=session.user.id;
-    var p=await sb.from('profiles').select('role,case_id,email,username,display_name,must_change').eq('id',uid).maybeSingle();
+    var p;try{p=await bounded(sb.from('profiles').select('role,case_id,email,username,display_name,must_change').eq('id',uid).maybeSingle(),15000)}catch(e){shell('<p>Could not finish loading your account: '+esc2(e.message)+'</p><p class="small">Your saved candidate data has not been changed. Refresh the page to retry.</p><button class="btn" id="retry">Retry</button>');document.getElementById('retry').onclick=function(){location.reload()};return}
     if(p.error){shell('<p>Could not load your account: '+esc2(p.error.message)+'</p>');return}
     var prof=p.data||{role:'candidate',case_id:null,email:session.user.email};
     if(prof.must_change){mustChange(session);return}
@@ -71,6 +72,6 @@
     var db=makeDb(sb,isStaff,prof.case_id,cfg);
     startApp({db:db,sample:isStaff?makeSample(sb,cfg):null,locked:!isStaff,staff:prof.role,caseId:prof.case_id,me:{email:prof.email||session.user.email,username:prof.username||'',name:prof.display_name||''}});
   }
-  sb.auth.getSession().then(function(r){if(r.data.session){window.__entered=true;enter(r.data.session)}else login()});
+  bounded(sb.auth.getSession(),15000).then(function(r){if(r.error){shell('<p>Sign-in check failed: '+esc2(r.error.message)+'</p><button class="btn" id="retry">Retry</button>');document.getElementById('retry').onclick=function(){location.reload()};return}if(r.data.session){window.__entered=true;enter(r.data.session)}else login()}).catch(function(e){shell('<p>Sign-in check timed out: '+esc2(e.message)+'</p><button class="btn" id="retry">Retry</button>');document.getElementById('retry').onclick=function(){location.reload()}});
   sb.auth.onAuthStateChange(function(ev,session){if(ev==='SIGNED_IN'&&session&&!window.__entered&&!window.__busy){window.__entered=true;enter(session)}if(ev==='SIGNED_OUT'&&!window.__busy)login()});
 })();
