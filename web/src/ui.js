@@ -1190,7 +1190,7 @@ document.addEventListener('click',async function(e){
       case 'candidate-email-save':{
         if(S.staff!=='admin')return;
         var email=String(S.draft.candidate_contact_email||document.getElementById('candidate_contact_email')?.value||'').trim();
-        if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){say('Enter a valid invitation email.','err');return}
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){say('Enter a valid invitation email.','err');return}
         await db.sendCandidateInvite(id,'update-email',email);
         S.draft.candidate_contact_email=undefined;
         await refreshUsers();
