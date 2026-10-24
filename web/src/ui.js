@@ -79,7 +79,7 @@ function loginPanel(c){
   if(S.usersErr)return h+'<p class="small">Could not load logins: '+esc(S.usersErr)+'</p></div>';
   if(!S.users)return h+'<p class="small">Loading…</p></div>';
   if(lu){
-    h+='<p>Username: <b>'+esc(lu.username||lu.email)+'</b>'+(lu.must_change?' · <span class="chip mid">has not chosen a password yet</span>':' · <span class="chip ok">active</span>')+'</p><div class="addrow">'+
+    h+='<p>Username: <b>'+esc(lu.username||lu.email)+'</b>'+(lu.must_change?' · <span class="chip mid">has not chosen a password yet</span>':' · <span class="chip ok">active</span>')+'</p><div class="addrow"><button class="btn sm pri" data-a="candidate-email-invite" data-id="'+esc(c.id)+'">Invite Candidate by email</button>'+ 
       (S.confirmUser==='r:'+lu.id?'<button class="btn sm danger" data-a="usr-reset-yes" data-id="'+esc(lu.id)+'">Yes, issue a new password</button><button class="btn sm" data-a="usr-cancel">Cancel</button>':'<button class="btn sm" data-a="usr-reset" data-id="'+esc(lu.id)+'">Reset password</button>')+'</div>';
   }else{
     var sug=S.draft.cl_user!==undefined?S.draft.cl_user:slugName(c.name);
