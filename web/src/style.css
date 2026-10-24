@@ -394,3 +394,39 @@ code{font-family:var(--mono);font-size:12px}
 @media(max-width:700px){.filing-forecast-grid{grid-template-columns:1fr}.filing-forecast-head{flex-wrap:wrap}}
 
 .filing-forecast-detail{border-top:1px solid var(--line);padding-top:13px;margin-top:14px}.filing-forecast-detail>b{font-size:12px;color:var(--ink)}.filing-forecast-detail>p{font-size:12px;line-height:1.7;color:var(--muted);margin:5px 0}.filing-forecast-warning{font-size:12px;line-height:1.6;background:#fff8e9;border:1px solid #ecd9a8;border-radius:9px;padding:10px 12px;margin:12px 0 0;color:#70561b}
+
+/* Candidate onboarding dashboard — scoped to candidate view */
+.cv-portal-nav{display:flex;align-items:center;gap:5px;overflow-x:auto;padding:7px;margin:0 0 12px;background:#15232b;border:1px solid #2a4145;border-radius:12px;scrollbar-width:thin}
+.cv-portal-nav a{color:#c5d7d4;text-decoration:none;font-size:12px;font-weight:650;white-space:nowrap;padding:10px 13px;border-radius:8px}
+.cv-portal-nav a:hover,.cv-portal-nav a:focus-visible{background:#27483f;color:#fff;outline:2px solid #76b9a1;outline-offset:-2px}
+.cv-identity{background:linear-gradient(120deg,#153a34,#235a49);border:1px solid #3c7663;border-radius:17px;padding:24px 27px;color:#fff;margin-bottom:12px}
+.cv-identity-heading{display:flex;align-items:center;gap:15px}
+.cv-identity-avatar{width:54px;height:54px;flex-shrink:0;display:grid;place-items:center;border-radius:15px;background:#37745e;color:#fff;font-weight:750;font-size:19px}
+.cv-identity-heading>div{flex:1;min-width:0}
+.cv-identity-eyebrow{font-size:10px;letter-spacing:.13em;color:#bce2d0;font-weight:750;margin:0 0 5px}
+.cv-identity-heading h2{font-size:26px;line-height:1.15;color:#fff;margin:0 0 4px;letter-spacing:-.025em}
+.cv-identity-heading p:not(.cv-identity-eyebrow){color:#d6eae2;font-size:12px;margin:0}
+.cv-identity-phase{font-size:11px;border-radius:99px;padding:8px 12px;background:#ffffff1a;border:1px solid #ffffff30;color:#fff}
+.cv-identity-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:22px}
+.cv-identity-grid>div{background:#102c2880;border:1px solid #ffffff22;border-radius:10px;padding:14px;min-width:0}
+.cv-identity-grid small{display:block;font-size:11px;color:#c4e1d4;line-height:1.4;margin-bottom:7px}
+.cv-identity-grid strong{display:block;color:#fff;font-size:15px;overflow-wrap:anywhere}
+.cv-identity-note{font-size:11px;color:#d1e5dc;line-height:1.55;margin:13px 0 0}
+.cv-not-provided{font-weight:500;opacity:.85}
+.cv-profile-card{background:#17262c;border:1px solid #334a50;border-radius:13px;margin-bottom:14px;color:#eaf3ef}
+.cv-profile-card>summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px 20px;list-style:none}
+.cv-profile-card>summary::-webkit-details-marker{display:none}
+.cv-profile-card>summary b{display:block;font-size:15px;color:#f1f6f4}
+.cv-profile-card>summary small{display:block;font-size:12px;color:#b6cbc6;margin-top:5px}
+.cv-profile-open{color:#a7d9c4;font-size:12px;white-space:nowrap}
+.cv-profile-grid{border-top:1px solid #334a50;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:18px 20px}
+.cv-profile-grid>div{padding:12px;background:#203239;border-radius:9px;min-width:0}
+.cv-profile-grid small{display:block;color:#b9cfca;font-size:11px;margin-bottom:7px}
+.cv-profile-grid b{font-size:13px;color:#fff;overflow-wrap:anywhere}
+.cv-profile-note{font-size:11px;color:#bed2cc;padding:0 20px 18px;margin:0}
+#app:has(.cv-identity) .cv-work-center .cv-work-section-title h3{color:#e9f3ef}
+#app:has(.cv-identity) .cv-work-center .cv-work-section-title p:not(.cv-work-eyebrow){color:#b9cbc5}
+#app:has(.cv-identity) .cv-journey .cv-phase-desc{color:#53675d}
+#cv-overview,#cv-profile,#cv-todo,#cv-journey,#cv-docs,#cv-msg{scroll-margin-top:18px}
+@media(max-width:760px){.cv-identity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cv-profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cv-identity-phase{display:none}.cv-identity{padding:19px}.cv-portal-nav a{padding:9px}}
+@media(max-width:450px){.cv-profile-grid{grid-template-columns:1fr}.cv-identity-heading h2{font-size:22px}.cv-identity-grid strong{font-size:13px}}
