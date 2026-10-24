@@ -1119,6 +1119,7 @@ function candidateView(c){
   h+='<div class="cx">';
   /* summary */
   h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+LCN+': <b>'+esc(sg.n)+'</b></p>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+
+    '<dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl><p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p>'+
     '</div>'+
     '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
   /* fast track to the first article */
@@ -1179,9 +1180,6 @@ function candidateView(c){
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
   h+='<div class="cv-two"><div id="cx-docs">'+docsPanel(c,false)+'</div><div id="cx-msg">'+messagesPanel(c,false)+'</div></div>';
   /* details */
-  h+='<details class="cx-sec cx-details" id="cx-details"><summary><b>My details</b><small>What we have recorded for your case</small></summary><dl>'+
-    '<div><dt>Full name</dt><dd>'+nf(c.name)+'</dd></div><div><dt>Email</dt><dd>'+nf(c.email)+'</dd></div><div><dt>Employer</dt><dd>'+nf(c.employer)+'</dd></div><div><dt>Immigration status</dt><dd>'+nf(c.visa)+'</dd></div><div><dt>Status valid to</dt><dd>'+(c.visaExpiry?esc(fmtDate(c.visaExpiry)):'<span class="cx-na">Not provided</span>')+'</dd></div><div><dt>Timeline goal</dt><dd>'+nf(c.goal)+'</dd></div></dl>'+
-    '<p class="small">Dates are recorded case information, not verified legal deadlines. To correct anything, send us a message.</p></details>';
   h+='<p class="cv-foot">Arcanam Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p></div>';
   return h;
 }
