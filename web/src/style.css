@@ -500,8 +500,8 @@ code{font-family:var(--mono);font-size:12px}
 .top .brandh .cv-logo{width:44px;height:44px}
 
 /* ---- Candidate workspace (cx): one calm, theme-aware layout ---- */
-#app:has(.cx)>.cv-top,#app:has(.cx)>.pwp,#app:has(.cx)>.candbar{max-width:980px;margin-left:auto;margin-right:auto}
-.cx{max-width:980px;margin:0 auto;display:grid;gap:16px}
+#app:has(.cx)>.cv-top,#app:has(.cx)>.pwp,#app:has(.cx)>.candbar{max-width:none}
+.cx{max-width:none;margin:0;display:grid;gap:16px}
 .cx>*{margin:0!important;min-width:0;max-width:100%}
 .cx{width:100%;grid-template-columns:minmax(0,1fr)}
 .cx .cv-foot{max-width:none;text-align:center}
