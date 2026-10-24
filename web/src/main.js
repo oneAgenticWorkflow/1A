@@ -72,6 +72,19 @@
     var db=makeDb(sb,isStaff,prof.case_id,cfg);
     startApp({db:db,sample:isStaff?makeSample(sb,cfg):null,locked:!isStaff,staff:prof.role,caseId:prof.case_id,me:{email:prof.email||session.user.email,username:prof.username||'',name:prof.display_name||''}});
   }
+  var inviteToken=new URLSearchParams(location.search).get('invite_token');
+  if(inviteToken){
+    history.replaceState(null,'',location.pathname);
+    shell('<p class="small">Verifying your invitation…</p>');
+    window.__busy=true;
+    sb.auth.verifyOtp({token_hash:inviteToken,type:'recovery'}).then(function(r){
+      window.__busy=false;
+      if(r.error||!r.data.session){login();err('Invitation link is invalid or expired. Ask your administrator to resend it.');return}
+      window.__entered=true;
+      mustChange(r.data.session);
+    }).catch(function(){window.__busy=false;login();err('Could not verify invitation. Ask your administrator for a new link.')});
+    return;
+  }
   bounded(sb.auth.getSession(),15000).then(function(r){if(r.error){shell('<p>Sign-in check failed: '+esc2(r.error.message)+'</p><button class="btn" id="retry">Retry</button>');document.getElementById('retry').onclick=function(){location.reload()};return}if(r.data.session){window.__entered=true;enter(r.data.session)}else login()}).catch(function(e){shell('<p>Sign-in check timed out: '+esc2(e.message)+'</p><button class="btn" id="retry">Retry</button>');document.getElementById('retry').onclick=function(){location.reload()}});
   sb.auth.onAuthStateChange(function(ev,session){if(ev==='SIGNED_IN'&&session&&!window.__entered&&!window.__busy){window.__entered=true;enter(session)}if(ev==='SIGNED_OUT'&&!window.__busy)login()});
 })();
