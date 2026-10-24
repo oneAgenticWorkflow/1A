@@ -673,6 +673,9 @@ function tasksTab(c,ts){
   var v=S.view||'list';
   var h='<div class="ph"><div class="seg">'+[['list','List'],['board','Board'],['time','Timeline']].map(function(x){return '<button class="tab'+(v===x[0]?' on':'')+'" data-a="view" data-id="'+x[0]+'">'+x[1]+'</button>'}).join('')+'</div>'+
    '<div class="seg"><label class="small">Owner</label><select data-filter="owner">'+options(['All'].concat(OWNERS),S.filter.owner)+'</select></div></div>';
+  var have={};ts.forEach(function(t){have[t.key]=1});
+  var miss=TEMPLATE.filter(function(t){return !have[t.k]});
+  if(miss.length&&S.staff==='admin')h+='<div class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px"><div><b>'+miss.length+' newer workflow steps are not on this case yet</b><div class="small">For example the monthly article steps and optional speaking. Adding them keeps all your existing work. Nothing is removed or changed.</div></div><button class="btn pri sm" data-a="sync-tpl">Add the '+miss.length+' missing steps</button></div>';
   var shown=ts.filter(function(t){return S.filter.owner==='All'||t.owner===S.filter.owner});
   if(v==='board')return h+boardView(c,shown);
   if(v==='time')return h+timelineView(c,shown);
@@ -1122,16 +1125,17 @@ function candidateView(c){
     var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
     return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul></details>';}
   var spkNode='<li class="opt'+(sel===LCN?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+LCN+'" aria-pressed="'+(sel===LCN)+'"><i>+</i><span>Conference speaking</span><small>Optional · from '+esc(fmtDate(addD(base,90)).replace(/, \d{4}$/,''))+'</small></button></li>';
+  var spkT=allc.filter(function(t){return /^speak-/.test(t.key||'')});
   var speakHtml='<div class="cx-stage"><div class="cx-sth"><div><b>Conference speaking</b></div>'+chip('Optional','')+'</div>'+
     '<h5>What this is about</h5><p>Being invited to speak at a conference, as a keynote or invited speaker, shows that people in your field want to hear from you. It supports your original contributions and your overall case for sustained acclaim. It is not one of the ten criteria by itself, so it adds to the other evidence and does not replace it.</p>'+
     '<h5>When</h5><p>Months 4 to 7, beside "Build your evidence". Starting from '+esc(fmtDate(addD(base,90)))+'. <span class="cx-more">Your advisor can move it earlier if you already have invitations.</span></p>'+
-    '<h5>Steps you may see</h5><ul class="cx-steplist">'+['Pick 5 target conferences in your field.|We check that each is selective and respected.','Send talk proposals.|One strong abstract, adapted for each event.','Ask organizers about invited or keynote slots.|An invitation counts for more than an accepted submission.','Keep proof for every talk.|Program page with your name, invitation email, and an organizer letter.','Share the talk.|Slides, recording and any coverage.'].map(function(x){var p=x.split('|');return '<li class="l"><span class="cx-si">'+cvIcon('file')+'</span><div class="cx-sb"><b>'+p[0]+'</b><small>'+p[1]+'</small></div></li>'}).join('')+'</ul><p class="cx-none">Optional. These steps are guidance from your advisor and are not assigned as tasks.</p></div></section>';
+    '<h5>'+(spkT.length?'Your steps':'Steps you may see')+'</h5><ul class="cx-steplist">'+(spkT.length?spkT.map(function(t){var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'file':'lock')+'</span><div class="cx-sb"><b>'+esc(t.title.replace(/^Choose/,'We choose'))+'</b><small>'+esc(t.detail||'')+' · '+(d2?'Completed':open?'Ready for you':'Opens later')+'</small></div></li>'}).join(''):['Pick 5 target conferences in your field.|We check that each is selective and respected.','Send talk proposals.|One strong abstract, adapted for each event.','Ask organizers about invited or keynote slots.|An invitation counts for more than an accepted submission.','Keep proof for every talk.|Program page with your name, invitation email, and an organizer letter.','Share the talk.|Slides, recording and any coverage.'].map(function(x){var p=x.split('|');return '<li class="l"><span class="cx-si">'+cvIcon('file')+'</span><div class="cx-sb"><b>'+p[0]+'</b><small>'+p[1]+'</small></div></li>'}).join(''))+'</ul><p class="cx-none">Optional. Skip it if it does not fit. Speaking adds to your other evidence and does not replace it.</p></div></section>';
   /* case life cycle */
   h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
     var e=stEnd(i);
     return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+spkNode+'</ol>';
   if(sel===LCN){h+=speakHtml;}else{
-  var mine=allc.filter(function(t){return t.stage===sel}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
+  var mine=allc.filter(function(t){return t.stage===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
   h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(CV_STAGES[sel].n)+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
     '<h5>What this stage is about</h5><p>'+esc(CV_STAGES[sel].d)+' <span class="cx-more">'+esc(STAGES[sel].d)+'.</span></p>'+
     '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
@@ -1468,6 +1472,10 @@ document.addEventListener('click',async function(e){
       case 'view':S.view=id;break;
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
       case 'asCand':S.role='Candidate';S.openForm=false;break;
+      case 'sync-tpl':{if(S.staff!=='admin'||!c)return;try{var tsx=tasksOf(c.id),hv={};tsx.forEach(function(t){hv[t.key]=t});var ms=TEMPLATE.filter(function(t){return !hv[t.k]}),st0=c.startDate||today();
+        for(var mi=0;mi<ms.length;mi++){var mt=ms[mi],alld=(mt.deps||[]).every(function(k){return hv[k]&&isDone(hv[k].status)});
+          await db.doc('tasks/'+c.id+'-'+mt.k).set({cid:c.id,key:mt.k,stage:mt.s,title:mt.t,detail:mt.d||'',owner:mt.o,kind:mt.kind||'task',form:mt.form||'',gate:mt.gate||'',deps:mt.deps||[],req:mt.req!==false,status:(mt.deps&&mt.deps.length&&!alld)?'Not started':'To do',due:addDays(st0,mt.off),source:'template',createdAt:nowIso()})}
+        await log(c.id,'Added '+ms.length+' newer workflow steps to this case.','case');say('Added '+ms.length+' steps.','ok')}catch(e){fail(e)}}break;
       case 'asAdv':S.role='Advisor';S.openForm=false;break;
       case 'copy':S.copyText=summary(c);break;
       case 'copy-close':S.copyText=null;break;
