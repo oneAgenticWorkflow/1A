@@ -1080,21 +1080,32 @@ function candidateView(c){
   }else h+='<div class="cv-work-empty">'+cvIcon('check')+'<div><b>Nothing waiting on you</b><p>We will show new requests here when your team assigns them.</p></div></div>';
   h+='</section>';
   h+='<section class="cv-work-shortcuts" aria-label="Quick access"><button class="cv-work-shortcut" data-a="cvscroll" data-id="cv-docs"><span class="cv-work-shortcut-icon">'+cvIcon('file')+'</span><span><b>Documents</b><small>Upload and review your files</small></span><span class="cv-work-arrow">→</span></button><button class="cv-work-shortcut" data-a="cvscroll" data-id="cv-msg"><span class="cv-work-shortcut-icon">'+cvIcon('msg')+'</span><span><b>Messages</b><small>Ask questions and send updates</small></span><span class="cv-work-arrow">→</span></button></section>';
-  /* Candidate journey: full, accessible phase history with real task data. */
-  h+='<section class="panel cv-life cv-journey" id="cv-journey"><div class="cv-journey-head"><div><p class="cv-eyebrow">YOUR CASE JOURNEY</p><h3>Every step, clearly explained</h3><p class="small">Select any phase to review what happened, what is next, and the work recorded for you.</p></div><span class="cv-journey-count">Phase '+(st+1)+' / '+CV_STAGES.length+'</span></div><ol class="cv-rail">'+CV_STAGES.map(function(s,i){
-    var cls=i<st?'done':i===st?'now':'next';return '<li class="'+cls+(i===sel?' sel':'')+'"><button data-a="cvphase" data-id="'+i+'" aria-current="'+(i===sel?'step':'false')+'" aria-expanded="'+(i===sel?'true':'false')+'" aria-controls="cv-phase-detail" aria-label="View phase '+(i+1)+': '+esc(s.n)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span></button></li>'}).join('')+'</ol>';
-  var mine=ts.filter(function(t){return t.stage===sel}).sort(by),sc=sel<st?'Completed':sel===st?'Current phase':'Upcoming';
-  var finished=mine.filter(function(t){return isDone(t.status)}).length;
-  h+='<div class="cv-phase cv-phase-rich" id="cv-phase-detail" tabindex="-1"><div class="cv-ph"><div><span class="cv-phase-kicker">PHASE '+(sel+1)+' OF '+CV_STAGES.length+'</span><h4>'+esc(CV_STAGES[sel].n)+'</h4></div>'+chip(sc,sel<st?'ok':sel===st?'gate':'')+'</div><p class="cv-phase-desc">'+esc(CV_STAGES[sel].d)+'</p>';
+  /* Candidate-visible lifecycle, calculated from real tasks. Never expose internal-only tasks. */
+  var stageRows=CV_STAGES.map(function(stage,i){
+    var items=ts.filter(function(t){return t.stage===i}).sort(by);
+    var complete=items.filter(function(t){return isDone(t.status)}).length;
+    var active=items.filter(function(t){return !isDone(t.status)&&t.status!=='Not started'&&t.status!=='Skipped'}).length;
+    var state=i===st?'Current phase':i>st?'Upcoming':'Earlier phase';
+    return {stage:stage,index:i,items:items,complete:complete,active:active,state:state};
+  });
+  h+='<section class="panel cv-life cv-journey" id="cv-journey"><div class="cv-journey-head"><div><p class="cv-eyebrow">YOUR CASE LIFECYCLE</p><h3>Your journey, step by step</h3><p class="small">See each phase, candidate-visible steps, who is responsible, and what is completed or pending.</p></div><span class="cv-journey-count">Current: phase '+(st+1)+' of '+CV_STAGES.length+'</span></div>';
+  h+='<div class="cv-lifecycle-grid" role="group" aria-label="Select a case phase">'+stageRows.map(function(row){
+    var cls=row.index===st?'current':row.index<st?'earlier':'upcoming';
+    return '<button type="button" class="cv-lifecycle-stage '+cls+(row.index===sel?' selected':'')+'" data-a="cvphase" data-id="'+row.index+'" aria-pressed="'+(row.index===sel)+'"><span class="cv-lifecycle-stage-top"><span class="cv-lifecycle-number">'+(row.index+1)+'</span><span class="cv-lifecycle-state">'+esc(row.state)+'</span></span><strong>'+esc(row.stage.n)+'</strong><small>'+row.complete+' / '+row.items.length+' candidate steps completed</small><span class="cv-lifecycle-track"><i style="width:'+(row.items.length?Math.round(100*row.complete/row.items.length):0)+'%"></i></span></button>';
+  }).join('')+'</div>';
+  var selected=stageRows[sel]||stageRows[st],mine=selected.items;
+  h+='<div class="cv-lifecycle-detail" id="cv-phase-detail" tabindex="-1"><div class="cv-lifecycle-detail-head"><div><span class="cv-phase-kicker">PHASE '+(selected.index+1)+' OF '+CV_STAGES.length+'</span><h4>'+esc(selected.stage.n)+'</h4><p>'+esc(selected.stage.d)+'</p></div>'+chip(selected.state,selected.index===st?'gate':'')+'</div>';
+  h+='<div class="cv-lifecycle-metrics"><span><b>'+selected.complete+'</b> completed</span><span><b>'+selected.active+'</b> in progress</span><span><b>'+Math.max(0,mine.length-selected.complete-selected.active)+'</b> pending or skipped</span></div>';
   if(mine.length){
-    h+='<div class="cv-phase-summary"><b>'+finished+' of '+mine.length+'</b> candidate activities completed</div><div class="cv-phase-activities">';
+    h+='<div class="cv-lifecycle-steps">';
     mine.forEach(function(t){
       var completed=isDone(t.status),isForm=t.kind==='form'&&t.form,rs=isForm?getResp(c.id,t.form):null;
-      h+='<article class="cv-phase-activity"><span class="cv-phase-task-icon '+(completed?'complete':'')+'">'+cvIcon(completed?'check':isForm?'form':'file')+'</span><div class="cv-phase-task-body"><b>'+esc(t.title)+'</b><p>'+(t.detail?esc(t.detail):completed?'This activity is recorded as complete.':'This activity is part of your case journey.')+'</p><div class="cv-phase-task-meta">'+chip(completed?'Completed':t.status==='Not started'?'Not started':t.status,completed?'ok':'')+(t.doneAt?'<span>Completed '+esc(fmtDate(t.doneAt))+'</span>':'')+(t.due?'<span>Due '+esc(fmtDate(t.due))+'</span>':'')+(rs&&rs.status?'<span>Form: '+esc(rs.status)+'</span>':'')+'</div>'+(isForm?'<button class="btn sm" data-a="openform" data-id="'+esc(t.form)+'">'+(completed?'View submitted details':'Open form')+'</button>':'')+'</div></article>';
+      var label=completed?'Completed':t.status==='Not started'?'Not started':t.status;
+      h+='<article class="cv-lifecycle-step"><span class="cv-lifecycle-step-icon '+(completed?'complete':'')+'">'+cvIcon(completed?'check':isForm?'form':'file')+'</span><div class="cv-lifecycle-step-body"><b>'+esc(t.title)+'</b><p>'+esc(t.detail||'Candidate-facing activity in this phase.')+'</p><div class="cv-lifecycle-step-meta"><span><strong>Status:</strong> '+esc(label)+'</span><span><strong>Responsible:</strong> Candidate</span>'+(t.due?'<span><strong>Due:</strong> '+esc(fmtDate(t.due))+'</span>':'')+(t.doneAt?'<span><strong>Completed:</strong> '+esc(fmtDate(t.doneAt))+'</span>':'')+(rs&&rs.status?'<span><strong>Form:</strong> '+esc(rs.status)+'</span>':'')+'</div>'+(isForm?'<button class="btn sm" data-a="openform" data-id="'+esc(t.form)+'">'+(completed?'View submitted details':'Open form')+'</button>':'')+'</div></article>';
     });
     h+='</div>';
-  }else h+='<div class="cv-phase-empty"><b>No candidate activities recorded for this phase</b><p>Some work is handled by your advisory team. When candidate tasks are assigned, they will appear here.</p></div>';
-  h+='<p class="cv-phase-privacy">This timeline shows your candidate-facing activities and recorded statuses. Internal advisor notes and legal assessments are not displayed.</p></div></section>';
+  }else h+='<div class="cv-lifecycle-no-steps"><b>No candidate steps recorded for this phase</b><p>Work may be handled by the advisory team. This view does not show internal staff assignments or confidential reviews.</p></div>';
+  h+='<p class="cv-phase-privacy">Step statuses come from recorded candidate activities. A phase being earlier in the timeline does not mean all work is complete. Internal advisory and legal work is not displayed.</p></div></section>';
   /* Secondary history: completed and upcoming work stays accessible without duplicating the action center. */
   if(later.length||done.length){h+='<section class="panel cv-work-history"><h3>Activity history</h3>';
     if(later.length)h+='<details class="cv-more"><summary>Upcoming activities ('+later.length+')</summary><ul class="cv-list">'+later.map(function(t){return '<li class="l"><span>'+cvIcon('lock')+'</span>'+esc(t.title)+'</li>'}).join('')+'</ul></details>';
