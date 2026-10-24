@@ -68,7 +68,6 @@
     app.innerHTML='';
     var isAdmin=prof.role==='admin',isStaff=isAdmin||prof.role==='supervisor';
     if(!isStaff&&!prof.case_id){shell('<p>Your login is not linked to a case yet. Ask your administrator.</p><div class="addrow"><button class="btn" id="so">Sign out</button></div>');document.getElementById('so').onclick=function(){sb.auth.signOut().then(function(){location.reload()})};return}
-    pwTool();
     var db=makeDb(sb,isStaff,prof.case_id,cfg);
     startApp({db:db,sample:isStaff?makeSample(sb,cfg):null,locked:!isStaff,staff:prof.role,caseId:prof.case_id,me:{email:prof.email||session.user.email,username:prof.username||'',name:prof.display_name||''}});
   }
