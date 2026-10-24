@@ -71,10 +71,10 @@ function makeDb(sb,isAdmin,caseId,cfg){
       return true;
     },
     invite:async function(email,cid){var al='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',b=new Uint8Array(8);crypto.getRandomValues(b);var code='';for(var i=0;i<8;i++)code+=al[b[i]%al.length];var r=await sb.from('invites').upsert({email:email.trim().toLowerCase(),case_id:cid,code:code});if(r.error)throw fail(r.error);return code},
-    sendCandidateInvite:async function(cid){
+    sendCandidateInvite:async function(cid,action,email){
       var ss=await sb.auth.getSession(),tk=ss.data.session&&ss.data.session.access_token;
       if(!tk)throw new Error('Sign in again to send an invitation.');
-      var r=await fetch(cfg.SUPABASE_URL+'/functions/v1/invite-candidate',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk,apikey:cfg.SUPABASE_ANON_KEY},body:JSON.stringify({case_id:cid})});
+      var r=await fetch(cfg.SUPABASE_URL+'/functions/v1/invite-candidate',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk,apikey:cfg.SUPABASE_ANON_KEY},body:JSON.stringify({case_id:cid,action:action||'invite',email:email||undefined})});
       var j={};try{j=await r.json()}catch(_){}
       if(!r.ok)throw new Error(j.error||'Could not send invitation ('+r.status+')');
       return j;
