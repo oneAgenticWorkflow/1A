@@ -79,12 +79,12 @@ function loginPanel(c){
   if(S.usersErr)return h+'<p class="small">Could not load logins: '+esc(S.usersErr)+'</p></div>';
   if(!S.users)return h+'<p class="small">Loading…</p></div>';
   if(lu){
-    h+='<p>Username: <b>'+esc(lu.username||lu.email)+'</b>'+(lu.must_change?' · <span class="chip mid">has not chosen a password yet</span>':' · <span class="chip ok">active</span>')+'</p><div class="addrow">'+
+    h+='<p>Username: <b>'+esc(lu.username||lu.email)+'</b>'+(lu.must_change?' · <span class="chip mid">has not chosen a password yet</span>':' · <span class="chip ok">active</span>')+'</p><div class="addrow"><button class="btn sm pri" data-a="candidate-email-invite" data-id="'+esc(c.id)+'">Invite Candidate by email</button>'+ 
       (S.confirmUser==='r:'+lu.id?'<button class="btn sm danger" data-a="usr-reset-yes" data-id="'+esc(lu.id)+'">Yes, issue a new password</button><button class="btn sm" data-a="usr-cancel">Cancel</button>':'<button class="btn sm" data-a="usr-reset" data-id="'+esc(lu.id)+'">Reset password</button>')+'</div>';
   }else{
     var sug=S.draft.cl_user!==undefined?S.draft.cl_user:slugName(c.name);
     h+='<p class="small">This candidate has no login yet. Choose a username and create it; you will get a temporary password to share.</p><div class="two"><div><label class="f" for="cl_user">Username</label><input id="cl_user" type="text" data-draft="cl_user" value="'+esc(sug)+'" autocomplete="off"></div></div>'+
-      '<div class="addrow"><button class="btn pri sm" data-a="usr-create-cand" data-id="'+esc(c.id)+'">Create login</button></div>';
+      '<div class="addrow"><button class="btn pri sm" data-a="usr-create-cand" data-id="'+esc(c.id)+'">Create login</button></div><p class="small">After creating the login, use Invite Candidate by email to send a secure activation link.</p>';
   }
   return h+'</div>';
 }
@@ -1187,6 +1187,14 @@ document.addEventListener('click',async function(e){
         S.draft.un=S.draft.uu=S.draft.ue=S.draft.cl_user=undefined;
         if(cid)await log(cid,'Candidate login created: '+rs.username+'.','case');
         await refreshUsers();break}
+      case 'candidate-email-invite':{
+        if(S.staff!=='admin')return;
+        var target=((S.users&&S.users.profiles)||[]).find(function(p){return p.role==='candidate'&&p.case_id===id});
+        if(!target){say('Create the candidate login first.','err');return}
+        if(!target.contact_email){say('A candidate contact email is required. Update the login contact email first.','err');return}
+        var sent=await db.sendCandidateInvite(id);
+        say('Invitation email sent to '+sent.to+'.','ok');
+        break}
       case 'usr-reset':S.confirmUser='r:'+id;break;
       case 'usr-reset-yes':{if(S.staff!=='admin')return;S.confirmUser=null;var rr=await db.accounts({action:'reset',user_id:id});
         var pp=(S.users&&S.users.profiles||[]).find(function(p){return p.id===id})||{};
