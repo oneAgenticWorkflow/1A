@@ -1033,13 +1033,13 @@ function messagesPanel(c,admin){
 
 /* ----- candidate view ----- */
 var CV_STAGES=[
- {n:'Getting started',d:'A welcome call, your consent and your first form.'},
- {n:'Your profile',d:'We read your background and agree on your direction.'},
- {n:'Tell us the details',d:'You complete detailed forms and share documents. We review each one.'},
- {n:'Our analysis',d:'We study everything you shared and settle on your field of endeavor.'},
- {n:'Your plan',d:'We agree which areas to strengthen and how, then you receive your plan.'},
+ {n:'Welcome and onboarding',d:'A welcome call, your consent and your first form.'},
+ {n:'Profile review',d:'We read your background and agree on your direction.'},
+ {n:'Share your details',d:'You complete detailed forms and share documents. We review each one.'},
+ {n:'Field and analysis',d:'We study everything you shared and settle on your field of endeavor.'},
+ {n:'Your strategy',d:'We agree which areas to strengthen and how, then you receive your plan.'},
  {n:'Build your evidence',d:'You carry out the plan: reviews, articles, memberships, proof and more.'},
- {n:'Prove and polish',d:'We check every claim, gather recommendation letters and write your case.'},
+ {n:'Verify and finalize',d:'We check every claim, gather recommendation letters and write your case.'},
  {n:'Attorney review',d:'Your attorney reviews everything before anything is filed.'},
  {n:'Filing',d:'Your attorney files the petition and supports you afterwards.'}];
 var CV_ICON={form:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',file:'<path d="M12 16V4M7 9l5-5 5 5"/><path d="M5 20h14"/>',msg:'<path d="M4 5h16v11H9l-5 4z"/>',check:'<path d="M5 12l4 4 10-10"/>',lock:'<rect x="6" y="11" width="12" height="9" rx="2"/><path d="M9 11V8a3 3 0 016 0v3"/>'};
@@ -1058,7 +1058,8 @@ function cvTaskCard(c,t){
    '<div class="cv-cta">'+cta+'</div></div></div>';
 }
 var CX_FORMS={f1:['Profile intake','Your background, CV and goals.'],f2:['Project intake','Your 3 to 6 most significant projects and their impact.'],f3:['Scholarly article intake','Papers, presentations, citations and patents you have already published.'],f4:['Awards intake','Awards and prizes from outside your employer.'],f5:['Media intake','Articles and coverage that are about you and your work.'],f6:['Compensation intake','Your pay and equity, compared with peers.'],f7:['Roles intake','Leading or critical roles you have held.'],f8:['Judging and memberships intake','Reviews you have done and associations you belong to.'],f9:['Recommender intake','The independent experts who know your work.'],f10:['Article ideas','Topics you could write about for professional publications.'],f11:['Senior membership facts','Facts for the memberships we are targeting.']};
-function cxName(t){var f=t&&t.kind==='form'&&t.form&&CX_FORMS[t.form];return f?f[0]:(t&&t.title)||''}
+var CX_STEPS={'Collect proof of every completed review':'Gather proof of the reviews you completed','Review the media sheet':'Check your media list','Apply to shortlisted qualifying awards':'Apply for the awards we shortlisted','Secure coverage in vetted outlets (editorial only)':'Earn coverage in approved outlets','Collect adoption and impact proof for top contributions':'Gather proof of your work\'s impact','Get a signed org chart and employer distinction proof':'Get a signed org chart and proof your employer is distinguished','Collect 6 to 8 signed letters':'Collect your 6 to 8 signed recommendation letters'};
+function cxName(t){var f=t&&t.kind==='form'&&t.form&&CX_FORMS[t.form];return f?f[0]:(t&&(CX_STEPS[t.title]||t.title))||''}
 function cxDesc(t){var f=t&&t.kind==='form'&&t.form&&CX_FORMS[t.form];return f?f[1]:''}
 function cxTask(c,t){
   var isForm=t.kind==='form'&&t.form,r=isForm?getResp(c.id,t.form):null,p=isForm?progress(formDef(t.form),r):0;
@@ -1080,13 +1081,27 @@ function candidateView(c){
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
   var pct=caseProgress(c),sel=Math.min(S.cvp!==undefined?S.cvp:st,LCN-1),sg=CV_STAGES[st];
   var allc=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft});
-  var stEnd=function(i){var d=allc.filter(function(t){return t.stage===i&&t.due}).map(function(t){return t.due}).sort();return d.length?d[d.length-1]:''};
-  var evEnd=(function(){var d=allc.filter(function(t){return t.stage===5&&t.due}).map(function(t){return t.due}).sort();if(d.length)return {d:d[d.length-1]};
-    var m=/(\d+)/.exec(c.goal||''),b=c.startDate||c.createdAt;if(m&&b){var x=new Date(b);if(!isNaN(x)){x.setMonth(x.getMonth()+parseInt(m[1],10));return {d:x.toISOString().slice(0,10),est:true}}}return null})();
+  /* Live schedule: 7 months in total, split across the 7 stages. Finished stages use real finish dates,
+     the current stage slips by the number of days an open task is overdue, and every later stage moves with it. */
+  var PLAN=[10,14,35,21,21,75,34],DAY=864e5,iso=function(d){return d.toISOString().slice(0,10)},addD=function(x,n){var d=new Date(x+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+Math.round(n));return iso(d)},tod=iso(new Date());
+  var base=(c.startDate||c.createdAt||tod).slice(0,10),cur=base,sched=[];
+  for(var si=0;si<LCN;si++){
+    var inS=allc.filter(function(t){return t.stage===si}),plan=PLAN[si],e;
+    if(si<st){var dn=inS.map(function(t){return (t.doneAt||'').slice(0,10)}).filter(Boolean).sort();e=dn.length&&dn[dn.length-1]>cur?dn[dn.length-1]:addD(cur,plan);if(e>tod)e=tod}
+    else if(si===st){var open=inS.filter(function(t){return !isDone(t.status)&&t.status!=='Skipped'}),late=0;
+      open.forEach(function(t){if(t.due&&t.due<tod)late=Math.max(late,Math.round((new Date(tod)-new Date(t.due))/DAY))});
+      var frac=inS.length?(inS.length-open.length)/inS.length:0;e=addD(cur,plan+late);
+      if(e<tod)e=addD(tod,Math.ceil(plan*(1-frac)||1))}
+    else e=addD(cur,plan);
+    sched.push({s:cur,e:e,plan:plan,len:Math.max(1,Math.round((new Date(e)-new Date(cur))/DAY))});cur=e}
+  var plannedEnd=function(i){return addD(base,PLAN.slice(0,i+1).reduce(function(a,b){return a+b},0))};
+  var stEnd=function(i){return sched[i].e};
+  var slip=Math.round((new Date(sched[LCN-1].e)-new Date(plannedEnd(LCN-1)))/DAY);
+  var evEnd={d:sched[5].e};
   var nf=function(v){return v?esc(String(v)):'<span class="cx-na">Not provided</span>'};
   h+='<div class="cx">';
   /* summary */
-  h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+LCN+': <b>'+esc(sg.n)+'</b></p>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(evEnd.est?' <small>(estimated from your timeline goal)</small>':'')+'</p>':'')+
+  h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+LCN+': <b>'+esc(sg.n)+'</b></p>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+
     '</div>'+
     '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
   /* tasks */
@@ -1100,13 +1115,13 @@ function candidateView(c){
     var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
     return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul></details>';}
   /* case life cycle */
-  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">Tap a stage to see what happens in it</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
+  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
     var e=stEnd(i);
     return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+'</ol>';
   var mine=allc.filter(function(t){return t.stage===sel}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
   h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(CV_STAGES[sel].n)+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
     '<h5>What this stage is about</h5><p>'+esc(CV_STAGES[sel].d)+' <span class="cx-more">'+esc(STAGES[sel].d)+'.</span></p>'+
-    '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected by')+'</h5><p>'+(sel===5&&evEnd?esc(fmtDate(evEnd.d))+(evEnd.est?' (estimated)':''):se?esc(fmtDate(se)):'Your advisor will confirm a date.')+'</p>'+
+    '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
     '<h5>Steps for you in this stage</h5>';
   if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
     var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',isForm=t.kind==='form'&&t.form;
