@@ -154,7 +154,7 @@ function casesView(){
   if(!sorted.length)return h;
   var attention=[];
   S.tasks.forEach(function(t){
-    if(t.status==='Not started'||isDone(t.status)||!t.due||daysUntil(t.due)>=0)return;
+    if(t.status==='Not started'||isDone(t.status)||!t.due||daysUntil(t.due)>=0||(t.owner==='Candidate'&&(t.req!==false||/^art/.test(t.key||''))))return;
     var owner=sorted.find(function(c){return c.id===t.cid});if(owner)attention.push({t:t,c:owner});
   });
   attention.sort(function(a,b){return a.t.due<b.t.due?-1:1});
@@ -163,6 +163,19 @@ function casesView(){
     attention.slice(0,3).forEach(function(x){h+='<button class="pathway-alert" data-a="gotask" data-id="'+esc(x.t.id)+'"><span><b>'+esc(x.t.title)+'</b><small>'+esc(x.c.name)+' · '+esc(x.t.owner)+'</small></span><span class="pathway-alert-due">'+esc(dueTxt(x.t))+' &rarr;</span></button>'});
     h+='</section>';
   }
+  /* reminders to send */
+  var rem=[];
+  S.tasks.forEach(function(t){
+    if(t.owner!=='Candidate'||t.status==='Not started'||isDone(t.status)||t.status==='Skipped'||t.req===false&&!/^art/.test(t.key||'')||!t.due||daysUntil(t.due)>3)return;
+    var oc=sorted.find(function(c){return c.id===t.cid});if(oc)rem.push({t:t,c:oc,d:daysUntil(t.due)});
+  });
+  rem.sort(function(a,b){return a.d-b.d});
+  if(rem.length){
+    h+='<section class="pathway-attention"><div class="pathway-section-title"><h3>Reminders to send</h3><span>'+rem.length+' due soon or overdue</span></div>';
+    rem.slice(0,8).forEach(function(x){h+='<button class="pathway-alert" data-a="nudge" data-id="'+esc(x.t.id)+'"><span><b>'+esc(x.c.name)+'</b><small>'+esc(cxName(x.t))+'</small></span><span class="pathway-alert-due">'+(x.d<0?'Overdue by '+(-x.d)+(x.d===-1?' day':' days'):x.d===0?'Due today':'Due in '+x.d+(x.d===1?' day':' days'))+' · Write message &rarr;</span></button>'});
+    h+='<p class="small" style="margin:8px 2px 0">The app does not send anything on its own. Tap a row to get a ready message you can copy into email or chat.</p></section>';
+  }
+  if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Reminder (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   h+='<div class="pathway-section-title"><h3>Candidate portfolio</h3><span>'+sorted.length+' cases</span></div><div class="pathway-cases">';
   sorted.forEach(function(c){
     var ts=tasksOf(c.id),n=counts(c),rd=readiness(c),progress=caseProgress(c);
@@ -1067,12 +1080,12 @@ function cxDesc(t){var f=t&&t.kind==='form'&&t.form&&CX_FORMS[t.form];return f?f
 function cxTask(c,t){
   var isForm=t.kind==='form'&&t.form,r=isForm?getResp(c.id,t.form):null,p=isForm?progress(formDef(t.form),r):0;
   var late=t.due&&daysUntil(t.due)<0,started=isForm&&r&&r.status==='In progress';
-  var due=t.due?'<span class="chip '+dueCls(t)+'">'+(late?'Overdue · ':'Due ')+esc(fmtDate(t.due).replace(/, \d{4}$/,''))+'</span>':'';
+  var du=t.due?daysUntil(t.due):0,due=t.due?'<span class="chip '+dueCls(t)+'">'+(late?'Overdue by '+(-du)+(du===-1?' day':' days'):du===0?'Due today':du<=7?'Due in '+du+(du===1?' day':' days'):'Due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')))+'</span>':'';
   var main=isForm?'<button class="btn pri" data-a="openform" data-id="'+t.form+'">'+(started?'Continue form':'Start form')+'</button>':'<button class="btn pri" data-a="cvscroll" data-id="cx-docs">Upload a file</button><button class="btn" data-a="cvscroll" data-id="cx-msg">Message us</button>';
   return '<article class="cx-task"><div class="cx-ticon">'+cvIcon(isForm?'form':'file')+'</div><div class="cx-tbody"><div class="cx-thead"><h4>'+esc(cxName(t))+'</h4>'+due+'</div>'+
     '<p>'+esc(t.detail||(isForm?(cxDesc(t)+' You can save and come back later.'):'Share the requested information or files with your advisor.'))+'</p>'+
     (isForm&&r.status!=='Not started'?'<div class="cv-prog"><div class="bar"><i style="width:'+p+'%"></i></div><span class="small">'+p+'% of required answers</span></div>':'')+
-    '<div class="cx-actions">'+main+'</div></div></article>';
+    (/^art\d/.test(t.key||'')?'<p class="cx-note">Publishing on time keeps the dates after it. If it slips, every date after it moves out by the same amount.</p>':'')+'<div class="cx-actions">'+main+'</div></div></article>';
 }
 function candidateView(c){
   var ts=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft&&t.req!==false||(t.owner==='Candidate'&&!t.draft&&t.status!=='Not started')});
@@ -1472,6 +1485,11 @@ document.addEventListener('click',async function(e){
       case 'view':S.view=id;break;
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
       case 'asCand':S.role='Candidate';S.openForm=false;break;
+      case 'nudge':{var nt=S.tasks.find(function(x){return x.id===id});var nc=nt&&S.cands.find(function(x){return x.id===nt.cid});if(nt&&nc){var nd=daysUntil(nt.due),isArt=/^art\d/.test(nt.key||'');
+        S.copyText='Hello '+(nc.name||'').split(' ')[0]+',\n\nA quick reminder about "'+cxName(nt)+'", '+(nd<0?'which was due on '+fmtDate(nt.due)+'.':nd===0?'which is due today.':'which is due on '+fmtDate(nt.due)+'.')+
+          (isArt?'\n\nWe publish one article a month, so a delay here moves the dates after it by the same amount.':'')+
+          '\n\nYou can open it from your page: '+location.href.split('#')[0]+'\n\nIf something is blocking you, reply here and we will help.\n\nThank you.';}
+        break}
       case 'sync-tpl':{if(S.staff!=='admin'||!c)return;try{var tsx=tasksOf(c.id),hv={};tsx.forEach(function(t){hv[t.key]=t});var ms=TEMPLATE.filter(function(t){return !hv[t.k]}),st0=c.startDate||today();
         for(var mi=0;mi<ms.length;mi++){var mt=ms[mi],alld=(mt.deps||[]).every(function(k){return hv[k]&&isDone(hv[k].status)});
           await db.doc('tasks/'+c.id+'-'+mt.k).set({cid:c.id,key:mt.k,stage:mt.s,title:mt.t,detail:mt.d||'',owner:mt.o,kind:mt.kind||'task',form:mt.form||'',gate:mt.gate||'',deps:mt.deps||[],req:mt.req!==false,status:(mt.deps&&mt.deps.length&&!alld)?'Not started':'To do',due:addDays(st0,mt.off),source:'template',createdAt:nowIso()})}
