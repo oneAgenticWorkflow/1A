@@ -1057,13 +1057,16 @@ function cvTaskCard(c,t){
    (isForm&&r.status!=='Not started'?'<div class="cv-prog"><div class="bar"><i style="width:'+p+'%"></i></div><span class="small">'+p+'% of required answers</span></div>':'')+
    '<div class="cv-cta">'+cta+'</div></div></div>';
 }
+var CX_FORMS={f1:['Profile intake','Your background, CV and goals.'],f2:['Project intake','Your 3 to 6 most significant projects and their impact.'],f3:['Scholarly article intake','Papers, presentations, citations and patents you have already published.'],f4:['Awards intake','Awards and prizes from outside your employer.'],f5:['Media intake','Articles and coverage that are about you and your work.'],f6:['Compensation intake','Your pay and equity, compared with peers.'],f7:['Roles intake','Leading or critical roles you have held.'],f8:['Judging and memberships intake','Reviews you have done and associations you belong to.'],f9:['Recommender intake','The independent experts who know your work.'],f10:['Article ideas','Topics you could write about for professional publications.'],f11:['Senior membership facts','Facts for the memberships we are targeting.']};
+function cxName(t){var f=t&&t.kind==='form'&&t.form&&CX_FORMS[t.form];return f?f[0]:(t&&t.title)||''}
+function cxDesc(t){var f=t&&t.kind==='form'&&t.form&&CX_FORMS[t.form];return f?f[1]:''}
 function cxTask(c,t){
   var isForm=t.kind==='form'&&t.form,r=isForm?getResp(c.id,t.form):null,p=isForm?progress(formDef(t.form),r):0;
   var late=t.due&&daysUntil(t.due)<0,started=isForm&&r&&r.status==='In progress';
   var due=t.due?'<span class="chip '+dueCls(t)+'">'+(late?'Overdue · ':'Due ')+esc(fmtDate(t.due).replace(/, \d{4}$/,''))+'</span>':'';
   var main=isForm?'<button class="btn pri" data-a="openform" data-id="'+t.form+'">'+(started?'Continue form':'Start form')+'</button>':'<button class="btn pri" data-a="cvscroll" data-id="cx-docs">Upload a file</button><button class="btn" data-a="cvscroll" data-id="cx-msg">Message us</button>';
-  return '<article class="cx-task"><div class="cx-ticon">'+cvIcon(isForm?'form':'file')+'</div><div class="cx-tbody"><div class="cx-thead"><h4>'+esc(t.title)+'</h4>'+due+'</div>'+
-    '<p>'+esc(t.detail||(isForm?'Answer the questions in this form. You can save and come back later.':'Share the requested information or files with your advisor.'))+'</p>'+
+  return '<article class="cx-task"><div class="cx-ticon">'+cvIcon(isForm?'form':'file')+'</div><div class="cx-tbody"><div class="cx-thead"><h4>'+esc(cxName(t))+'</h4>'+due+'</div>'+
+    '<p>'+esc(t.detail||(isForm?(cxDesc(t)+' You can save and come back later.'):'Share the requested information or files with your advisor.'))+'</p>'+
     (isForm&&r.status!=='Not started'?'<div class="cv-prog"><div class="bar"><i style="width:'+p+'%"></i></div><span class="small">'+p+'% of required answers</span></div>':'')+
     '<div class="cx-actions">'+main+'</div></div></article>';
 }
@@ -1091,6 +1094,11 @@ function candidateView(c){
   if(now.length){now.forEach(function(t){h+=cxTask(c,t)})}
   else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'Our team is working on your case. New tasks will appear here.')+'</p></div></div>'}
   h+='</section>';
+  /* all intake forms in one place */
+  var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&t.stage<LCN}).sort(function(a,b){return a.stage-b.stage||(a.form<b.form?-1:1)});
+  if(fm.length){h+='<details class="cx-sec cx-details" id="cx-forms"><summary><b>Your forms</b><small>'+fm.filter(function(t){return isDone(t.status)}).length+' of '+fm.length+' complete. Tap to see every form, from profile intake to scholarly articles.</small></summary><ul class="cx-steplist" style="margin-top:14px">'+fm.map(function(t){
+    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
+    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul></details>';}
   /* case life cycle */
   h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">Tap a stage to see what happens in it</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
     var e=stEnd(i);
@@ -1103,7 +1111,7 @@ function candidateView(c){
   if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
     var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',isForm=t.kind==='form'&&t.form;
     var lab=d2?'Completed':open?'Ready for you':t.status==='Skipped'?'Skipped':'Opens later';
-    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(t.title)+'</b><small>'+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div></li>'}).join('')+'</ul><p class="cx-none">Anything marked Ready for you also appears under What to do now. Other work in this stage is done by our team.</p>'}
+    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+(cxDesc(t)?esc(cxDesc(t))+' · ':'')+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div></li>'}).join('')+'</ul><p class="cx-none">Anything marked Ready for you also appears under What to do now. Other work in this stage is done by our team.</p>'}
   else h+='<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
   h+='</div></section>';
   h+=niwCaseFlow(c,true);
