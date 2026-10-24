@@ -486,3 +486,15 @@ code{font-family:var(--mono);font-size:12px}
 .cv-lifecycle-no-steps p{font-size:12px;color:#536b60}
 @media(max-width:760px){.cv-lifecycle-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cv-lifecycle-detail{padding:16px}}
 @media(max-width:480px){.cv-lifecycle-grid{grid-template-columns:1fr}.cv-lifecycle-stage{min-height:100px}.cv-lifecycle-detail-head{flex-direction:column}}
+
+/* ---- legibility and layout fixes (candidate action center, header, password panel) ---- */
+#app:has(.cv-identity) .cv-work-center .cv-work-item{border-top-color:#30464a}
+#app:has(.cv-identity) .cv-work-center .cv-work-item-main>b{color:#f2f8f4;font-size:15px}
+#app:has(.cv-identity) .cv-work-center .cv-work-item-main>p{color:#c5d6d0;font-size:13px}
+#app:has(.cv-identity) .cv-work-center .cv-work-item-num{background:#2a4a3f;color:#e6f4ee}
+#app:has(.cv-identity)>.cv-top,#app:has(.cv-identity)>.pwp{max-width:none}
+.pwp{margin:0 0 14px}
+.btn.ghost{background:transparent}
+.top .brandh{display:flex;align-items:center;gap:12px}
+.top .brandh h1{margin:0}
+.top .brandh .cv-logo{width:44px;height:44px}
