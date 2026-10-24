@@ -90,7 +90,7 @@ var TEMPLATE=[
  {k:'rfe',s:8,t:'Monitor for RFE or NOID',o:'Attorney',deps:['file'],off:230,req:false}
 ];
 
-var VISAS=['H-1B','L-1','F-1 OPT/STEM OPT','O-1','EAD','Outside the US','Other'];
+var VISAS=['H-1B','H-4 (with or without EAD)','L-1','L-2 (with EAD)','F-1 (student, enrolled)','F-1 CPT','F-1 OPT','F-1 STEM OPT','J-1','O-1','E-2','E-3','TN','EAD (pending green card or other)','Pending I-485 (green card application)','Green card holder','US citizen','Outside the US','Other'];
 var GOALS=['3 months','6 months','12 months','18+ months'];
 var YN=['Yes','No'];
 var YNU=['Yes','No','Unsure'];
@@ -102,7 +102,7 @@ var METRIC_COLS=[{k:'metric',l:'Metric',t:'text'},{k:'before',l:'Before',t:'text
 var MEDIA_NAMED=['Named in the title or first paragraph','Named later in the body','Not named; company only'];
 
 var FORMS=[
-{id:'f1',n:'Form 1: Getting started',who:'Candidate',intro:'About 20 minutes. Do not paste passport numbers, SSNs or tax returns here.',parts:[
+{id:'f1',n:'Form 1: Getting started',who:'Candidate',intro:'About 30 minutes. Do not paste passport numbers, SSNs or tax returns here.',parts:[
  {id:'id',title:'About you',fields:[
   fd('name','Full legal name (as on passport)','text',{req:1}),fd('email','Email','text',{req:1}),
   fd('birth','Country of birth','text',{req:1}),fd('citizen','Country of citizenship','text',{req:1}),
@@ -110,6 +110,23 @@ var FORMS=[
   fd('status','Current US status','select',{o:VISAS,req:1}),fd('expiry','Status expiry date','date',{req:1}),
   fd('petitions','Pending or approved petitions (I-140, O-1, NIW, PERM): type, date, outcome','area'),
   fd('rfe','Any prior RFE, NOID or denial? What happened','area')]},
+ {id:'imm',title:'Your US immigration history',fields:[
+  fd('first_entry','When did you first come to the US? (month and year)','text',{req:1}),
+  fd('first_visa','Which visa or status did you first enter on?','select',{o:VISAS,req:1}),
+  fd('status_hist','Every status since you arrived: status, start date, end date (one per line)','area',{h:'For example: F-1 student, Aug 2016 to May 2018. F-1 OPT, Jun 2018 to Jun 2021. H-1B, Oct 2021 to now. Dates to the month are enough.'}),
+  fd('other_countries','Other countries where you have studied or worked, with years','area')]},
+ {id:'affil',title:'Where you work or study now',fields:[
+  fd('affil_type','Which describes you today?','select',{o:['Working for an employer','Studying (Master\'s)','Studying (PhD)','Working and studying','Founder or self-employed','Between jobs'],req:1}),
+  fd('employer_name','Current employer name (company, lab or institution)','text'),
+  fd('employer_loc','Employer city and state','text'),
+  fd('employer_start','Start date with this employer','date'),
+  fd('employer_type','What kind of organization is it?','select',{o:['Startup','Mid-size company','Large company (Fortune 500 or similar)','University or research lab','Government or non-profit','Own company','Other']}),
+  fd('univ_name','University name (if you are studying now)','text'),
+  fd('univ_prog','Degree, field and expected graduation (month and year)','text'),
+  fd('univ_lab','Lab, research group or supervisor (title or name)','text'),
+  fd('affil_line','How should your name and affiliation appear on articles and talks?','text',{h:'For example: Jane Doe, Senior ML Engineer, Acme Corp. Or: Jane Doe, PhD candidate, Dept. of Computer Science, State University. We use this in author bylines, so pick the line you want in print.'}),
+  fd('prev_orgs','Previous employers and universities: name, role, dates (one per line)','area'),
+  fd('bio','Short bio for articles and conference pages (80 to 150 words)','area',{tall:1})]},
  {id:'goals',title:'Goals',fields:[
   fd('timeline','Target filing timeline','select',{o:GOALS,req:1}),
   fd('fallback','Open to NIW or O-1 as a fallback?','select',{o:YNU,req:1}),
@@ -120,7 +137,7 @@ var FORMS=[
  {id:'career',title:'Career',fields:[
   fd('cv','CV or resume (paste the full text)','area',{req:1,tall:1,minWords:150}),
   fd('linkedin','LinkedIn URL','url',{req:1}),
-  fd('title','Current title, employer and start date','text',{req:1}),
+  fd('title','Current job title (or student role)','text',{req:1}),
   fd('scope','Your scope: who you report to (title only), team size, what you own','area',{req:1}),
   fd('tech','Core technologies and tools (up to 10, comma separated)','text',{req:1}),
   fd('industries','Industries you have served','text'),
