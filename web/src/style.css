@@ -430,3 +430,24 @@ code{font-family:var(--mono);font-size:12px}
 #cv-overview,#cv-profile,#cv-todo,#cv-journey,#cv-docs,#cv-msg{scroll-margin-top:18px}
 @media(max-width:760px){.cv-identity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cv-profile-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.cv-identity-phase{display:none}.cv-identity{padding:19px}.cv-portal-nav a{padding:9px}}
 @media(max-width:450px){.cv-profile-grid{grid-template-columns:1fr}.cv-identity-heading h2{font-size:22px}.cv-identity-grid strong{font-size:13px}}
+
+/* Single cohesive candidate experience: full-width aligned sections */
+#app:has(.cv-identity)>.cv-identity,
+#app:has(.cv-identity)>.cv-profile-card,
+#app:has(.cv-identity)>.cv-portal-nav,
+#app:has(.cv-identity)>.cv-work-dashboard,
+#app:has(.cv-identity)>.cv-work-shortcuts,
+#app:has(.cv-identity)>.cv-work-center,
+#app:has(.cv-identity)>.cv-journey,
+#app:has(.cv-identity)>.cv-work-history,
+#app:has(.cv-identity)>.cv-two{width:100%;max-width:none;margin-left:0;margin-right:0;box-sizing:border-box}
+.cv-identity-progress{display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;color:#dceee6;font-size:11px;font-weight:650}
+.cv-identity-progress .cv-ring{width:78px;height:78px}
+#app:has(.cv-identity) .cv-work-center{background:#182830!important;border-color:#30464a!important}
+#app:has(.cv-identity) .cv-work-center .cv-work-section-title h3{color:#f2f8f4!important}
+#app:has(.cv-identity) .cv-work-center .cv-work-section-title p:not(.cv-work-eyebrow){color:#c5d6d0!important}
+#app:has(.cv-identity) .cv-work-empty{color:#1b5039}
+#app:has(.cv-identity) .cv-work-shortcut b{color:#1d3029!important}
+#app:has(.cv-identity) .cv-work-shortcut small{color:#52685d!important}
+#app:has(.cv-identity) .cv-journey .cv-phase-desc{color:#52665d!important}
+@media(max-width:600px){.cv-identity-progress .cv-ring{width:64px;height:64px}.cv-identity-heading{align-items:flex-start}.cv-identity-grid{margin-top:17px}}
