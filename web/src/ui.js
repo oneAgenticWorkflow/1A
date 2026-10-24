@@ -50,15 +50,20 @@ function render(){
   reconcile();
 }
 
-function topbar(){
+function topbar(){return topbar0()+pwPanel()}
+function pwPanel(){
+  if(!S.pwOpen)return '';
+  return '<div class="panel pwp"><b>Change your password</b><div class="addrow"><input id="np" type="password" autocomplete="new-password" placeholder="New password (8+ characters)"><button class="btn pri sm" data-a="pw-save">Save</button><button class="btn sm" data-a="pw-cancel">Cancel</button></div>'+(S.pwMsg?'<p class="small">'+esc(S.pwMsg)+'</p>':'')+'</div>';
+}
+function topbar0(){
   var c=cur();
   if(S.locked){var em=(S.me&&(S.me.name||S.me.username||S.me.email))||'',nm=(c&&c.name)||em;var ini=nm.split(/[ @.]+/).filter(Boolean).slice(0,2).map(function(x){return x[0].toUpperCase()}).join('');
-    return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">'+LOGO_SVG+'</span><div><b>Arcanam Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
+    return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">'+LOGO_SVG+'</span><div><b>Arcanam Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm ghost" data-a="pw-open">Change password</button><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
   var adm=S.staff==='admin';
-  return '<div class="top"><div><h1>Arcanam Case Tracker</h1><div class="priv">'+(adm?'Admin':'Supervisor')+' · '+esc(S.me&&(S.me.name||S.me.username||S.me.email)||'')+' · screening aid, not legal advice</div></div>'+
+  return '<div class="top"><div class="brandh"><span class="cv-logo">'+LOGO_SVG+'</span><div><h1>Arcanam Pathway</h1><div class="priv">'+(adm?'Admin':'Supervisor')+' · '+esc(S.me&&(S.me.name||S.me.username||S.me.email)||'')+' · screening aid, not legal advice</div></div></div>'+
    '<div class="nav"><button class="tab'+(!c&&S.home==='cases'?' on':'')+'" data-a="home">Cases</button>'+
    '<button class="tab'+(!c&&S.home==='tasks'?' on':'')+'" data-a="alltasks">All tasks</button>'+
-   (adm?'<button class="tab'+(!c&&S.home==='users'?' on':'')+'" data-a="usr-open">People</button><button class="btn pri" data-a="newcase">New candidate</button>':'')+'<button class="btn sm ghost" data-a="signout">Sign out</button></div></div>';
+   (adm?'<button class="tab'+(!c&&S.home==='users'?' on':'')+'" data-a="usr-open">People</button><button class="btn pri" data-a="newcase">New candidate</button>':'')+'<button class="btn sm ghost" data-a="pw-open">Change password</button><button class="btn sm ghost" data-a="signout">Sign out</button></div></div>';
 }
 
 
@@ -1191,6 +1196,9 @@ document.addEventListener('click',async function(e){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
       case 'usr-open':S.cid=null;S.home='users';S.confirmUser=null;refreshUsers();break;
       case 'cred-close':S.cred=null;break;
+      case 'pw-open':S.pwOpen=true;S.pwMsg='';break;
+      case 'pw-cancel':S.pwOpen=false;S.pwMsg='';break;
+      case 'pw-save':{var pv=(document.getElementById('np')||{}).value||'';if(pv.length<8){S.pwMsg='Use at least 8 characters.';break}var pr=await db.setPassword(pv);if(pr&&pr.error){S.pwMsg=pr.error.message}else{S.pwOpen=false;S.pwMsg='';say('Password changed.','ok')}break}
       case 'usr-cancel':S.confirmUser=null;break;
       case 'usr-create':case 'usr-create-cand':{
         if(S.staff!=='admin')return;
