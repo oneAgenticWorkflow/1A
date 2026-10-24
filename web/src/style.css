@@ -596,3 +596,12 @@ code{font-family:var(--mono);font-size:12px}
 .cx-month em.j{background:var(--ok-bg);color:var(--ok)}
 
 .cx-note{margin:8px 0 0!important;font-size:12px!important;color:var(--muted)}
+
+/* admin pages use the dashboard green; candidate page keeps its own accent */
+.adm{--accent:#234d3d}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .adm{--accent:#7fc4a0}}
+:root[data-theme="dark"] .adm{--accent:#7fc4a0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .adm .pathway-case{background:var(--surface);border-color:var(--line);color:var(--ink)}:root:not([data-theme="light"]) .adm .pathway-case small,:root:not([data-theme="light"]) .adm .pathway-case-progress{color:var(--muted)}:root:not([data-theme="light"]) .adm .pathway-alert{background:var(--gate-bg);border-color:var(--line);color:var(--ink)}:root:not([data-theme="light"]) .adm .pathway-alert small{color:var(--muted)}:root:not([data-theme="light"]) .adm .pathway-alert-due{color:var(--gate)}}
+:root[data-theme="dark"] .adm .pathway-case{background:var(--surface);border-color:var(--line);color:var(--ink)}:root[data-theme="dark"] .adm .pathway-case small,:root[data-theme="dark"] .adm .pathway-case-progress{color:var(--muted)}:root[data-theme="dark"] .adm .pathway-alert{background:var(--gate-bg);border-color:var(--line);color:var(--ink)}:root[data-theme="dark"] .adm .pathway-alert small{color:var(--muted)}:root[data-theme="dark"] .adm .pathway-alert-due{color:var(--gate)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .adm .pathway-case-progress b,:root:not([data-theme="light"]) .adm .pathway-case-arrow{color:var(--accent)}}
+:root[data-theme="dark"] .adm .pathway-case-progress b,:root[data-theme="dark"] .adm .pathway-case-arrow{color:var(--accent)}
