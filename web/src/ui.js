@@ -522,7 +522,7 @@ function pathwayScreening(c){
  ['degree','Highest completed degree','select',['','Bachelor','Master','PhD','Other']],
  ['phd','Currently pursuing a PhD?','select',['','Yes','No']],
  ['experience','Years of professional experience','number'],
- ['status','Current immigration / work authorization','select',['','F-1 CPT','F-1 OPT','F-1 STEM OPT','H-1B','Other','Unknown']],
+ ['status','Current immigration / work authorization','select',[''].concat(VISAS).concat(['Unknown'])],
  ['field','Professional and research field','text'],
  ['endeavor','Specific proposed U.S. endeavor','textarea'],
  ['impact','Evidence of broader U.S. or national importance','textarea'],
