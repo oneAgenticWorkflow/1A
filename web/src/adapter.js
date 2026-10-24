@@ -79,6 +79,7 @@ function makeDb(sb,isAdmin,caseId,cfg){
       if(!r.ok)throw new Error(j.error||'Could not send invitation ('+r.status+')');
       return j;
     },
+    setPassword:function(pw){return sb.auth.updateUser({password:pw})},
     accounts:async function(body){
       var ss=await sb.auth.getSession(),tk=ss.data.session&&ss.data.session.access_token;
       var r=await fetch(cfg.SUPABASE_URL+'/functions/v1/accounts',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk,apikey:cfg.SUPABASE_ANON_KEY},body:JSON.stringify(body)});
