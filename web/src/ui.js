@@ -1057,70 +1057,59 @@ function cvTaskCard(c,t){
    (isForm&&r.status!=='Not started'?'<div class="cv-prog"><div class="bar"><i style="width:'+p+'%"></i></div><span class="small">'+p+'% of required answers</span></div>':'')+
    '<div class="cv-cta">'+cta+'</div></div></div>';
 }
+function cxTask(c,t){
+  var isForm=t.kind==='form'&&t.form,r=isForm?getResp(c.id,t.form):null,p=isForm?progress(formDef(t.form),r):0;
+  var late=t.due&&daysUntil(t.due)<0,started=isForm&&r&&r.status==='In progress';
+  var due=t.due?'<span class="chip '+dueCls(t)+'">'+(late?'Overdue · ':'Due ')+esc(fmtDate(t.due).replace(/, \d{4}$/,''))+'</span>':'';
+  var main=isForm?'<button class="btn pri" data-a="openform" data-id="'+t.form+'">'+(started?'Continue form':'Start form')+'</button>':'<button class="btn pri" data-a="cvscroll" data-id="cx-docs">Upload a file</button><button class="btn" data-a="cvscroll" data-id="cx-msg">Message us</button>';
+  return '<article class="cx-task"><div class="cx-ticon">'+cvIcon(isForm?'form':'file')+'</div><div class="cx-tbody"><div class="cx-thead"><h4>'+esc(t.title)+'</h4>'+due+'</div>'+
+    '<p>'+esc(t.detail||(isForm?'Answer the questions in this form. You can save and come back later.':'Share the requested information or files with your advisor.'))+'</p>'+
+    (isForm&&r.status!=='Not started'?'<div class="cv-prog"><div class="bar"><i style="width:'+p+'%"></i></div><span class="small">'+p+'% of required answers</span></div>':'')+
+    '<div class="cx-actions">'+main+'</div></div></article>';
+}
 function candidateView(c){
   var ts=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft&&t.req!==false||(t.owner==='Candidate'&&!t.draft&&t.status!=='Not started')});
   var h=S.locked?'':'<div class="candbar"><span class="chip gate">Candidate view (preview)</span> <button class="btn sm" data-a="asAdv">Back to admin view</button></div>';
   if(S.openForm){return h+formEditor(c,S.form)}
-  var st=c.stage||0,first=(c.name||'').split(' ')[0];
+  var st=c.stage||0;
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
-  var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)}).sort(function(a,b){return (b.doneAt||'')<(a.doneAt||'')?-1:1});
-  var pct=caseProgress(c),sel=S.cvp!==undefined?S.cvp:st,ph=CV_STAGES[st];
-  /* Action-first candidate workspace: only actual assigned work is actionable. */
-  var formsNow=now.filter(function(t){return t.kind==='form'&&t.form});
-  var uploadsNow=now.filter(function(t){return t.kind!=='form'||!t.form});
-  var overdue=now.filter(function(t){return t.due&&daysUntil(t.due)<0});
-  var safeField=function(v){return v?esc(String(v)):'<span class="cv-not-provided">Not provided</span>'};
-  var statusText=c.visa||'Not provided',candidateEmail=c.email||'',candidateEmployer=c.employer||'';
-  var initial=(c.name||'Candidate').trim().split(/\s+/).slice(0,2).map(function(v){return v.charAt(0).toUpperCase()}).join('');
-  h+='<nav class="cv-portal-nav" aria-label="Candidate portal sections"><a href="#cv-overview">Overview</a><a href="#cv-profile">My profile</a><a href="#cv-todo">My tasks</a><a href="#cv-journey">Case journey</a><a href="#cv-docs">Documents</a><a href="#cv-msg">Messages</a></nav>';
-  h+='<section class="cv-identity" id="cv-overview" aria-label="Candidate and immigration overview"><div class="cv-identity-heading"><span class="cv-identity-avatar">'+esc(initial)+'</span><div><p class="cv-identity-eyebrow">YOUR IMMIGRATION WORKSPACE</p><h2>'+esc(c.name||'Candidate')+'</h2><p>Personal case overview · Phase '+(st+1)+' of '+CV_STAGES.length+'</p></div><span class="cv-identity-phase">'+esc(ph.n)+'</span></div><div class="cv-identity-grid"><div><small>Recorded immigration status</small><strong>'+safeField(statusText)+'</strong></div><div><small>Recorded status expiration</small><strong>'+(c.visaExpiry?esc(fmtDate(c.visaExpiry)):'Not provided')+'</strong></div><div><small>Preparation timeline goal</small><strong>'+safeField(c.goal)+'</strong></div><div><small>Current case phase</small><strong>'+esc(ph.n)+'</strong></div></div><p class="cv-identity-note">Dates shown are recorded case information, not independently verified legal deadlines. Check your immigration documents and advisor for applicable expiration dates.</p></section>';
-  h+='<details class="cv-profile-card" id="cv-profile"><summary><span><b>My profile &amp; case details</b><small>View the personal and immigration details recorded for your case</small></span><span class="cv-profile-open">View details ↓</span></summary><div class="cv-profile-grid"><div><small>Full name</small><b>'+safeField(c.name)+'</b></div><div><small>Contact email</small><b>'+safeField(candidateEmail)+'</b></div><div><small>Employer</small><b>'+safeField(candidateEmployer)+'</b></div><div><small>Current immigration status</small><b>'+safeField(c.visa)+'</b></div><div><small>Status expiration</small><b>'+(c.visaExpiry?esc(fmtDate(c.visaExpiry)):'Not provided')+'</b></div><div><small>Preparation timeline goal</small><b>'+safeField(c.goal)+'</b></div></div><p class="cv-profile-note">If anything is incorrect, contact your advisory team using Messages. Only authorized staff can change your recorded case details.</p></details>';
-
-  h+=niwCaseFlow(c,true);
-  h+='<section class="cv-work-dashboard" aria-label="Your work overview"><div class="cv-work-stat"><span>NEEDS YOUR ATTENTION</span><strong>'+now.length+'</strong><small>'+(overdue.length?overdue.length+' past due':'Assigned activities')+'</small></div><div class="cv-work-stat"><span>FORMS TO COMPLETE</span><strong>'+formsNow.length+'</strong><small>Ready to work on</small></div><div class="cv-work-stat"><span>COMPLETED</span><strong>'+done.length+'</strong><small>Your finished activities</small></div></section>';
-  h+='<section class="panel cv-work-center" id="cv-todo"><div class="cv-work-section-title"><div><p class="cv-work-eyebrow">YOUR ACTION CENTER</p><h3>'+ (now.length?'Your next actions':'You are all caught up')+'</h3><p>'+(now.length?'Start with these assigned activities. Your answers and files stay with your case.':'There are no open candidate activities right now. You can still review your journey, files, and messages.')+'</p></div>'+(now.length?chip(now.length+' to do','gate'):chip('Up to date','ok'))+'</div>';
-  if(now.length){
-    now.forEach(function(t,i){h+='<div class="cv-work-item"><div class="cv-work-item-num">'+(i+1)+'</div><div class="cv-work-item-main"><b>'+esc(t.title)+'</b><p>'+(t.detail?esc(t.detail):t.kind==='form'?'Provide the requested information in your form.':'Review the request and share the supporting information.')+'</p><div class="cv-work-item-tags">'+chip(t.status,t.status==='In progress'?'mid':'')+(t.due?'<span class="cv-work-due">'+(daysUntil(t.due)<0?'Past due: ':'Due: ')+esc(fmtDate(t.due))+'</span>':'')+'</div></div><div class="cv-work-item-action">'+(t.kind==='form'&&t.form?'<button class="btn pri" data-a="openform" data-id="'+esc(t.form)+'">'+(getResp(c.id,t.form).status==='In progress'?'Continue form':'Open form')+'</button>':'<button class="btn pri" data-a="cvscroll" data-id="cv-docs">Upload documents</button>')+'</div></div>'});
-  }else h+='<div class="cv-work-empty">'+cvIcon('check')+'<div><b>Nothing waiting on you</b><p>We will show new requests here when your team assigns them.</p></div></div>';
+  var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
+  var pct=caseProgress(c),sel=S.cvp!==undefined?S.cvp:st,sg=STAGES[st];
+  var nf=function(v){return v?esc(String(v)):'<span class="cx-na">Not provided</span>'};
+  h+='<div class="cx">';
+  /* summary */
+  h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+STAGES.length+': <b>'+esc(sg.n)+'</b></p>'+
+    '<div class="cx-chips">'+(c.visa?'<span>'+esc(c.visa)+(c.visaExpiry?' · valid to '+esc(fmtDate(c.visaExpiry)):'')+'</span>':'')+(c.goal?'<span>Goal: '+esc(c.goal)+'</span>':'')+'</div></div>'+
+    '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
+  /* quick navigation */
+  h+='<nav class="cx-nav" aria-label="Jump to a section"><button data-a="cvscroll" data-id="cx-todo">My tasks'+(now.length?' <em>'+now.length+'</em>':'')+'</button><button data-a="cvscroll" data-id="cx-stages">Case stages</button><button data-a="cvscroll" data-id="cx-docs">Documents</button><button data-a="cvscroll" data-id="cx-msg">Messages</button><button data-a="cvscroll" data-id="cx-details">My details</button></nav>';
+  /* tasks */
+  h+='<section class="cx-sec" id="cx-todo"><div class="cx-sh"><h3>What to do now</h3>'+(now.length?chip(now.length+(now.length===1?' task':' tasks'),'gate'):chip('Nothing due','ok'))+'</div>';
+  if(now.length){now.forEach(function(t){h+=cxTask(c,t)})}
+  else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'Our team is working on your case. New tasks will appear here.')+'</p></div></div>'}
   h+='</section>';
-  h+='<section class="cv-work-shortcuts" aria-label="Quick access"><button class="cv-work-shortcut" data-a="cvscroll" data-id="cv-docs"><span class="cv-work-shortcut-icon">'+cvIcon('file')+'</span><span><b>Documents</b><small>Upload and review your files</small></span><span class="cv-work-arrow">→</span></button><button class="cv-work-shortcut" data-a="cvscroll" data-id="cv-msg"><span class="cv-work-shortcut-icon">'+cvIcon('msg')+'</span><span><b>Messages</b><small>Ask questions and send updates</small></span><span class="cv-work-arrow">→</span></button></section>';
-  /* Candidate-visible lifecycle, calculated from real tasks. Never expose internal-only tasks. */
-  var stageRows=CV_STAGES.map(function(stage,i){
-    var items=ts.filter(function(t){return t.stage===i}).sort(by);
-    var complete=items.filter(function(t){return isDone(t.status)}).length;
-    var active=items.filter(function(t){return !isDone(t.status)&&t.status!=='Not started'&&t.status!=='Skipped'}).length;
-    var state=i===st?'Current phase':i>st?'Upcoming':'Earlier phase';
-    return {stage:stage,index:i,items:items,complete:complete,active:active,state:state};
-  });
-  h+='<section class="panel cv-life cv-journey" id="cv-journey"><div class="cv-journey-head"><div><p class="cv-eyebrow">YOUR CASE LIFECYCLE</p><h3>Your journey, step by step</h3><p class="small">See each phase, candidate-visible steps, who is responsible, and what is completed or pending.</p></div><span class="cv-journey-count">Current: phase '+(st+1)+' of '+CV_STAGES.length+'</span></div>';
-  h+='<div class="cv-lifecycle-grid" role="group" aria-label="Select a case phase">'+stageRows.map(function(row){
-    var cls=row.index===st?'current':row.index<st?'earlier':'upcoming';
-    return '<button type="button" class="cv-lifecycle-stage '+cls+(row.index===sel?' selected':'')+'" data-a="cvphase" data-id="'+row.index+'" aria-pressed="'+(row.index===sel)+'"><span class="cv-lifecycle-stage-top"><span class="cv-lifecycle-number">'+(row.index+1)+'</span><span class="cv-lifecycle-state">'+esc(row.state)+'</span></span><strong>'+esc(row.stage.n)+'</strong><small>'+row.complete+' / '+row.items.length+' candidate steps completed</small><span class="cv-lifecycle-track"><i style="width:'+(row.items.length?Math.round(100*row.complete/row.items.length):0)+'%"></i></span></button>';
-  }).join('')+'</div>';
-  var selected=stageRows[sel]||stageRows[st],mine=selected.items;
-  h+='<div class="cv-lifecycle-detail" id="cv-phase-detail" tabindex="-1"><div class="cv-lifecycle-detail-head"><div><span class="cv-phase-kicker">PHASE '+(selected.index+1)+' OF '+CV_STAGES.length+'</span><h4>'+esc(selected.stage.n)+'</h4><p>'+esc(selected.stage.d)+'</p></div>'+chip(selected.state,selected.index===st?'gate':'')+'</div>';
-  h+='<div class="cv-lifecycle-metrics"><span><b>'+selected.complete+'</b> completed</span><span><b>'+selected.active+'</b> in progress</span><span><b>'+Math.max(0,mine.length-selected.complete-selected.active)+'</b> pending or skipped</span></div>';
-  if(mine.length){
-    h+='<div class="cv-lifecycle-steps">';
-    mine.forEach(function(t){
-      var completed=isDone(t.status),isForm=t.kind==='form'&&t.form,rs=isForm?getResp(c.id,t.form):null;
-      var label=completed?'Completed':t.status==='Not started'?'Not started':t.status;
-      h+='<article class="cv-lifecycle-step"><span class="cv-lifecycle-step-icon '+(completed?'complete':'')+'">'+cvIcon(completed?'check':isForm?'form':'file')+'</span><div class="cv-lifecycle-step-body"><b>'+esc(t.title)+'</b><p>'+esc(t.detail||'Candidate-facing activity in this phase.')+'</p><div class="cv-lifecycle-step-meta"><span><strong>Status:</strong> '+esc(label)+'</span><span><strong>Responsible:</strong> Candidate</span>'+(t.due?'<span><strong>Due:</strong> '+esc(fmtDate(t.due))+'</span>':'')+(t.doneAt?'<span><strong>Completed:</strong> '+esc(fmtDate(t.doneAt))+'</span>':'')+(rs&&rs.status?'<span><strong>Form:</strong> '+esc(rs.status)+'</span>':'')+'</div>'+(isForm?'<button class="btn sm" data-a="openform" data-id="'+esc(t.form)+'">'+(completed?'View submitted details':'Open form')+'</button>':'')+'</div></article>';
-    });
-    h+='</div>';
-  }else h+='<div class="cv-lifecycle-no-steps"><b>No candidate steps recorded for this phase</b><p>Work may be handled by the advisory team. This view does not show internal staff assignments or confidential reviews.</p></div>';
-  h+='<p class="cv-phase-privacy">Step statuses come from recorded candidate activities. A phase being earlier in the timeline does not mean all work is complete. Internal advisory and legal work is not displayed.</p></div></section>';
-  /* Secondary history: completed and upcoming work stays accessible without duplicating the action center. */
-  if(later.length||done.length){h+='<section class="panel cv-work-history"><h3>Activity history</h3>';
-    if(later.length)h+='<details class="cv-more"><summary>Upcoming activities ('+later.length+')</summary><ul class="cv-list">'+later.map(function(t){return '<li class="l"><span>'+cvIcon('lock')+'</span>'+esc(t.title)+'</li>'}).join('')+'</ul></details>';
-    if(done.length)h+='<details class="cv-more"><summary>Completed activities ('+done.length+')</summary><ul class="cv-list">'+done.map(function(t){return '<li class="d"><span>'+cvIcon('check')+'</span>'+esc(t.title)+(t.doneAt?' · '+esc(fmtDate(t.doneAt)):'')+'</li>'}).join('')+'</ul></details>';
-    h+='</section>';}
+  /* stages, same as the advisor view */
+  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case stages</h3><span class="small">Tap a stage to see its steps</span></div><div class="cx-steps" role="group" aria-label="Case stages">'+STAGES.map(function(s,i){
+    return '<button type="button" class="cx-step'+(i<st?' done':i===st?' now':'')+(s.gate?' g':'')+(i===sel?' sel':'')+'" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span></button>'}).join('')+'</div>';
+  var mine=ts.filter(function(t){return t.stage===sel}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up';
+  h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(STAGES[sel].n)+'</b>'+(STAGES[sel].gate?' '+chip('Review point','gate'):'')+'</div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div><p>'+esc((CV_STAGES[sel]||{}).d||STAGES[sel].d)+'</p>';
+  if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
+    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',isForm=t.kind==='form'&&t.form;
+    var lab=d2?'Completed':open?'Ready for you':t.status==='Skipped'?'Skipped':'Opens later';
+    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(t.title)+'</b><small>'+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div>'+(open&&isForm?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(getResp(c.id,t.form).status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul>'}
+  else h+='<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
+  h+='</div></section>';
+  h+=niwCaseFlow(c,true);
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
-  h+='<div class="cv-two"><div id="cv-docs">'+docsPanel(c,false)+'</div><div id="cv-msg">'+messagesPanel(c,false)+'</div></div>';
-  h+='<details class="panel cv-more" style="margin-top:16px"><summary style="cursor:pointer;font-weight:600">Immigration Pathway Guide <span class="small" style="font-weight:400">· Optional reference</span></summary><div style="padding-top:14px">'+pathwayGuide()+'</div></details>';
-  h+='<p class="cv-foot">Arcanam Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p>';
+  h+='<div class="cv-two"><div id="cx-docs">'+docsPanel(c,false)+'</div><div id="cx-msg">'+messagesPanel(c,false)+'</div></div>';
+  /* details */
+  h+='<details class="cx-sec cx-details" id="cx-details"><summary><b>My details</b><small>What we have recorded for your case</small></summary><dl>'+
+    '<div><dt>Full name</dt><dd>'+nf(c.name)+'</dd></div><div><dt>Email</dt><dd>'+nf(c.email)+'</dd></div><div><dt>Employer</dt><dd>'+nf(c.employer)+'</dd></div><div><dt>Immigration status</dt><dd>'+nf(c.visa)+'</dd></div><div><dt>Status valid to</dt><dd>'+(c.visaExpiry?esc(fmtDate(c.visaExpiry)):'<span class="cx-na">Not provided</span>')+'</dd></div><div><dt>Timeline goal</dt><dd>'+nf(c.goal)+'</dd></div></dl>'+
+    '<p class="small">Dates are recorded case information, not verified legal deadlines. To correct anything, send us a message.</p></details>';
+  h+='<details class="panel cv-more"><summary style="cursor:pointer;font-weight:600">Immigration Pathway Guide <span class="small" style="font-weight:400">· Optional reference</span></summary><div style="padding-top:14px">'+pathwayGuide()+'</div></details>';
+  h+='<p class="cv-foot">Arcanam Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p></div>';
   return h;
 }
 
