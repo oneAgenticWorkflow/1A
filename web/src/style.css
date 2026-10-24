@@ -594,3 +594,5 @@ code{font-family:var(--mono);font-size:12px}
 .cx-month em.a{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
 .cx-month em.s{background:var(--gate-bg);color:var(--gate)}
 .cx-month em.j{background:var(--ok-bg);color:var(--ok)}
+
+.cx-note{margin:8px 0 0!important;font-size:12px!important;color:var(--muted)}
