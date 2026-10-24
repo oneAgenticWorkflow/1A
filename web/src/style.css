@@ -572,3 +572,25 @@ code{font-family:var(--mono);font-size:12px}
 .cx-more{color:var(--muted)}
 .cx-ev b{color:#e2c78d}
 .cx-steplist+.cx-none{margin-top:10px!important;font-size:12px}
+
+/* fast track, rhythm, optional stage */
+.cx-fast{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--gate);border-radius:14px;padding:18px 20px}
+.cx-fh{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:baseline}.cx-fh b{font-size:17px;color:var(--ink)}.cx-fh span{font-size:12px;color:var(--gate);font-weight:700}
+.cx-fast p{margin:6px 0 12px;color:var(--muted);font-size:14px}
+.cx-fast ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.cx-fast li{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.cx-fast li b{color:var(--ink);font-size:14px}.cx-fast li small{color:var(--muted);flex:1;min-width:120px}
+.cx-fast li.d .cx-si{background:var(--ok-bg);color:var(--ok)}.cx-fast li.o .cx-si{background:color-mix(in srgb,var(--accent) 16%,transparent);color:var(--accent)}
+.cx-tl li.opt::before{background:none;border-top:3px dashed var(--line);height:0}
+.cx-tl li.opt i{border-style:dashed;font-size:20px}
+.cx-why{margin:12px 0;color:var(--muted);font-size:14px;max-width:80ch}
+.cx-months{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.cx-month{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface2);display:grid;gap:6px;align-content:start}
+.cx-month.now{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+.cx-mh{display:flex;justify-content:space-between;align-items:baseline}.cx-mh b{color:var(--ink)}.cx-mh small{color:var(--muted)}
+.cx-mt{font-weight:700;color:var(--ink);font-size:14px}
+.cx-month p{margin:0;font-size:13px;color:var(--muted)}
+.cx-month em{font-style:normal;display:inline-block;font:700 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:1px 6px;border-radius:5px;margin-right:6px;background:var(--na-bg);color:var(--ink)}
+.cx-month em.a{background:color-mix(in srgb,var(--accent) 18%,transparent);color:var(--accent)}
+.cx-month em.s{background:var(--gate-bg);color:var(--gate)}
+.cx-month em.j{background:var(--ok-bg);color:var(--ok)}
