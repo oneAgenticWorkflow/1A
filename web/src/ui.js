@@ -40,6 +40,7 @@ function render(){
   else if(c)h+=(S.role==='Candidate'?candidateView(c):caseView(c));
   else h+=casesView();
   app.innerHTML=h;
+  app.classList.toggle('adm',!S.locked&&S.role!=='Candidate');
   if(S.focusCaseTab&&!S.locked&&c&&S.role!=='Candidate'){
     S.focusCaseTab=false;
     var activeTab=app.querySelector('.nav.tabs .tab.on');
