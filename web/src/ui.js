@@ -1071,15 +1071,19 @@ function candidateView(c){
   var ts=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft&&t.req!==false||(t.owner==='Candidate'&&!t.draft&&t.status!=='Not started')});
   var h=S.locked?'':'<div class="candbar"><span class="chip gate">Candidate view (preview)</span> <button class="btn sm" data-a="asAdv">Back to admin view</button></div>';
   if(S.openForm){return h+formEditor(c,S.form)}
-  var st=c.stage||0;
+  var LCN=7,st=Math.min(c.stage||0,LCN-1);
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
-  var pct=caseProgress(c),sel=S.cvp!==undefined?S.cvp:st,sg=STAGES[st];
+  var pct=caseProgress(c),sel=Math.min(S.cvp!==undefined?S.cvp:st,LCN-1),sg=CV_STAGES[st];
+  var allc=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft});
+  var stEnd=function(i){var d=allc.filter(function(t){return t.stage===i&&t.due}).map(function(t){return t.due}).sort();return d.length?d[d.length-1]:''};
+  var evEnd=(function(){var d=allc.filter(function(t){return t.stage===5&&t.due}).map(function(t){return t.due}).sort();if(d.length)return {d:d[d.length-1]};
+    var m=/(\d+)/.exec(c.goal||''),b=c.startDate||c.createdAt;if(m&&b){var x=new Date(b);if(!isNaN(x)){x.setMonth(x.getMonth()+parseInt(m[1],10));return {d:x.toISOString().slice(0,10),est:true}}}return null})();
   var nf=function(v){return v?esc(String(v)):'<span class="cx-na">Not provided</span>'};
   h+='<div class="cx">';
   /* summary */
-  h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+STAGES.length+': <b>'+esc(sg.n)+'</b></p>'+
+  h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+LCN+': <b>'+esc(sg.n)+'</b></p>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(evEnd.est?' <small>(estimated from your timeline goal)</small>':'')+'</p>':'')+
     '</div>'+
     '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
   /* tasks */
@@ -1087,16 +1091,20 @@ function candidateView(c){
   if(now.length){now.forEach(function(t){h+=cxTask(c,t)})}
   else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'Our team is working on your case. New tasks will appear here.')+'</p></div></div>'}
   h+='</section>';
-  /* stages, same as the advisor view */
-  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case stages</h3><span class="small">Tap a stage to see its steps</span></div><div class="cx-steps" role="group" aria-label="Case stages">'+STAGES.map(function(s,i){
-    return '<button type="button" class="cx-step'+(i<st?' done':i===st?' now':'')+(s.gate?' g':'')+(i===sel?' sel':'')+'" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span></button>'}).join('')+'</div>';
-  var mine=ts.filter(function(t){return t.stage===sel&&now.indexOf(t)<0}).sort(by),above=ts.some(function(t){return t.stage===sel&&now.indexOf(t)>=0}),ss=sel<st?'Complete':sel===st?'You are here':'Coming up';
-  h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(STAGES[sel].n)+'</b>'+(STAGES[sel].gate?' '+chip('Review point','gate'):'')+'</div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div><p>'+esc((CV_STAGES[sel]||{}).d||STAGES[sel].d)+'</p>';
+  /* case life cycle */
+  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">Tap a stage to see what happens in it</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
+    var e=stEnd(i);
+    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+'</ol>';
+  var mine=allc.filter(function(t){return t.stage===sel}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
+  h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(CV_STAGES[sel].n)+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
+    '<h5>What this stage is about</h5><p>'+esc(CV_STAGES[sel].d)+' <span class="cx-more">'+esc(STAGES[sel].d)+'.</span></p>'+
+    '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected by')+'</h5><p>'+(sel===5&&evEnd?esc(fmtDate(evEnd.d))+(evEnd.est?' (estimated)':''):se?esc(fmtDate(se)):'Your advisor will confirm a date.')+'</p>'+
+    '<h5>Steps for you in this stage</h5>';
   if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
     var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',isForm=t.kind==='form'&&t.form;
     var lab=d2?'Completed':open?'Ready for you':t.status==='Skipped'?'Skipped':'Opens later';
-    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(t.title)+'</b><small>'+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div>'+(open&&isForm?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(getResp(c.id,t.form).status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul>'}
-  else h+='<p class="cx-none">'+(above?'Your open task for this stage is listed under What to do now.':'Our team handles this stage. Nothing is needed from you.')+'</p>';
+    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(t.title)+'</b><small>'+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div></li>'}).join('')+'</ul><p class="cx-none">Anything marked Ready for you also appears under What to do now. Other work in this stage is done by our team.</p>'}
+  else h+='<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
   h+='</div></section>';
   h+=niwCaseFlow(c,true);
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
