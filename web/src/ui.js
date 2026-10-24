@@ -79,7 +79,7 @@ function loginPanel(c){
   if(S.usersErr)return h+'<p class="small">Could not load logins: '+esc(S.usersErr)+'</p></div>';
   if(!S.users)return h+'<p class="small">Loading…</p></div>';
   if(lu){
-    h+='<p>Username: <b>'+esc(lu.username||lu.email)+'</b>'+(lu.must_change?' · <span class="chip mid">has not chosen a password yet</span>':' · <span class="chip ok">active</span>')+'</p><div class="addrow"><button class="btn sm pri" data-a="candidate-email-invite" data-id="'+esc(c.id)+'">Invite Candidate by email</button>'+ 
+    h+='<p>Username: <b>'+esc(lu.username||lu.email)+'</b>'+(lu.must_change?' · <span class="chip mid">has not chosen a password yet</span>':' · <span class="chip ok">active</span>')+'</p><label class="f" for="candidate_contact_email">Invitation email</label><div class="addrow"><input id="candidate_contact_email" type="email" data-draft="candidate_contact_email" value="'+esc(S.draft.candidate_contact_email!==undefined?S.draft.candidate_contact_email:(lu.contact_email||c.email||''))+'" placeholder="candidate@example.com"><button class="btn sm" data-a="candidate-email-save" data-id="'+esc(c.id)+'">Save email</button></div><div class="addrow"><button class="btn sm pri" data-a="candidate-email-invite" data-id="'+esc(c.id)+'">Invite Candidate by email</button>'+ 
       (S.confirmUser==='r:'+lu.id?'<button class="btn sm danger" data-a="usr-reset-yes" data-id="'+esc(lu.id)+'">Yes, issue a new password</button><button class="btn sm" data-a="usr-cancel">Cancel</button>':'<button class="btn sm" data-a="usr-reset" data-id="'+esc(lu.id)+'">Reset password</button>')+'</div>';
   }else{
     var sug=S.draft.cl_user!==undefined?S.draft.cl_user:slugName(c.name);
@@ -1187,11 +1187,20 @@ document.addEventListener('click',async function(e){
         S.draft.un=S.draft.uu=S.draft.ue=S.draft.cl_user=undefined;
         if(cid)await log(cid,'Candidate login created: '+rs.username+'.','case');
         await refreshUsers();break}
+      case 'candidate-email-save':{
+        if(S.staff!=='admin')return;
+        var email=String(S.draft.candidate_contact_email||document.getElementById('candidate_contact_email')?.value||'').trim();
+        if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){say('Enter a valid invitation email.','err');return}
+        await db.sendCandidateInvite(id,'update-email',email);
+        S.draft.candidate_contact_email=undefined;
+        await refreshUsers();
+        say('Candidate invitation email updated.','ok');
+        break}
       case 'candidate-email-invite':{
         if(S.staff!=='admin')return;
         var target=((S.users&&S.users.profiles)||[]).find(function(p){return p.role==='candidate'&&p.case_id===id});
         if(!target){say('Create the candidate login first.','err');return}
-        if(!target.contact_email){say('A candidate contact email is required. Update the login contact email first.','err');return}
+        if(!target.contact_email){say('Save the candidate invitation email first.','err');return}
         var sent=await db.sendCandidateInvite(id);
         say('Invitation email sent to '+sent.to+'.','ok');
         break}
