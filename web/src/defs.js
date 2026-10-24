@@ -16,6 +16,7 @@ var PICK=['To do','In progress','Blocked','Done','Skipped'];
 
 var TEMPLATE=[
  {k:'welcome',s:0,t:'Welcome call and consent',o:'Advisor',off:0,d:'Explain the program, the no-guarantee policy and how data is handled. Record the signed engagement and consent.'},
+ {k:'ev-setup',s:0,t:'Set up your evidence email and Drive folder',o:'Candidate',deps:['welcome'],off:4,d:'Create a new Gmail just for this program, for example firstname.lastname.research@gmail.com. Turn on two-step verification and add a recovery phone. Use it for journals, reviewing, talks and press. Then make a Google Drive folder called Evidence with these subfolders: 1 Articles, 2 Reviewing and judging, 3 Speaking, 4 Media, 5 Awards and memberships, 6 Role and salary, 7 Letters. Share the folder with your advisor and paste the link in Form 1. Keep your old emails too: forward them to the new account or save them as PDFs that show the sender and date. Do not use your work or school email, because it can be switched off when you leave.'},
  {k:'f1',s:0,t:'Complete Form 1: Getting started',o:'Candidate',kind:'form',form:'f1',deps:['welcome'],off:5},
  {k:'r1',s:0,t:'Review Form 1 and the CV',o:'Advisor',kind:'review',form:'f1',deps:['f1'],off:7},
  {k:'profile',s:1,t:'Run the profile and eligibility screen',o:'Analysis',kind:'ai',deps:['r1'],off:8,d:'Reads the resume and Form 1 for profile, domain, experience and seniority, and gives an overall outlook. No criterion scoring yet. Never shown to the candidate.'},
@@ -110,6 +111,9 @@ var FORMS=[
   fd('status','Current US status','select',{o:VISAS,req:1}),fd('expiry','Status expiry date','date',{req:1}),
   fd('petitions','Pending or approved petitions (I-140, O-1, NIW, PERM): type, date, outcome','area'),
   fd('rfe','Any prior RFE, NOID or denial? What happened','area')]},
+ {id:'evid',title:'Your evidence email and folder',fields:[
+  fd('ev_email','Email to use for journals, reviewing, talks and press (a new Gmail just for this program is best)','text',{h:'Not your work or school email, which can be switched off when you leave. If you have not made it yet, enter it after you finish the setup step.'}),
+  fd('ev_drive','Link to your Google Drive Evidence folder (shared with your advisor)','url')]},
  {id:'imm',title:'Your US immigration history',fields:[
   fd('first_entry','When did you first come to the US? (month and year)','text',{req:1}),
   fd('first_visa','Which visa or status did you first enter on?','select',{o:VISAS,req:1}),
