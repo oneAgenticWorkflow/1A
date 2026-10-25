@@ -48,6 +48,7 @@ function render(){
     if(activeTab){try{activeTab.focus({preventScroll:true})}catch(e){}}
     if(tabRow){var top=tabRow.getBoundingClientRect().top+window.scrollY-16;window.scrollTo({top:Math.max(0,top),behavior:'instant'});}
   }else if(typeof y==='number')window.scrollTo(0,y);
+  if(S.focusMsg){S.focusMsg=false;var fme=document.getElementById('adm-msg');if(fme){fme.scrollIntoView({block:'start'});var fta=fme.querySelector('textarea');if(fta){try{fta.focus({preventScroll:true})}catch(e){}}}}
   reconcile();
 }
 
@@ -164,6 +165,14 @@ function casesView(){
     attention.slice(0,3).forEach(function(x){h+='<button class="pathway-alert" data-a="gotask" data-id="'+esc(x.t.id)+'"><span><b>'+esc(x.t.title)+'</b><small>'+esc(x.c.name)+' · '+esc(x.t.owner)+'</small></span><span class="pathway-alert-due">'+esc(dueTxt(x.t))+' &rarr;</span></button>'});
     h+='</section>';
   }
+  /* messages to answer */
+  var mrows=[];sorted.forEach(function(oc){var aw=awaitingReply(oc.id);if(aw)mrows.push({c:oc,aw:aw})});
+  mrows.sort(function(a,b){return a.aw.last.ts<b.aw.last.ts?1:-1});
+  if(mrows.length){
+    h+='<section class="pathway-attention"><div class="pathway-section-title"><h3>Messages to answer</h3><span>'+mrows.length+(mrows.length===1?' candidate is':' candidates are')+' waiting</span></div>';
+    mrows.slice(0,10).forEach(function(x){var tx=x.aw.last.text;h+='<button class="pathway-alert msgrow" data-a="openmsg" data-id="'+esc(x.c.id)+'"><span><b>'+esc(x.c.name)+(x.aw.n>1?' ('+x.aw.n+' messages)':'')+'</b><small>'+esc(tx.length>120?tx.slice(0,120)+'...':tx)+'</small></span><span class="pathway-alert-due">'+esc(agoStr(x.aw.last.ts))+' &middot; Reply &rarr;</span></button>'});
+    h+='</section>';
+  }
   /* reminders to send */
   var rem=[];
   S.tasks.forEach(function(t){
@@ -272,7 +281,7 @@ function filingReadinessForecast(c,ts){
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
   var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
-   '<div class="chips"><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
+   '<div class="chips"><button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
   if(S.staff==='admin')h+='<div class="addrow"><button class="btn sm" data-a="candidate-login-toggle" aria-expanded="'+(S.showCandidateLogin===c.id?'true':'false')+'">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button></div>';
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
@@ -284,7 +293,8 @@ function caseView(c){
   }
   h+=lanes(c,ts);
   h+=filingReadinessForecast(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Activity']];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Messages and activity'+(awaitingReply(c.id)?' ('+awaitingReply(c.id).n+')':'')]];
+  var awc=awaitingReply(c.id);if(awc&&S.tab!=='activity')h+='<div class="panel msgalert"><div><b>'+esc((c.name||'Candidate').split(' ')[0])+' sent '+(awc.n===1?'a message':awc.n+' messages')+'</b><div class="small">"'+esc(awc.last.text.length>110?awc.last.text.slice(0,110)+'...':awc.last.text)+'" · '+esc(agoStr(awc.last.ts))+'</div></div><button class="btn pri sm" data-a="openmsg" data-id="'+esc(c.id)+'">Reply</button></div>';
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div><div class="case-tab-content">';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
@@ -1021,8 +1031,8 @@ function scoreTab(c){
   return h;
 }
 function activityTab(c){
-  var l=S.log.filter(function(x){return x.cid===c.id}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
-  return messagesPanel(c,true)+(S.staff==='admin'?costPanel(c):'')+'<div class="panel"><h3>Activity</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
+  var l=S.log.filter(function(x){return x.cid===c.id&&!(x.kind==='note'&&!x.tid)}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
+  return '<div id="adm-msg">'+messagesPanel(c,true)+'</div>'+(S.staff==='admin'?costPanel(c):'')+'<div class="panel"><h3>Activity</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
 }
 
 /* ----- documents, messages ----- */
@@ -1042,10 +1052,24 @@ function docsPanel(c,admin){
   if(S.upBusy)h+='<p class="small">Uploading…</p>';
   return h+'</div>';
 }
+function msgThread(cid,admin){return S.log.filter(function(l){return l.cid===cid&&l.kind==='note'&&!l.tid&&(admin||l.by==='Candidate'||l.shared)}).sort(function(a,b){return a.ts<b.ts?-1:1})}
+function msgWho(m,admin){var r=m.role==='supervisor'?'supervisor':'advisor',n=(m.from||'').split(' ')[0];if(admin)return esc((n||'Staff')+(m.role?' ('+(m.role==='supervisor'?'supervisor':'admin')+')':''));return esc(n?n+', your '+r:'Your '+r)}
+function awaitingReply(cid){var ms=msgThread(cid,false),n=0;for(var i=ms.length-1;i>=0;i--){if(ms[i].by!=='Candidate')break;n++}return n?{n:n,last:ms[ms.length-1]}:null}
+function msgSeen(cid){try{return localStorage.getItem('pw-seen-'+cid)||''}catch(e){return ''}}
+function msgMarkSeen(cid){try{localStorage.setItem('pw-seen-'+cid,nowIso())}catch(e){}}
+function newReplies(cid){var s=msgSeen(cid);return msgThread(cid,false).filter(function(l){return l.by!=='Candidate'&&l.ts>s}).length}
+function agoStr(iso){var m=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/60000));if(m<2)return 'just now';if(m<60)return m+' min ago';var h=Math.round(m/60);if(h<24)return h+(h===1?' hour ago':' hours ago');var d=Math.round(h/24);return d+(d===1?' day ago':' days ago')}
 function messagesPanel(c,admin){
-  var ms=S.log.filter(function(l){return l.cid===c.id&&l.kind==='note'&&!l.tid&&(admin||l.by==='Candidate'||l.shared)}).sort(function(a,b){return a.ts<b.ts?-1:1});
-  return '<div class="panel"><h3>Messages</h3>'+(ms.length?ms.map(function(m){return '<div class="note"><span class="small mono">'+esc(fmt(m.ts))+'</span> <b>'+(m.by==='Candidate'?(admin?'Candidate':'You'):'Advisor')+':</b> '+esc(m.text)+(admin&&m.by!=='Candidate'&&!m.shared?' <span class="chip">private</span>':'')+'</div>'}).join(''):'<p class="empty">No messages yet.</p>')+
-   '<div class="addrow"><input type="text" data-draft="msg" placeholder="'+(admin?'Write a message':'Message your advisor')+'" value="'+esc(S.draft.msg||'')+'">'+(admin?'<label class="chk-l"><input type="checkbox" data-draft-chk="msgShare"'+(S.draft.msgShare?' checked':'')+'> Share with candidate</label>':'')+'<button class="btn sm" data-a="msg">Send</button></div></div>';
+  var ms=msgThread(c.id,admin),aw=awaitingReply(c.id),seen=admin?'':msgSeen(c.id);
+  var h='<div class="panel msgp"><div class="ph"><h3>'+(admin?'Messages with '+esc((c.name||'candidate').split(' ')[0]):'Message your advisor')+'</h3>'+(admin&&aw?'<span class="chip bad">Awaiting your reply</span>':'')+'</div>';
+  h+=admin?'<p class="small">Replies go to the candidate by default. Tick "Internal note" to keep a note for staff only.</p>':'<p class="small">Ask a question or send an update. Your advisor reads this thread and replies here. Please do not put passport or Social Security numbers in messages.</p>';
+  h+='<div class="msgs" aria-live="polite">'+(ms.length?ms.map(function(m){
+    var mine=admin?m.by!=='Candidate':m.by==='Candidate',who=m.by==='Candidate'?(admin?esc((c.name||'Candidate').split(' ')[0]):'You'):msgWho(m,admin);
+    var priv=admin&&m.by!=='Candidate'&&!m.shared,isNew=!admin&&!mine&&m.ts>seen;
+    return '<div class="mb'+(mine?' me':'')+(priv?' priv':'')+'"><div class="mh"><b>'+who+'</b><span>'+esc(agoStr(m.ts))+' · '+esc(fmt(m.ts))+'</span>'+(priv?'<em>Internal note</em>':'')+(isNew?'<em class="new">New</em>':'')+'</div><div class="mt">'+esc(m.text)+'</div></div>'}).join(''):'<p class="empty">'+(admin?'No messages yet.':'No messages yet. Write to your advisor below.')+'</p>')+'</div>';
+  h+='<div class="msgin"><label class="f" for="msgbox">'+(admin?'Write a reply':'Your message')+'</label><textarea id="msgbox" rows="3" data-draft="msg" placeholder="'+(admin?'Write a reply to the candidate':'Type your question or update here')+'">'+esc(S.draft.msg||'')+'</textarea>'+
+    '<div class="addrow">'+(admin?'<label class="chk-l"><input type="checkbox" data-draft-chk="msgPriv"'+(S.draft.msgPriv?' checked':'')+'> Internal note (candidate will not see it)</label>':'')+'<button class="btn pri" data-a="msg">'+(admin?(S.draft.msgPriv?'Save note':'Send reply'):'Send message')+'</button></div></div></div>';
+  return h;
 }
 
 /* ----- candidate view ----- */
@@ -1119,6 +1143,7 @@ function candidateView(c){
   h+='<div class="cx">';
   /* summary */
   h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+LCN+': <b>'+esc(sg.n)+'</b></p>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+
+    '<div class="cx-ask"><button class="btn big cx-askb" data-a="msgread">Message your advisor'+(newReplies(c.id)?' <span class="cx-badge">'+newReplies(c.id)+' new '+(newReplies(c.id)===1?'reply':'replies')+'</span>':'')+'</button></div>'+
     '<dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl><p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p>'+
     '</div>'+
     '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
@@ -1469,7 +1494,9 @@ document.addEventListener('click',async function(e){
       case 'file-del':{var fd0=S.docs.find(function(x){return x.id===id});if(fd0){await db.doc('docs/'+id).delete();if(fd0.path)await db.removeFiles([fd0.path])}break}
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
       case 'req-del':{await db.doc('docs/'+id).delete();break}
-      case 'msg':{var mt=(S.draft.msg||'').trim();if(!mt)return;var adm=!S.locked;await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:mt,kind:'note',by:adm?'Admin':'Candidate',shared:adm?!!S.draft.msgShare:true});S.draft.msg='';break}
+      case 'msg':{var mt=(S.draft.msg||'').trim();if(!mt){say('Write your message first.','err');return}var adm=!S.locked,pv=adm&&!!S.draft.msgPriv;await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:mt,kind:'note',by:adm?'Admin':'Candidate',role:adm?(S.staff||'admin'):'candidate',from:adm?((S.me&&(S.me.name||S.me.username))||''):'',shared:adm?!pv:true});S.draft.msg='';S.draft.msgPriv=false;if(!adm)msgMarkSeen(c.id);S.focusMsg=adm;break}
+      case 'openmsg':{S.cid=id;S.showCandidateLogin=null;S.tab='activity';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';S.focusMsg=true;break}
+      case 'msgread':{msgMarkSeen(c.id);var me2=document.getElementById('cx-msg');if(me2){me2.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(function(){var t2=document.getElementById('msgbox');if(t2)t2.focus({preventScroll:true})},350)}break}
       case 'cancel':if(ctl)ctl.abort();break;
       case 'home':S.cid=null;S.home='cases';S.openForm=false;S.role='Advisor';break;
       case 'alltasks':S.cid=null;S.home='tasks';break;
