@@ -565,8 +565,13 @@ function pathwayScreening(c){
 }
 function profileSummary(c){
   var p=c.profile;if(!p)return '<p class="empty">Run the profile screen first.</p>';
-  function ul(a){return a&&a.length?'<ul>'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':'<p class="small">None listed.</p>'}
-  return '<div class="row"><div class="nm">Domain</div><div><p>'+esc(p.domain)+'</p></div></div><div class="cols3"><div><h4>Positives</h4>'+ul(p.positives)+'</div><div><h4>Risks</h4>'+ul(p.risks)+'</div><div><h4>Improvements</h4>'+ul(p.improvements)+'</div></div>';
+  function ul(a){return a&&a.length?'<ul class="roomy">'+a.map(function(i){return '<li>'+esc(i)+'</li>'}).join('')+'</ul>':'<p class="small">None listed.</p>'}
+  var s=p.snapshot||{},snap=[['Time in the US',s.inUS],['Current status',s.status],['Works or studies',s.affiliationType],['Employer or university',s.affiliation],['Byline for articles',s.byline]].filter(function(x){return x[1]});
+  return '<div class="row"><div class="nm">Domain</div><div><p>'+esc(p.domain)+'</p></div></div>'+
+    (p.summary?'<div class="row"><div class="nm">Summary</div><div><p class="prose">'+esc(p.summary)+'</p></div></div>':'')+
+    (snap.length?'<dl class="snap">'+snap.map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+esc(x[1])+'</dd></div>'}).join('')+'</dl>':'')+
+    '<div class="cols3"><div><h4>Positives</h4>'+ul(p.positives)+'</div><div><h4>Risks</h4>'+ul(p.risks)+'</div><div><h4>Improvements</h4>'+ul(p.improvements)+'</div></div>'+
+    (p.questions&&p.questions.length?'<h4>Questions for the first call</h4>'+ul(p.questions):'');
 }
 function decisionUi(c){
   var d=c.decision,t=taskByKey(c.id,'proceed');
@@ -1011,7 +1016,7 @@ function scoreTab(c){
   if(!c.scoredAt)h+='<p class="empty">Not scored yet. The full analysis runs after the deep intake: every form reviewed and documents checked.</p>';
   else{
     h+='<p class="small">'+(c.scoreKind==='analysis'?'<b>Full analysis</b> from the reviewed forms and documents.':c.scoreKind==='rescore'?'<b>Re-score</b> after evidence was gathered.':'<b>Earlier resume-only run.</b> Replaced by the full analysis after the deep intake.')+'</p>';
-    if(c.summary)h+='<p>'+esc(c.summary)+'</p>';
+    if(c.summary)h+='<p class="prose">'+esc(c.summary)+'</p>';
     CRIT.forEach(function(k){
       var x=(c.criteria||{})[k.id];if(!x)return;
       h+='<div class="row"><div class="nm">'+esc(k.n)+'<small>'+k.id.toUpperCase()+(x.prev&&x.prev!==x.rating?' · was '+esc(x.prev):'')+'</small></div><div><select data-rate="'+k.id+'" aria-label="Rating for '+esc(k.n)+'">'+options(RATINGS,x.rating)+'</select>'+(x.evidence?'<p>'+esc(x.evidence)+'</p>':'')+(x.gaps?'<p class="g">Gap: '+esc(x.gaps)+'</p>':'')+planHtml(x.plan)+'</div></div>';
