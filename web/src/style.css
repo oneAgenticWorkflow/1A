@@ -614,3 +614,5 @@ code{font-family:var(--mono);font-size:12px}
 .mt{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;margin-top:3px}.msgin textarea{width:100%;min-height:78px;resize:vertical}.msgin .addrow{margin-top:8px;align-items:center;justify-content:space-between}
 .msgalert{display:flex;align-items:center;justify-content:space-between;gap:14px;border-left:4px solid var(--bad)}
 .cx-ask{margin:14px 0 0}.cx-askb{background:#fff!important;color:#0d3329!important;border:0!important}.cx-badge{display:inline-block;margin-left:8px;padding:1px 9px;border-radius:99px;background:#b3261e;color:#fff;font-size:12px;font-weight:700}
+
+.prose{white-space:pre-line;line-height:1.6;max-width:80ch}.roomy li{margin:0 0 8px;line-height:1.5}.snap{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:12px 0}.snap dt{font-size:12px;color:var(--muted)}.snap dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
