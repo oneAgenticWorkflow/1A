@@ -279,13 +279,26 @@ function filingReadinessForecast(c,ts){
 
 /* ----- case view ----- */
 function adminStageWorkspace(c,ts){
- var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0));
- var h='<div class="panel"><div class="ph"><div><h3>Stage-by-stage work</h3><p class="small">Expand a stage to see its steps, owner, status, and due dates. Open a step to work with its existing forms, documents, and activity.</p></div>'+chip(caseProgress(c)+'% complete')+'</div>';
- STAGES.forEach(function(stage,i){
- var steps=ts.filter(function(t){return t.stage===i}),done=steps.filter(function(t){return isDone(t.status)}).length;
- h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(stage.n)+'</b><small>'+((i<st)?'Previous stage':i===st?'Current stage':'Upcoming stage')+'</small></span><span class="small">'+done+' of '+steps.length+' complete</span></summary><div class="case-stage-steps">';
- if(!steps.length)h+='<p class="small">No steps recorded for this stage.</p>';
- steps.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(t.owner||'Unassigned')+' · '+esc(t.status||'Not started')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></div>'});
+ // Read-only projection: legacy task stage indexes and saved task IDs are never changed.
+ var stages=[
+  {n:'Onboarding',old:[0]},
+  {n:'Profile Intake',old:[1]},
+  {n:'Project Intake',old:[2]},
+  {n:'FOE Lock',old:[3]},
+  {n:'Criteria Strategy',old:[4]},
+  {n:'Evidence Build',old:[5]},
+  {n:'Final Review',old:[6]},
+  {n:'Attorney Handover',old:[7]},
+  {n:'Filing',old:[8]}
+ ];
+ var st=Math.max(0,Math.min(stages.length-1,c.stage||0));
+ var h='<div class="panel"><div class="ph"><div><h3>Candidate pathway</h3><p class="small">Nine stages · existing tasks and submissions retained. Expand a stage to see assigned steps.</p></div>'+chip(caseProgress(c)+'% of existing tasks complete')+'</div>';
+ h+='<p class="small">Existing case steps are displayed under the corresponding pathway stage. Some legacy tasks may need supervisor review before they can be reclassified more precisely; their original records are unchanged.</p>';
+ stages.forEach(function(stage,i){
+ var steps=ts.filter(function(t){return stage.old.indexOf(Number(t.stage))>=0}),done=steps.filter(function(t){return isDone(t.status)}).length;
+ h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(stage.n)+'</b><small>'+((i<st)?'Earlier stage':i===st?'Current recorded stage':'Upcoming stage')+'</small></span><span class="small">'+done+' of '+steps.length+' complete</span></summary><div class="case-stage-steps">';
+ if(!steps.length)h+='<p class="small">No existing steps assigned to this stage.</p>';
+ steps.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(ownerLabel(t.owner||'Unassigned'))+' · '+esc(t.status||'Not started')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></div>'});
  h+='</div></details>';
  });
  return h+'</div>';
