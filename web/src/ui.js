@@ -297,7 +297,7 @@ function adminStageWorkspace(c,ts){
    var state=i<st?'Earlier stage':i===st?'Current stage':'Upcoming stage';
    var gate=i===3?'FOE approval gate':i===4?'Criteria approval gate':i===6?'Evidence review gate':i===7?'Attorney handover gate':i===8?'Filing milestone':'';
    var ready=i===5&&approved.length===0;
-   h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(name)+'</b><small>'+state+(gate?' · '+gate:'')+'</small></span><span class="small">'+done+' / '+steps.length+' complete'+(ready?' · Awaiting criteria approval':'')+'</span></summary><div class="case-stage-steps">';
+   h+='<details class="case-stage-detail"'+(i===st||steps.some(function(t){return !!S.open[t.id]})?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(name)+'</b><small>'+state+(gate?' · '+gate:'')+'</small></span><span class="small">'+done+' / '+steps.length+' complete'+(ready?' · Awaiting criteria approval':'')+'</span></summary><div class="case-stage-steps">';
    if(ready)h+='<p class="small">Evidence Build is gated until the FOE and criteria strategy are approved. Existing historical tasks remain listed for staff reference; they are not automatically activated.</p>';
    if(i===5&&approvedNames.length)h+='<p class="small"><b>Approved criteria:</b> '+approvedNames.map(esc).join(', ')+'</p>';
    // Stage-local work surfaces reuse existing forms, private documents and collaboration.
@@ -320,11 +320,7 @@ function adminStageWorkspace(c,ts){
    h+='<p class="small">Open an individual step to add a comment, choose whether to share it with the candidate, and save it to the case activity history.</p><button class="btn sm" data-a="tab" data-id="activity">Open case messages</button></div></details>';
    if(!steps.length)h+='<p class="small">No case steps assigned to this stage yet.</p>';
    steps.forEach(function(t){
-     var status=t.status||'Not started',owner=pathwayV2Role(t.owner||'Candidate');
-     var statusClass=isDone(status)?'ok':status==='Blocked'?'bad':status==='In progress'?'mid':'';
-     var candidate=t.owner==='Candidate';
-     var visibility=candidate?'Candidate-visible':'Internal team';
-     h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(owner)+' · '+esc(status)+(t.due?' · Due '+esc(t.due):'')+' · '+visibility+'</small></span><span class="chips">'+chip(status,statusClass)+'<button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></span></div>';
+     h+=taskRow(c,t);
    });
    h+='</div></details>';
  });
@@ -379,7 +375,7 @@ function caseView(c){
   if(group[2].length>1)h+='<div class="nav tabs case-sub-nav">'+group[2].map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   h+='<div class="case-tab-content">';
   if(S.tab==='overview')h+=adminCaseOverview(c,ts);
-  else if(S.tab==='tasks')h+=adminStageWorkspace(c,ts)+tasksTab(c,ts);
+  else if(S.tab==='tasks')h+=adminStageWorkspace(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
