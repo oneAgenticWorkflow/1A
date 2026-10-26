@@ -50,3 +50,10 @@ test('nine-stage candidate schedule has a duration and label for every stage',()
  assert.match(ui,/sg=\{n:PATHWAY_V2_STAGES\[st\]\}/);
  assert.match(ui,/pathwayV2Stage\(t\)===si/);
 });
+
+test('criteria approval never rewrites historical task statuses',()=>{
+ const start=ui.indexOf("criteriaFinalization:{criteria:ch");
+ const end=ui.indexOf("Object.keys(S.draft)",start);
+ assert.ok(start>=0&&end>start);
+ assert.doesNotMatch(ui.slice(start,end),/setStatus\(/);
+});
