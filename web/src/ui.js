@@ -1245,23 +1245,6 @@ function candidateView(c){
     '<dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl><p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p>'+
     '</div>'+
     '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
-  /* fast track to the first article */
-  var ftf=['f1','f2','f3'].map(function(k){return allc.filter(function(t){return t.form===k})[0]}).filter(Boolean);
-  var ftLeft=ftf.filter(function(t){return !isDone(t.status)});
-  if(ftf.length&&ftLeft.length&&st<=3){var ftBy=addD(base,18);
-    h+='<section class="cx-fast"><div class="cx-fh"><b>Fast track to your first article</b><span>Target: all three intake forms by '+esc(fmtDate(ftBy).replace(/, \d{4}$/,''))+'</span></div><p>We publish one article a month, and your first one can only start once we know your background, your projects and your publication record. Finishing these three early keeps your whole schedule on time.</p><ul>'+ftf.map(function(t){
-      var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';
-      return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><b>'+esc(cxName(t))+'</b><small>'+(d2?'Completed':open?'Ready for you. Start it under What to do now.':'Opens as soon as your profile is reviewed')+'</small>'+'</li>'}).join('')+'</ul></section>';}
-  /* tasks */
-  h+='<section class="cx-sec" id="cx-todo"><div class="cx-sh"><h3>What to do now</h3>'+(now.length?chip(now.length+(now.length===1?' task':' tasks'),'gate'):chip('Nothing due','ok'))+'</div>';
-  if(now.length){now.forEach(function(t){h+=cxTask(c,t)})}
-  else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'No candidate tasks have been assigned yet. Please contact your advisor to begin onboarding.')+'</p></div></div>'}
-  h+='</section>';
-  /* all intake forms in one place */
-  var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&pathwayV2Stage(t)<LCN}).sort(function(a,b){return pathwayV2Stage(a)-pathwayV2Stage(b)||(a.form<b.form?-1:1)});
-  if(fm.length){h+='<details class="cx-sec cx-details" id="cx-forms"><summary><b>Your forms</b><small>'+fm.filter(function(t){return isDone(t.status)}).length+' of '+fm.length+' complete. Tap to see every form, from profile intake to scholarly articles.</small></summary><ul class="cx-steplist" style="margin-top:14px">'+fm.map(function(t){
-    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
-    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul></details>';}
   var spkNode='<li class="opt'+(sel===LCN?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+LCN+'" aria-pressed="'+(sel===LCN)+'"><i>+</i><span>Conference speaking</span><small>Optional · any time</small></button></li>';
   var spkT=allc.filter(function(t){return /^speak-/.test(t.key||'')});
   var speakHtml='<div class="cx-stage"><div class="cx-sth"><div><b>Conference speaking</b></div>'+chip('Optional','')+'</div>'+
@@ -1269,19 +1252,20 @@ function candidateView(c){
     '<h5>When</h5><p>Any time, from your first month. Only the articles follow a monthly pace. Speaking can start as soon as you like, and it does not wait for the articles. <span class="cx-more">Your advisor can help you choose events.</span></p>'+
     '<h5>'+(spkT.length?'Your steps':'Steps you may see')+'</h5><ul class="cx-steplist">'+(spkT.length?spkT.map(function(t){var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'file':'lock')+'</span><div class="cx-sb"><b>'+esc(t.title.replace(/^Choose/,'We choose'))+'</b><small>'+esc(t.detail||'')+' · '+(d2?'Completed':open?'Ready for you':'Opens later')+'</small></div></li>'}).join(''):['Pick 5 target conferences in your field.|We check that each is selective and respected.','Send talk proposals.|One strong abstract, adapted for each event.','Ask organizers about invited or keynote slots.|An invitation counts for more than an accepted submission.','Keep proof for every talk.|Program page with your name, invitation email, and an organizer letter.','Share the talk.|Slides, recording and any coverage.'].map(function(x){var p=x.split('|');return '<li class="l"><span class="cx-si">'+cvIcon('file')+'</span><div class="cx-sb"><b>'+p[0]+'</b><small>'+p[1]+'</small></div></li>'}).join(''))+'</ul><p class="cx-none">Optional. Skip it if it does not fit. Speaking adds to your other evidence and does not replace it.</p></div></section>';
   /* case life cycle */
-  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
+  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+PATHWAY_V2_STAGES.slice(0,LCN).map(function(s,i){
     var e=stEnd(i);
-    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+spkNode+'</ol>';
+    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+spkNode+'</ol>';
   if(sel===LCN){h+=speakHtml;}else{
   var mine=allc.filter(function(t){return pathwayV2Stage(t)===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
   h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(PATHWAY_V2_STAGES[sel])+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
     '<h5>What this stage is about</h5><p>'+esc((STAGES[sel]&&STAGES[sel].d||'Track assigned work and required approvals.'))+' <span class="cx-more">'+esc((STAGES[sel]&&STAGES[sel].d)||'')+'.</span></p>'+
     '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
     '<h5>Steps for you in this stage</h5>';
-  if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
-    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',isForm=t.kind==='form'&&t.form;
-    var lab=d2?'Completed':open?'Ready for you':t.status==='Skipped'?'Skipped':'Opens later';
-    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+(cxDesc(t)?esc(cxDesc(t))+' · ':'')+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div></li>'}).join('')+'</ul><p class="cx-none">Anything marked Ready for you also appears under What to do now. Other work in this stage is done by our team.</p>'}
+  if(mine.length){h+='<div class="cx-stage-actions">'+mine.map(function(t){
+    var completed=isDone(t.status),enabled=!completed&&t.status!=='Not started'&&t.status!=='Skipped';
+    if(enabled)return cxTask(c,t);
+    return '<div class="cx-steplist"><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(completed?'Completed':t.status==='Skipped'?'Skipped':'Locked until the preceding step is complete')+'</small></div></div>';
+  }).join('')+'</div>'}
   else h+='<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
   h+='</div></section>';}
   /* evidence rhythm */
