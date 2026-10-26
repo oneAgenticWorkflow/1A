@@ -1735,17 +1735,17 @@ function startApp(opts){
   S.loadInfo='Waiting for: candidates, tasks, responses, log, docs';
   var loadWatch=setTimeout(function(){
     if(S.ready||S.dberr)return;
-    var pending=['candidates','tasks','responses','log','docs'].filter(function(n){return !loaded[n]});
+    var pending=['candidates','tasks','responses'].filter(function(n){return !loaded[{candidates:'cands',tasks:'tasks',responses:'resp'}[n]]});
     S.dberr='Preview timed out loading '+pending.join(', ')+'. Please refresh or contact the administrator.';
     render();
-  },10000);
+  },30000);
   function sub(coll,key){
     db.collection(coll).onSnapshot(function(snap){
       S[key]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o});
       if(key==='resp')S.resp.forEach(function(r){if(!DIRTY[r.id]&&!PEND[r.id]&&WORK[r.id])delete WORK[r.id]});
       loaded[key]=1;
       S.loadInfo='Loaded '+Object.keys(loaded).join(', ')+'; waiting for '+['candidates','tasks','responses','log','docs'].filter(function(n){return !loaded[{candidates:'cands',tasks:'tasks',responses:'resp',log:'log',docs:'docs'}[n]]}).join(', ');
-      if(loaded.cands&&loaded.tasks&&loaded.resp&&loaded.log&&loaded.docs){S.ready=true;clearTimeout(loadWatch)}
+      if(loaded.cands&&loaded.tasks&&loaded.resp){S.ready=true;clearTimeout(loadWatch)}
       schedule();
     },function(err){S.dberr=(err&&err.message)||'error';schedule()});
   }
