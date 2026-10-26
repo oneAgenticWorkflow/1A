@@ -293,7 +293,7 @@ function caseView(c){
   }
   h+=lanes(c,ts);
   h+=filingReadinessForecast(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Messages and activity'+(awaitingReply(c.id)?' ('+awaitingReply(c.id).n+')':'')]];
+  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['criteria-tracker','Criteria & Articles'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Messages and activity'+(awaitingReply(c.id)?' ('+awaitingReply(c.id).n+')':'')]];
   var awc=awaitingReply(c.id);if(awc&&S.tab!=='activity')h+='<div class="panel msgalert"><div><b>'+esc((c.name||'Candidate').split(' ')[0])+' sent '+(awc.n===1?'a message':awc.n+' messages')+'</b><div class="small">"'+esc(awc.last.text.length>110?awc.last.text.slice(0,110)+'...':awc.last.text)+'" · '+esc(agoStr(awc.last.ts))+'</div></div><button class="btn pri sm" data-a="openmsg" data-id="'+esc(c.id)+'">Reply</button></div>';
   h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div><div class="case-tab-content">';
   if(S.tab==='tasks')h+=tasksTab(c,ts);
@@ -302,6 +302,7 @@ function caseView(c){
   else if(S.tab==='profile')h+=profileTab(c);
   else if(S.tab==='pathway')h+=pathwayScreening(c);
   else if(S.tab==='development')h+=pathwayDevelopment(c);
+  else if(S.tab==='criteria-tracker')h+=ebTrackerPanel(c,false);
   else if(S.tab==='niwcase')h+=niwCaseFlow(c,false);
   else if(S.tab==='strategy')h+=pathwayStrategy(c);
   else if(S.tab==='guide')h+=pathwayGuide();
@@ -313,6 +314,49 @@ function caseView(c){
   return h+'</div>';
 }
 
+var EB_CRITERIA=[
+ ['judging','Judging','Invitations, completed reviews and confirmations'],
+ ['memberships','Memberships','Selective admission requirements and membership evidence'],
+ ['awards','Awards','Award criteria, selection and recognition records'],
+ ['media','Published Media','Independent published material about the candidate'],
+ ['articles','Scholarly Articles','Manuscripts, submissions, acceptances and publications'],
+ ['critical','Critical Role','Role scope, organizational significance and measurable results'],
+ ['contributions','Original Contributions','Independent corroboration of significant field impact'],
+ ['salary','High Salary','Compensation documentation and reliable comparisons']
+];
+var EB_STEPS=['Assess','Strategize','Execute','Collect evidence','Validate','Ready for attorney review'];
+var EB_STATUS=['Not started','Planning','In progress','Waiting on candidate','Under review','Evidence ready','Blocked'];
+var ARTICLE_STATUS=['Draft','Under Review','Ready to Publish','Published'];
+function ebRecords(c){return c.ebCriteriaTracker||{}}
+function ebCriterion(c,key){return ebRecords(c)[key]||{status:'Not started',step:0,owner:'',plan:'',notes:'',candidateVisible:true}}
+function ebArticleRows(c){return Array.isArray(c.scholarlyArticles)?c.scholarlyArticles:[]}
+function ebArticlePanel(c,readonly){
+ var rows=ebArticleRows(c),h='<div class="entry"><div class="ph"><h4>Scholarly article tracker</h4>'+chip(rows.length+' articles')+'</div>';
+ rows.forEach(function(a,i){h+='<div class="formrow"><div><b>'+esc(a.title||'Untitled article')+'</b><p class="small">'+esc(a.journal||'Journal not selected')+' · '+esc(a.candidate||c.name||'')+'</p><p class="small">'+esc(a.keywords||'')+'</p>'+(a.abstract?'<details><summary>Abstract</summary><p>'+esc(a.abstract)+'</p></details>':'')+(a.status==='Published'&&a.publishedDate?'<p class="small">Published '+esc(a.publishedDate)+'</p>':'')+'</div><div>'+chip(a.status||'Draft',a.status==='Published'?'ok':'mid')+(readonly?'':' <button class="btn sm" data-a="eb-edit-article" data-id="'+i+'">Edit</button>')+'</div></div>'});
+ if(!readonly){
+ var idx=S.ebArticleEdit,editing=Number.isInteger(idx)&&rows[idx],a=editing||{};
+ h+='<div class="entry"><h4>'+(editing?'Edit article':'Add scholarly article')+'</h4>'+
+ '<label class="f" for="eb-title">Article title</label><input id="eb-title" value="'+esc(a.title||'')+'">'+
+ '<label class="f" for="eb-candidate">Candidate name</label><input id="eb-candidate" value="'+esc(a.candidate||c.name||'')+'">'+
+ '<label class="f" for="eb-abstract">Abstract</label><textarea id="eb-abstract" class="tall">'+esc(a.abstract||'')+'</textarea>'+
+ '<label class="f" for="eb-keywords">Keywords</label><input id="eb-keywords" value="'+esc(a.keywords||'')+'">'+
+ '<label class="f" for="eb-journal">Target journal / publication</label><input id="eb-journal" value="'+esc(a.journal||'')+'">'+
+ '<label class="f" for="eb-status">Publication status</label><select id="eb-status">'+options(ARTICLE_STATUS,a.status||'Draft')+'</select>'+
+ '<label class="f" for="eb-published">Date published (only for published articles)</label><input id="eb-published" type="date" value="'+esc(a.publishedDate||'')+'">'+
+ '<div class="addrow"><button class="btn pri sm" data-a="eb-save-article">Save article</button>'+(editing?'<button class="btn sm" data-a="eb-cancel-article">Cancel editing</button>':'')+'</div></div>';
+ }
+ return h+'</div>';
+}
+function ebTrackerPanel(c,readonly){
+ var records=ebRecords(c),complete=EB_CRITERIA.filter(function(x){return (records[x[0]]||{}).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf((records[x[0]]||{}).status)>=0}).length;
+ var h='<div class="panel eb-tracker"><div class="ph"><h3>'+(readonly?'My profile development':'EB-1A Criteria & Evidence')+'</h3>'+chip(complete+' evidence ready','ok')+'</div><p class="small">'+(readonly?'Track candidate-visible development work and publications.':'Plan, assign and track criteria independently from the nine-stage case lifecycle.')+' Progress measures documented work, not immigration eligibility or approval likelihood.</p><div class="eb-stats"><div><b>8</b><small>Criteria categories</small></div><div><b>'+active+'</b><small>In progress</small></div><div><b>'+complete+'</b><small>Evidence ready</small></div></div>';
+ EB_CRITERIA.forEach(function(x){
+ var v=ebCriterion(c,x[0]);if(readonly&&v.candidateVisible===false)return;
+ var step=Math.max(0,Math.min(5,+v.step||0));
+ h+='<details class="eb-item"'+(S.ebOpen===x[0]&&!readonly?' open':'')+'><summary><span><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span>'+chip(v.status||'Not started',v.status==='Evidence ready'?'ok':'mid')+'</summary><div class="eb-item-body"><p class="small"><b>Current step:</b> '+esc(EB_STEPS[step])+' · <b>Responsible:</b> '+esc(v.owner||(readonly?'Advisory team':'Unassigned'))+'</p><div class="eb-step-track">'+EB_STEPS.map(function(n,i){return '<span class="'+(i<step?'complete':i===step?'current':'')+'">'+(i+1)+'. '+esc(n)+'</span>'}).join('')+'</div>'+(v.plan?'<p><b>Plan:</b> '+esc(v.plan)+'</p>':'')+(readonly?'':'<div class="eb-fields"><label>Status<select data-eb-field="status" data-eb-key="'+x[0]+'">'+options(EB_STATUS,v.status||'Not started')+'</select></label><label>Current step<select data-eb-field="step" data-eb-key="'+x[0]+'">'+EB_STEPS.map(function(n,i){return '<option value="'+i+'"'+(i===step?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select></label><label>Assigned owner<input data-eb-field="owner" data-eb-key="'+x[0]+'" value="'+esc(v.owner||'')+'"></label><label>Strategy / next actions<textarea data-eb-field="plan" data-eb-key="'+x[0]+'">'+esc(v.plan||'')+'</textarea></label><label><input type="checkbox" data-eb-field="candidateVisible" data-eb-key="'+x[0]+'"'+(v.candidateVisible!==false?' checked':'')+'> Visible to candidate</label><button class="btn pri sm" data-a="eb-save-criterion" data-id="'+x[0]+'">Save criterion</button></div>')+'</div></details>';
+ });
+ h+=ebArticlePanel(c,readonly);return h+'</div>';
+}
 var PATHWAY_REQUIREMENTS={
  niw:[
  ['eb2_degree','EB-2 threshold','Qualifying completed degree and transcripts, or exceptional-ability evidence'],
@@ -1205,6 +1249,7 @@ function candidateView(c){
       var ms=addD(base,30*i);
       return '<div class="cx-month'+(Math.floor((new Date(tod)-new Date(base))/DAY/30)===i?' now':'')+'"><div class="cx-mh"><b>Month '+(i+1)+'</b><small>from '+esc(fmtDate(ms).replace(/, \d{4}$/,''))+'</small></div><div class="cx-mt">'+r[0]+'</div>'+
         '<p><em class="a">Articles</em>'+esc(r[1])+'</p>'+(r[2]?'<p><em class="j">Reviewing</em>'+esc(r[2])+'</p>':'')+(r[3]?'<p><em class="s">Speaking</em>'+esc(r[3])+'</p>':'')+(r[4]?'<p><em class="o">Other</em>'+esc(r[4])+'</p>':'')+'</div>'}).join('')+'</div></details>';
+  h+=ebTrackerPanel(c,true);
   h+=niwCaseFlow(c,true);
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
@@ -1512,6 +1557,25 @@ document.addEventListener('click',async function(e){
       case 'cvphase':S.cvp=+id;break;
       case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
       case 'cvscroll':{var se=document.getElementById(id);if(se)se.scrollIntoView({behavior:'smooth',block:'start'});return}
+      case 'eb-edit-article':S.ebArticleEdit=+id;break;
+      case 'eb-cancel-article':S.ebArticleEdit=null;break;
+      case 'eb-save-article':{
+        if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
+        var val=function(k){return (document.getElementById(k)||{}).value||''},title=val('eb-title').trim(),status=val('eb-status'),pub=val('eb-published');
+        if(!title){say('Article title is required.','err');break}
+        if(status==='Published'&&!pub){say('Published articles require a publication date.','err');break}
+        var list=ebArticleRows(c).slice(),article={title:title,candidate:val('eb-candidate').trim()||c.name,abstract:val('eb-abstract').trim(),keywords:val('eb-keywords').trim(),journal:val('eb-journal').trim(),status:status,publishedDate:status==='Published'?pub:null};
+        if(Number.isInteger(S.ebArticleEdit)&&list[S.ebArticleEdit])list[S.ebArticleEdit]=article;else list.push(article);
+        await candRef(c.id).update({scholarlyArticles:list});c.scholarlyArticles=list;S.ebArticleEdit=null;say('Scholarly article saved.','ok');break;
+      }
+      case 'eb-save-criterion':{
+        if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
+        var root=document.querySelector('[data-eb-field="status"][data-eb-key="'+id+'"]');if(!root)break;
+        var field=function(n){return document.querySelector('[data-eb-field="'+n+'"][data-eb-key="'+id+'"]')},old=ebCriterion(c,id);
+        var entry={status:field('status').value,step:Number(field('step').value),owner:field('owner').value.trim(),plan:field('plan').value.trim(),candidateVisible:field('candidateVisible').checked,updatedAt:new Date().toISOString()};
+        var all=Object.assign({},ebRecords(c));all[id]=Object.assign({},old,entry);
+        await candRef(c.id).update({ebCriteriaTracker:all});c.ebCriteriaTracker=all;say('Criterion saved.','ok');break;
+      }
       case 'tab':S.tab=id;S.openForm=false;S.msgGo=null;S.focusCaseTab=true;break;
       case 'view':S.view=id;break;
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
