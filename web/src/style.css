@@ -624,3 +624,15 @@ code{font-family:var(--mono);font-size:12px}
 .case-main-nav{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #d6e0e6;padding:4px 0 10px;margin-top:16px}.case-main-nav .tab{white-space:nowrap;font-weight:700}.case-sub-nav{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 14px;padding:3px 0 8px;border-bottom:1px solid #e0e6ea}.case-sub-nav .tab{font-size:13px}.case-overview-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:18px 0}.case-overview-stats>div{border:1px solid #d6e0e6;background:#f5f8f8;padding:16px;border-radius:12px}.case-overview-stats b{display:block;font-size:24px;color:#204b3e}.case-overview-stats small{display:block;color:#576b75;margin-top:4px}.case-overview-actions{border:1px solid #dce4e7;border-radius:10px;overflow:hidden;margin:12px 0}.case-overview-action{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid #e1e8ea}.case-overview-action:last-child{border-bottom:0}.case-overview-action span{display:block}.case-overview-action small{display:block;color:#5d6d76;margin-top:4px}@media(max-width:700px){.case-overview-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.case-overview-action{align-items:flex-start;flex-direction:column}}
 
 .case-stage-detail{border:1px solid #dce4e7;border-radius:10px;margin:9px 0;background:#fff;overflow:hidden}.case-stage-detail>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:15px 18px;list-style:none}.case-stage-detail>summary::-webkit-details-marker{display:none}.case-stage-detail>summary b,.case-stage-detail>summary small{display:block}.case-stage-detail>summary small{margin-top:5px;color:#61737d}.case-stage-detail[open]>summary{background:#f2f8f5;border-bottom:1px solid #dce4e7}.case-stage-steps{padding:4px 12px 10px}.case-stage-steps .case-overview-action{border-bottom:1px solid #e7eced}
+
+/* Candidate collaboration: equal-height, aligned document and message cards. */
+@media (min-width: 760px){
+  .cx .cv-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:20px}
+  .cx .cv-two > div{display:flex;min-width:0;align-self:stretch}
+  .cx .cv-two > div > .panel{width:100%;height:100%;min-width:0;box-sizing:border-box;margin:0}
+}
+@media (max-width: 759px){
+  .cx .cv-two{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+}
+.cx .cv-two > div{min-width:0}
+.cx .cv-two .panel{border-radius:14px;box-sizing:border-box}
