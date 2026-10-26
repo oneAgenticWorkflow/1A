@@ -27,7 +27,7 @@ function render(){
   var h='';
   if(!db){return}
   if(S.dberr){app.innerHTML='<div class="panel"><h2>Could not load</h2><p>Storage returned: '+esc(S.dberr)+'. Reload the page.</p></div>';return}
-  if(!S.ready){app.innerHTML='<p class="small">Loading cases…</p>';return}
+  if(!S.ready){app.innerHTML='<div class="panel" style="max-width:620px;margin:40px auto;padding:24px"><h2>Loading your test1 workspace</h2><p class="small">'+esc(S.loadInfo||'Connecting to candidate records…')+'</p><p class="small">If this remains for more than 10 seconds, the preview will display a diagnostic error.</p></div>';return}
   h+=topbar();
   if(S.msg)h+='<div class="banner '+S.msgKind+'" role="status">'+esc(S.msg)+(S.msgGo?' <button class="btn sm pri" data-a="'+S.msgGo.a+'" data-id="'+S.msgGo.id+'">View: '+esc(S.msgGo.l)+'</button>':'')+' <button class="link" data-a="dismiss">Dismiss</button></div>';
   if(S.busy)h+='<div class="banner busy" role="status">Analysis is running: '+esc(S.busy)+'… <button class="btn sm" data-a="cancel">Stop</button></div>';
@@ -1732,17 +1732,19 @@ document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' '
 function startApp(opts){
   db=opts.db;sampleFn=opts.sample;S.locked=!!opts.locked;S.me=opts.me;S.staff=opts.staff||'admin';if(S.locked){S.role='Candidate';S.cid=opts.caseId}
   var loaded={};
+  S.loadInfo='Waiting for: candidates, tasks, responses, log, docs';
   var loadWatch=setTimeout(function(){
     if(S.ready||S.dberr)return;
     var pending=['candidates','tasks','responses','log','docs'].filter(function(n){return !loaded[n]});
     S.dberr='Preview timed out loading '+pending.join(', ')+'. Please refresh or contact the administrator.';
     render();
-  },15000);
+  },10000);
   function sub(coll,key){
     db.collection(coll).onSnapshot(function(snap){
       S[key]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o});
       if(key==='resp')S.resp.forEach(function(r){if(!DIRTY[r.id]&&!PEND[r.id]&&WORK[r.id])delete WORK[r.id]});
       loaded[key]=1;
+      S.loadInfo='Loaded '+Object.keys(loaded).join(', ')+'; waiting for '+['candidates','tasks','responses','log','docs'].filter(function(n){return !loaded[{candidates:'cands',tasks:'tasks',responses:'resp',log:'log',docs:'docs'}[n]]}).join(', ');
       if(loaded.cands&&loaded.tasks&&loaded.resp&&loaded.log&&loaded.docs){S.ready=true;clearTimeout(loadWatch)}
       schedule();
     },function(err){S.dberr=(err&&err.message)||'error';schedule()});
