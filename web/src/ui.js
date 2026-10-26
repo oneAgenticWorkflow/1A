@@ -1713,13 +1713,9 @@ document.addEventListener('click',async function(e){
         var prev=c.criteriaFinalization||{},history=(prev.history||[]).slice();if(prev.approvedAt)history.push({criteria:prev.criteria||[],note:prev.note||'',approvedAt:prev.approvedAt});
         await candRef(c.id).update({chosen:ch,chosenAt:nowIso(),criteriaFinalization:{criteria:ch,note:rationale,approvedAt:nowIso(),foe:(c.foe||{}).locked,history:history}});
         delete S.draft.criteria_note;
-        var sk=0,rs=0;
-        for(var ci=0;ci<CRIT.length;ci++){var kk=CRIT[ci].id,keys=CRIT_TASKS[kk]||[],on2=ch.indexOf(kk)>=0;
-          for(var ki=0;ki<keys.length;ki++){var tt=taskByKey(c.id,keys[ki]);if(!tt)continue;
-            if(!on2&&!isDone(tt.status)){await setStatus(tt,'Skipped',{skippedBy:'targets'});sk++}
-            else if(on2&&tt.status==='Skipped'&&tt.skippedBy==='targets'){await setStatus(tt,'Not started',{skippedBy:''});rs++}}}
+        // Criteria selection does not rewrite historical task statuses.
         Object.keys(S.draft).forEach(function(dk){if(dk.indexOf('tg_')===0)delete S.draft[dk]});
-        await log(c.id,'Target criteria confirmed: '+ch.map(function(id){return id.toUpperCase()}).join(', ')+(sk?'. '+sk+' evidence tasks skipped.':'')+(rs?'. '+rs+' evidence tasks restored.':''),'gate');
+        await log(c.id,'Target criteria confirmed: '+ch.map(function(id){return id.toUpperCase()}).join(', '),'gate');
         if((c.articleExamples||[]).length){var fr=workResp(c.id,'f10');if(!fr.data.guide&&fr.status!=='Submitted'&&fr.status!=='Reviewed'){fr.data.guide=c.articleExamples;await saveResp(c.id,'f10')}}
         await completeKey(c.id,'targets','Target criteria confirmed.');
         say('Target criteria confirmed: '+ch.length+'.');break}
