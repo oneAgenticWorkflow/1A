@@ -278,6 +278,33 @@ function filingReadinessForecast(c,ts){
 }
 
 /* ----- case view ----- */
+function adminStageWorkspace(c,ts){
+ // Read-only projection: never rewrite original task IDs, stages, statuses or evidence.
+ var explicit={foew:3,foe:3,'foe-ai':3,'foe-mkt':3,'foe-mkt-ok':3,analysis:3,review:3,'art-topic':4,art1:5,art2:5,art3:5,art4:5,art5:5,art6:5,'judge-apply':5,f10:2,r10:2};
+ function projectedStage(t){return Object.prototype.hasOwnProperty.call(explicit,t.key)?explicit[t.key]:Math.max(0,Math.min(8,Number(t.stage)||0))}
+ var stages=[
+  {n:'Onboarding',old:[0]},
+  {n:'Profile Intake',old:[1]},
+  {n:'Project Intake',old:[2]},
+  {n:'FOE Lock',old:[3]},
+  {n:'Criteria Strategy',old:[4]},
+  {n:'Evidence Build',old:[5]},
+  {n:'Final Review',old:[6]},
+  {n:'Attorney Handover',old:[7]},
+  {n:'Filing',old:[8]}
+ ];
+ var st=Math.max(0,Math.min(stages.length-1,c.stage||0));
+ var h='<div class="panel"><div class="ph"><div><h3>Candidate pathway</h3><p class="small">Nine stages · existing tasks and submissions retained. Expand a stage to see assigned steps.</p></div>'+chip(caseProgress(c)+'% of existing tasks complete')+'</div>';
+ h+='<p class="small">Tasks are grouped by the new pathway without changing saved stages, status, evidence or history. Mapping is provisional pending supervisor review.</p>';
+ stages.forEach(function(stage,i){
+ var steps=ts.filter(function(t){return projectedStage(t)===i}),done=steps.filter(function(t){return isDone(t.status)}).length;
+ h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(stage.n)+'</b><small>'+((i<st)?'Earlier stage':i===st?'Current recorded stage':'Upcoming stage')+'</small></span><span class="small">'+done+' of '+steps.length+' complete</span></summary><div class="case-stage-steps">';
+ if(!steps.length)h+='<p class="small">No existing steps assigned to this stage.</p>';
+ steps.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(ownerLabel(t.owner||'Unassigned'))+' · '+esc(t.status||'Not started')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></div>'});
+ h+='</div></details>';
+ });
+ return h+'</div>';
+}
 function adminCaseOverview(c,ts){
  var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=EB_CRITERIA.filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
  var h='<div class="panel"><div class="ph"><div><h3>Case overview</h3><p class="small">Current stage: '+(st+1)+' of '+STAGES.length+' · '+esc(STAGES[st].n)+'</p></div>'+chip(caseProgress(c)+'% tasks completed')+'</div><div class="case-overview-stats"><div><b>'+open.length+'</b><small>Open tasks</small></div><div><b>'+candidate.length+'</b><small>Waiting on candidate</small></div><div><b>'+staff.length+'</b><small>Team actions</small></div><div><b>'+ready+' / 8</b><small>Evidence ready</small></div></div><h4>Next actions</h4>';
@@ -315,7 +342,7 @@ function caseView(c){
   if(group[2].length>1)h+='<div class="nav tabs case-sub-nav">'+group[2].map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   h+='<div class="case-tab-content">';
   if(S.tab==='overview')h+=adminCaseOverview(c,ts);
-  else if(S.tab==='tasks')h+=tasksTab(c,ts);
+  else if(S.tab==='tasks')h+=adminStageWorkspace(c,ts)+tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
