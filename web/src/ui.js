@@ -309,7 +309,7 @@ function pathwayV2Controls(c,ts){
 }
 function adminCaseOverview(c,ts){
  var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=pathwayV2Evidence(c).filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=pathwayV2Evidence(c).filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
- var h='<div class="panel"><div class="ph"><div><h3>Case overview</h3><p class="small">Current stage: '+(st+1)+' of '+STAGES.length+' · '+esc(STAGES[st].n)+'</p></div>'+chip(caseProgress(c)+'% tasks completed')+'</div><div class="case-overview-stats"><div><b>'+open.length+'</b><small>Open tasks</small></div><div><b>'+candidate.length+'</b><small>Waiting on candidate</small></div><div><b>'+staff.length+'</b><small>Team actions</small></div><div><b>'+ready+' / 8</b><small>Evidence ready</small></div></div><h4>Next actions</h4>';
+ var h='<div class="panel"><div class="ph"><div><h3>Case overview</h3><p class="small">Current stage: '+(st+1)+' of '+STAGES.length+' · '+esc(STAGES[st].n)+'</p></div>'+chip(caseProgress(c)+'% tasks completed')+'</div><div class="case-overview-stats"><div><b>'+open.length+'</b><small>Open tasks</small></div><div><b>'+candidate.length+'</b><small>Waiting on candidate</small></div><div><b>'+staff.length+'</b><small>Team actions</small></div><div><b>'+ready+' / '+pathwayV2Evidence(c).length+'</b><small>Evidence ready</small></div></div><h4>Next actions</h4>';
  if(!open.length)h+='<p class="small">No open tasks recorded.</p>';
  else h+='<div class="case-overview-actions">'+open.slice().sort(function(a,b){return (a.stage||0)-(b.stage||0)||(a.due||'9999').localeCompare(b.due||'9999')}).slice(0,8).map(function(t){return '<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Task')+'</b><small>Stage '+((t.stage||0)+1)+' · '+esc(t.owner||'Unassigned')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open task</button></div>'}).join('')+'</div>';
  h+='<div class="addrow"><button class="btn pri sm" data-a="tab" data-id="tasks">Open case workflow</button><button class="btn sm" data-a="tab" data-id="criteria-tracker">Review criteria ('+active+' active)</button><button class="btn sm" data-a="tab" data-id="activity">Messages & activity</button></div></div>';
@@ -1217,14 +1217,14 @@ function candidateView(c){
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
-  var pct=caseProgress(c),sel=Math.min(S.cvp!==undefined?S.cvp:st,LCN),sg=CV_STAGES[st];
+  var pct=caseProgress(c),sel=Math.min(S.cvp!==undefined?S.cvp:st,LCN),sg={n:PATHWAY_V2_STAGES[st]};
   var allc=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft});
   /* Live schedule: 7 months in total, split across the 7 stages. Finished stages use real finish dates,
      the current stage slips by the number of days an open task is overdue, and every later stage moves with it. */
-  var PLAN=[10,14,35,21,21,75,34],DAY=864e5,iso=function(d){return d.toISOString().slice(0,10)},addD=function(x,n){var d=new Date(x+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+Math.round(n));return iso(d)},tod=iso(new Date());
+  var PLAN=[10,14,35,21,21,75,34,14,14],DAY=864e5,iso=function(d){return d.toISOString().slice(0,10)},addD=function(x,n){var d=new Date(x+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+Math.round(n));return iso(d)},tod=iso(new Date());
   var base=(c.startDate||c.createdAt||tod).slice(0,10),cur=base,sched=[];
   for(var si=0;si<LCN;si++){
-    var inS=allc.filter(function(t){return t.stage===si}),plan=PLAN[si],e;
+    var inS=allc.filter(function(t){return pathwayV2Stage(t)===si}),plan=PLAN[si],e;
     if(si<st){var dn=inS.map(function(t){return (t.doneAt||'').slice(0,10)}).filter(Boolean).sort();e=dn.length&&dn[dn.length-1]>cur?dn[dn.length-1]:addD(cur,plan);if(e>tod)e=tod}
     else if(si===st){var open=inS.filter(function(t){return !isDone(t.status)&&t.status!=='Skipped'}),late=0;
       open.forEach(function(t){if(t.due&&t.due<tod)late=Math.max(late,Math.round((new Date(tod)-new Date(t.due))/DAY))});
