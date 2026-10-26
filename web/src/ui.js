@@ -1255,7 +1255,7 @@ function candidateView(c){
   /* tasks */
   h+='<section class="cx-sec" id="cx-todo"><div class="cx-sh"><h3>What to do now</h3>'+(now.length?chip(now.length+(now.length===1?' task':' tasks'),'gate'):chip('Nothing due','ok'))+'</div>';
   if(now.length){now.forEach(function(t){h+=cxTask(c,t)})}
-  else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'Our team is working on your case. New tasks will appear here.')+'</p></div></div>'}
+  else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'No candidate tasks have been assigned yet. Please contact your advisor to begin onboarding.')+'</p></div></div>'}
   h+='</section>';
   /* all intake forms in one place */
   var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&t.stage<LCN}).sort(function(a,b){return a.stage-b.stage||(a.form<b.form?-1:1)});
@@ -1293,12 +1293,12 @@ function candidateView(c){
    ['Article 4','One new article.','Keep reviewing.','Ask organizers about invited or keynote slots.','Pitch your story to approved outlets.'],
    ['Article 5','One new article.','Reviews documented with proof.','Collect programs and invitation letters for each talk.','Apply for senior memberships.'],
    ['Article 6 (optional) and letters','Optional sixth article.','','Talk recordings and organizer letters filed.','Recommendation letters and exhibits.']];
-  h+='<details class="cx-sec cx-details cx-rhythm" id="cx-rhythm" open><summary><b>Your evidence rhythm: one article a month</b><small>How we build proof steadily, with reviewing, speaking and other evidence running alongside</small></summary>'+
+  if(pathwayV2Approved(c).indexOf('articles')!==-1)h+='<details class="cx-sec cx-details cx-rhythm" id="cx-rhythm" open><summary><b>Your evidence rhythm: one article a month</b><small>How we build proof steadily, with reviewing, speaking and other evidence running alongside</small></summary>'+
     '<p class="cx-why">We publish about one article a month instead of everything at once. A steady record over many months shows recognition that is real and lasting. A burst of articles in a few weeks can look planned for the petition and may raise questions with the reviewing officer. Only the articles follow a monthly pace. Reviewing, speaking and the other evidence can happen at any time that suits you. This is a planning guide, not legal advice. Your advisor confirms venues and timing.</p><div class="cx-months">'+rows.map(function(r,i){
       var ms=addD(base,30*i);
       return '<div class="cx-month'+(Math.floor((new Date(tod)-new Date(base))/DAY/30)===i?' now':'')+'"><div class="cx-mh"><b>Month '+(i+1)+'</b><small>from '+esc(fmtDate(ms).replace(/, \d{4}$/,''))+'</small></div><div class="cx-mt">'+r[0]+'</div>'+
         '<p><em class="a">Articles</em>'+esc(r[1])+'</p>'+(r[2]?'<p><em class="j">Reviewing</em>'+esc(r[2])+'</p>':'')+(r[3]?'<p><em class="s">Speaking</em>'+esc(r[3])+'</p>':'')+(r[4]?'<p><em class="o">Other</em>'+esc(r[4])+'</p>':'')+'</div>'}).join('')+'</div></details>';
-  h+=ebTrackerPanel(c,true);
+  if(pathwayV2Evidence(c).length)h+=ebTrackerPanel(c,true);
   h+=niwCaseFlow(c,true);
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
