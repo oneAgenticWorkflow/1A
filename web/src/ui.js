@@ -1214,6 +1214,7 @@ function candidateView(c){
   var h=S.locked?'':'<div class="candbar"><span class="chip gate">Candidate view (preview)</span> <button class="btn sm" data-a="asAdv">Back to admin view</button></div>';
   if(S.openForm){return h+formEditor(c,S.form)}
   var LCN=9,st=Math.min(Math.max(0,c.stage||0),LCN-1);
+  if(!tasksOf(c.id).length)st=0;
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
@@ -1272,9 +1273,9 @@ function candidateView(c){
     var e=stEnd(i);
     return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+spkNode+'</ol>';
   if(sel===LCN){h+=speakHtml;}else{
-  var mine=allc.filter(function(t){return t.stage===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
+  var mine=allc.filter(function(t){return pathwayV2Stage(t)===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
   h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(PATHWAY_V2_STAGES[sel])+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
-    '<h5>What this stage is about</h5><p>'+esc((STAGES[sel]&&STAGES[sel].d||'Track assigned work and required approvals.'))+' <span class="cx-more">'+esc(STAGES[sel].d)+'.</span></p>'+
+    '<h5>What this stage is about</h5><p>'+esc((STAGES[sel]&&STAGES[sel].d||'Track assigned work and required approvals.'))+' <span class="cx-more">'+esc((STAGES[sel]&&STAGES[sel].d)||'')+'.</span></p>'+
     '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
     '<h5>Steps for you in this stage</h5>';
   if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
