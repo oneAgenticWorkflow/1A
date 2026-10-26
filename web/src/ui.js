@@ -1218,7 +1218,7 @@ function candidateView(c){
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
-  var pct=caseProgress(c),sel=Math.min(Math.max(0,S.cvp!==undefined?S.cvp:st),LCN),sg={n:PATHWAY_V2_STAGES[st]};
+  var pct=caseProgress(c),sel=Math.min(Math.max(0,S.cvp!==undefined?S.cvp:st),LCN-1),sg={n:PATHWAY_V2_STAGES[st]};
   var allc=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft});
   /* Live schedule: 7 months in total, split across the 7 stages. Finished stages use real finish dates,
      the current stage slips by the number of days an open task is overdue, and every later stage moves with it. */
@@ -1245,17 +1245,11 @@ function candidateView(c){
     '<dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl><p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p>'+
     '</div>'+
     '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
-  var spkNode='<li class="opt'+(sel===LCN?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+LCN+'" aria-pressed="'+(sel===LCN)+'"><i>+</i><span>Conference speaking</span><small>Optional · any time</small></button></li>';
-  var spkT=allc.filter(function(t){return /^speak-/.test(t.key||'')});
-  var speakHtml='<div class="cx-stage"><div class="cx-sth"><div><b>Conference speaking</b></div>'+chip('Optional','')+'</div>'+
-    '<h5>What this is about</h5><p>Being invited to speak at a conference, as a keynote or invited speaker, shows that people in your field want to hear from you. It supports your original contributions and your overall case for sustained acclaim. It is not one of the ten criteria by itself, so it adds to the other evidence and does not replace it.</p>'+
-    '<h5>When</h5><p>Any time, from your first month. Only the articles follow a monthly pace. Speaking can start as soon as you like, and it does not wait for the articles. <span class="cx-more">Your advisor can help you choose events.</span></p>'+
-    '<h5>'+(spkT.length?'Your steps':'Steps you may see')+'</h5><ul class="cx-steplist">'+(spkT.length?spkT.map(function(t){var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'file':'lock')+'</span><div class="cx-sb"><b>'+esc(t.title.replace(/^Choose/,'We choose'))+'</b><small>'+esc(t.detail||'')+' · '+(d2?'Completed':open?'Ready for you':'Opens later')+'</small></div></li>'}).join(''):['Pick 5 target conferences in your field.|We check that each is selective and respected.','Send talk proposals.|One strong abstract, adapted for each event.','Ask organizers about invited or keynote slots.|An invitation counts for more than an accepted submission.','Keep proof for every talk.|Program page with your name, invitation email, and an organizer letter.','Share the talk.|Slides, recording and any coverage.'].map(function(x){var p=x.split('|');return '<li class="l"><span class="cx-si">'+cvIcon('file')+'</span><div class="cx-sb"><b>'+p[0]+'</b><small>'+p[1]+'</small></div></li>'}).join(''))+'</ul><p class="cx-none">Optional. Skip it if it does not fit. Speaking adds to your other evidence and does not replace it.</p></div></section>';
   /* case life cycle */
   h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+PATHWAY_V2_STAGES.slice(0,LCN).map(function(s,i){
     var e=stEnd(i);
-    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+spkNode+'</ol>';
-  if(sel===LCN){h+=speakHtml;}else{
+    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+'</ol>';
+  {
   var mine=allc.filter(function(t){return pathwayV2Stage(t)===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
   h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(PATHWAY_V2_STAGES[sel])+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
     '<h5>What this stage is about</h5><p>'+esc((STAGES[sel]&&STAGES[sel].d||'Track assigned work and required approvals.'))+' <span class="cx-more">'+esc((STAGES[sel]&&STAGES[sel].d)||'')+'.</span></p>'+
