@@ -1732,7 +1732,7 @@ document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' '
 function startApp(opts){
   db=opts.db;sampleFn=opts.sample;S.locked=!!opts.locked;S.me=opts.me;S.staff=opts.staff||'admin';if(S.locked){S.role='Candidate';S.cid=opts.caseId}
   var loaded={},startedAt=Date.now(),collections=['candidates','tasks','responses','log','docs'];
-  var loadWatch=setInterval(function(){if(S.ready||S.dberr){clearInterval(loadWatch);return}if(Date.now()-startedAt>12000){var missing=collections.filter(function(x){return !loaded[x]});S.dberr='Timed out loading: '+missing.join(', ')+'. Your case has not been changed. Please reload or contact support with this message.';clearInterval(loadWatch);schedule()}},1000);
+  var loadWatch=setInterval(function(){if(S.ready||S.dberr){clearInterval(loadWatch);return}if(Date.now()-startedAt>12000){var missing=collections.filter(function(x){return !loaded[x]});S.dberr='Timed out loading: '+missing.join(', ')+'. Your case has not been changed. Please reload or contact support with this message.';clearInterval(loadWatch);var node=document.getElementById('app');if(node)node.innerHTML='<div class="panel"><h2>Case loading timed out</h2><p>'+esc(S.dberr)+'</p><p>Diagnostic version: 2026-10-26-b</p></div>';schedule()}},1000);
   function sub(coll,key){
     db.collection(coll).onSnapshot(function(snap){
       S[key]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o});
