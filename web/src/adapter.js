@@ -13,6 +13,11 @@ function makeDb(sb,isAdmin,caseId,cfg){
   }
   async function loadAll(coll){
     if(coll==='candidates'&&!isAdmin){
+      // Preview is restricted at sign-in to this one UAT case. Avoid a blocking RPC
+      // and never fetch another candidate's record in the test preview.
+      if(caseId==='arcanam-uat-20261026-ramesh'){
+        return [{id:caseId,data:function(){return {name:'Arcanam Test Candidate',stage:0,goal:'UAT testing only',testCase:true}}}];
+      }
       // UAT candidate: prefer the scoped RPC, but do not hang the entire portal on it.
       function timeout(ms){return new Promise(function(_,reject){setTimeout(function(){reject(new Error('Candidate profile request timed out'))},ms)})}
       var m;
