@@ -278,6 +278,14 @@ function filingReadinessForecast(c,ts){
 }
 
 /* ----- case view ----- */
+function adminCaseOverview(c,ts){
+ var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=EB_CRITERIA.filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
+ var h='<div class="panel"><div class="ph"><div><h3>Case overview</h3><p class="small">Current stage: '+(st+1)+' of '+STAGES.length+' · '+esc(STAGES[st].n)+'</p></div>'+chip(caseProgress(c)+'% tasks completed')+'</div><div class="case-overview-stats"><div><b>'+open.length+'</b><small>Open tasks</small></div><div><b>'+candidate.length+'</b><small>Waiting on candidate</small></div><div><b>'+staff.length+'</b><small>Team actions</small></div><div><b>'+ready+' / 8</b><small>Evidence ready</small></div></div><h4>Next actions</h4>';
+ if(!open.length)h+='<p class="small">No open tasks recorded.</p>';
+ else h+='<div class="case-overview-actions">'+open.slice().sort(function(a,b){return (a.stage||0)-(b.stage||0)||(a.due||'9999').localeCompare(b.due||'9999')}).slice(0,8).map(function(t){return '<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Task')+'</b><small>Stage '+((t.stage||0)+1)+' · '+esc(t.owner||'Unassigned')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open task</button></div>'}).join('')+'</div>';
+ h+='<div class="addrow"><button class="btn pri sm" data-a="tab" data-id="tasks">Open case workflow</button><button class="btn sm" data-a="tab" data-id="criteria-tracker">Review criteria ('+active+' active)</button><button class="btn sm" data-a="tab" data-id="activity">Messages & activity</button></div></div>';
+ return h;
+}
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
   var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
@@ -293,10 +301,21 @@ function caseView(c){
   }
   h+=lanes(c,ts);
   h+=filingReadinessForecast(c,ts);
-  var tabs=[['tasks','Tasks'],['forms','Forms'],['docs','Documents'],['profile','Profile'],['pathway','Pathway screening'],['development','Evidence tracks'],['criteria-tracker','Criteria & Articles'],['niwcase','NIW case'],['strategy','Strategy'],['guide','Pathway guide'],['score','Scorecard'],['field','Field'],['plan','Plan'],['feas','Feasibility'],['activity','Messages and activity'+(awaitingReply(c.id)?' ('+awaitingReply(c.id).n+')':'')]];
+  var groups=[
+    ['overview','Overview',[['overview','Case overview']]],
+    ['workflow','Case workflow',[['tasks','Tasks & stages']]],
+    ['evidence','Criteria & evidence',[['criteria-tracker','Criteria & Articles'],['development','Evidence tracks']]],
+    ['records','Candidate records',[['profile','Profile'],['forms','Forms'],['docs','Documents']]],
+    ['management','Case management',[['strategy','Strategy'],['field','Field'],['plan','Plan'],['pathway','Pathway screening'],['score','Scorecard'],['feas','Feasibility'],['niwcase','NIW case'],['activity','Messages & activity'],['guide','Pathway guide']]]
+  ];
+  var group=groups.find(function(g){return g[2].some(function(t){return t[0]===S.tab})})||groups[0];
+  var tabs=groups.map(function(g){return [g[2][0][0],g[1],g[0]]});
   var awc=awaitingReply(c.id);if(awc&&S.tab!=='activity')h+='<div class="panel msgalert"><div><b>'+esc((c.name||'Candidate').split(' ')[0])+' sent '+(awc.n===1?'a message':awc.n+' messages')+'</b><div class="small">"'+esc(awc.last.text.length>110?awc.last.text.slice(0,110)+'...':awc.last.text)+'" · '+esc(agoStr(awc.last.ts))+'</div></div><button class="btn pri sm" data-a="openmsg" data-id="'+esc(c.id)+'">Reply</button></div>';
-  h+='<div class="nav tabs">'+tabs.map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div><div class="case-tab-content">';
-  if(S.tab==='tasks')h+=tasksTab(c,ts);
+  h+='<div class="nav tabs case-main-nav">'+tabs.map(function(t){return '<button class="tab'+(group[0]===t[2]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
+  if(group[2].length>1)h+='<div class="nav tabs case-sub-nav">'+group[2].map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
+  h+='<div class="case-tab-content">';
+  if(S.tab==='overview')h+=adminCaseOverview(c,ts);
+  else if(S.tab==='tasks')h+=tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
