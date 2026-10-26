@@ -367,6 +367,21 @@ function swStageDates(ts,i){
   var d=ts.filter(function(t){return t.stage===i&&t.due&&!/^speak-/.test(t.key||'')}).map(function(t){return t.due}).sort();
   return d.length?(d.length>1&&d[0]!==d[d.length-1]?swShort(d[0])+' – '+swShort(d[d.length-1]):swShort(d[0])):'';
 }
+function brokenDeps(ts){var keys={};ts.forEach(function(t){keys[t.key]=1});return ts.filter(function(t){return (t.deps||[]).some(function(k){return !keys[k]})})}
+function repairPlan(ts){
+  var by={};ts.forEach(function(t){by[t.key]=t});
+  return brokenDeps(ts).map(function(t){
+    var tp=TEMPLATE.find(function(x){return x.k===t.key}),want=(tp?(tp.deps||[]):(t.deps||[])).filter(function(k){return by[k]});
+    var unmet=want.filter(function(k){return !isDone(by[k].status)});
+    return {t:t,deps:want,status:(t.status==='Not started'&&!unmet.length)?'To do':t.status};
+  });
+}
+function repairPanel(c,ts){
+  if(S.staff!=='admin')return '';
+  var p=repairPlan(ts);if(!p.length)return '';
+  var ask=S.confirmRepair===c.id;
+  return '<div class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px"><div><b>'+p.length+(p.length===1?' step waits':' steps wait')+' on a prerequisite that does not exist on this case</b><div class="small">'+esc(p.map(function(x){return x.t.title}).join('; '))+'. Repairing points each one back to its proper prerequisite and opens it if that is done. Nothing else changes.</div></div><div class="chips">'+(ask?'<button class="btn pri sm" data-a="repair-yes">Yes, repair '+p.length+(p.length===1?' step':' steps')+'</button><button class="btn sm" data-a="repair-no">Cancel</button>':'<button class="btn pri sm" data-a="repair-ask">Repair steps</button>')+'</div></div>';
+}
 function commentsTab(c){return '<div id="adm-msg">'+messagesPanel(c,true)+'</div>'+(S.staff==='admin'?costPanel(c):'')}
 function historyTab(c){
   var l=S.log.filter(function(x){return x.cid===c.id&&!(x.kind==='note'&&!x.tid)}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
@@ -435,6 +450,7 @@ function caseView(c){
     if(S.tab==='steps'){
       var have={};ts.forEach(function(t){have[t.key]=1});var miss=TEMPLATE.filter(function(t){return !have[t.k]});
       if(miss.length&&S.staff==='admin')main+='<div class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px"><div><b>'+miss.length+' newer workflow steps are not on this case yet</b><div class="small">For example the monthly article steps and optional speaking. Adding them keeps all your existing work. Nothing is removed or changed.</div></div><button class="btn pri sm" data-a="sync-tpl">Add the '+miss.length+' missing steps</button></div>';
+      main+=repairPanel(c,ts);
       main+='<div class="sw-rh"><h3>Steps</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div>'+swRows(c,grp,true)+
         '<div class="panel"><h3>Add a task</h3><div class="addrow"><input type="text" data-draft="tt" placeholder="Task title" value="'+esc(S.draft.tt||'')+'"><select data-draft="to">'+options(OWNERS,S.draft.to||'Advisor')+'</select><input type="date" data-draft="td" value="'+esc(S.draft.td||'')+'"><button class="btn" data-a="task-add">Add</button></div></div>';
     }else if(S.tab==='details'){
@@ -1699,6 +1715,9 @@ document.addEventListener('click',async function(e){
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='steps';S.swSelCid=tk.cid;S.swSel=tk.stage;S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
       case 'cvphase':S.cvp=+id;break;
       case 'ctab':S.ctab=id;break;
+      case 'repair-ask':S.confirmRepair=c.id;break;
+      case 'repair-no':S.confirmRepair=null;break;
+      case 'repair-yes':{if(S.staff!=='admin'||!c)return;S.confirmRepair=null;try{var pl=repairPlan(tasksOf(c.id));for(var ri=0;ri<pl.length;ri++){var rp=pl[ri];await db.doc('tasks/'+rp.t.id).update({deps:rp.deps});if(rp.status!==rp.t.status)await setStatus(rp.t,rp.status)}if(pl.length)await log(c.id,'Repaired '+pl.length+(pl.length===1?' step':' steps')+' that waited on a missing prerequisite: '+pl.map(function(x){return x.t.title}).join('; ')+'.','case');say('Repaired '+pl.length+(pl.length===1?' step.':' steps.'),'ok')}catch(e){fail(e)}break}
       case 'swsel':S.swSelCid=c.id;S.swSel=+id;if(SW_WS.indexOf(S.tab)<0)S.tab='steps';break;
       case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
       case 'cvscroll':{S.ctab=/msg/.test(id)?'comments':'docs';S.focusSw=true;break}
