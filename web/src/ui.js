@@ -280,30 +280,32 @@ function filingReadinessForecast(c,ts){
 /* ----- case view ----- */
 function adminStageWorkspace(c,ts){
  // Read-only projection: never rewrite original task IDs, stages, statuses or evidence.
- var explicit={foew:3,foe:3,'foe-ai':3,'foe-mkt':3,'foe-mkt-ok':3,analysis:3,review:3,'art-topic':4,art1:5,art2:5,art3:5,art4:5,art5:5,art6:5,'judge-apply':5,f10:2,r10:2};
- function projectedStage(t){return Object.prototype.hasOwnProperty.call(explicit,t.key)?explicit[t.key]:Math.max(0,Math.min(8,Number(t.stage)||0))}
- var stages=[
-  {n:'Onboarding',old:[0]},
-  {n:'Profile Intake',old:[1]},
-  {n:'Project Intake',old:[2]},
-  {n:'FOE Lock',old:[3]},
-  {n:'Criteria Strategy',old:[4]},
-  {n:'Evidence Build',old:[5]},
-  {n:'Final Review',old:[6]},
-  {n:'Attorney Handover',old:[7]},
-  {n:'Filing',old:[8]}
- ];
+ function projectedStage(t){return pathwayV2Stage(t)}
+ var stages=PATHWAY_V2_STAGES.map(function(name){return {n:name}});
  var st=Math.max(0,Math.min(stages.length-1,c.stage||0));
  var h='<div class="panel"><div class="ph"><div><h3>Candidate pathway</h3><p class="small">Nine stages · existing tasks and submissions retained. Expand a stage to see assigned steps.</p></div>'+chip(caseProgress(c)+'% of existing tasks complete')+'</div>';
- h+='<p class="small">Tasks are grouped by the new pathway without changing saved stages, status, evidence or history. Mapping is provisional pending supervisor review.</p>';
+ h+='<p class="small">Legacy task mapping is display-only until a supervisor approves a permanent mapping. Existing task records have not been moved.</p>';
+ h+=pathwayV2Controls(c,ts);
  stages.forEach(function(stage,i){
  var steps=ts.filter(function(t){return projectedStage(t)===i}),done=steps.filter(function(t){return isDone(t.status)}).length;
  h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(stage.n)+'</b><small>'+((i<st)?'Earlier stage':i===st?'Current recorded stage':'Upcoming stage')+'</small></span><span class="small">'+done+' of '+steps.length+' complete</span></summary><div class="case-stage-steps">';
  if(!steps.length)h+='<p class="small">No existing steps assigned to this stage.</p>';
- steps.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(ownerLabel(t.owner||'Unassigned'))+' · '+esc(t.status||'Not started')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></div>'});
+ steps.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(pathwayV2Role(t.owner||'Candidate'))+' · '+esc(t.status||'Not started')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></div>'});
  h+='</div></details>';
  });
  return h+'</div>';
+}
+
+function pathwayV2Controls(c,ts){
+ var lock=pathwayV2Gate(c,'foe'),ready=pathwayV2Readiness(c,ts),approved=pathwayV2Evidence(c);
+ var h='<div class="entry"><h4>Approval gates and filing readiness</h4><div class="chips">'+chip(lock?'FOE approved':'FOE awaiting approval',lock?'ok':'gate')+chip(approved.length+' approved evidence tracks',approved.length?'ok':'gate')+chip(ready.ready?'Ready for attorney handover':'Readiness checks open',ready.ready?'ok':'mid')+'</div>';
+ h+='<p class="small">Only an approved criteria strategy bound to the currently locked field can activate Evidence Build. Earlier evidence stays in the record, even if not selected.</p>';
+ if(!lock)h+='<p class="small">FOE approval requires supervisor eligibility review and verified source documentation in Field.</p>';
+ if(!approved.length)h+='<p class="small">No criteria are approved for Evidence Build yet. Complete FOE Lock and approve the strategy in Scorecard before proceeding.</p>';
+ else h+='<p><b>Active evidence tracks:</b> '+approved.map(function(x){return esc(x[1])}).join(', ')+'</p>';
+ if(ready.issues.length)h+='<details><summary>Readiness blockers ('+ready.issues.length+')</summary><ul>'+ready.issues.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></details>';
+ h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="field">Review FOE</button><button class="btn sm" data-a="tab" data-id="score">Approve criteria</button><button class="btn sm" data-a="tab" data-id="criteria-tracker">Open evidence</button></div></div>';
+ return h;
 }
 function adminCaseOverview(c,ts){
  var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=EB_CRITERIA.filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
@@ -394,14 +396,14 @@ function ebArticlePanel(c,readonly){
  return h+'</div>';
 }
 function ebTrackerPanel(c,readonly){
- var records=ebRecords(c),complete=EB_CRITERIA.filter(function(x){return (records[x[0]]||{}).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf((records[x[0]]||{}).status)>=0}).length;
- var h='<div class="panel eb-tracker"><div class="ph"><h3>'+(readonly?'My profile development':'EB-1A Criteria & Evidence')+'</h3>'+chip(complete+' evidence ready','ok')+'</div><p class="small">'+(readonly?'Track candidate-visible development work and publications.':'Plan, assign and track criteria independently from the nine-stage case lifecycle.')+' Progress measures documented work, not immigration eligibility or approval likelihood.</p><div class="eb-stats"><div><b>8</b><small>Criteria categories</small></div><div><b>'+active+'</b><small>In progress</small></div><div><b>'+complete+'</b><small>Evidence ready</small></div></div>';
- EB_CRITERIA.forEach(function(x){
+ var records=ebRecords(c),scope=pathwayV2Evidence(c),complete=scope.filter(function(x){return (records[x[0]]||{}).status==='Evidence ready'}).length,active=scope.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf((records[x[0]]||{}).status)>=0}).length;
+ var h='<div class="panel eb-tracker"><div class="ph"><h3>'+(readonly?'My profile development':'EB-1A Criteria & Evidence')+'</h3>'+chip(complete+' evidence ready','ok')+'</div><p class="small">'+(readonly?'Track candidate-visible development work and publications.':'Plan, assign and track criteria independently from the nine-stage case lifecycle.')+' Progress measures documented work, not immigration eligibility or approval likelihood.</p>'+(scope.length?'':'<p class="small">Evidence Build is awaiting approval of selected criteria for the currently locked FOE. Existing records remain saved and unchanged.</p>')+'<div class="eb-stats"><div><b>'+scope.length+'</b><small>Criteria categories</small></div><div><b>'+active+'</b><small>In progress</small></div><div><b>'+complete+'</b><small>Evidence ready</small></div></div>';
+ scope.forEach(function(x){
  var v=ebCriterion(c,x[0]);if(readonly&&v.candidateVisible===false)return;
  var step=Math.max(0,Math.min(5,+v.step||0));
  h+='<details class="eb-item"'+(S.ebOpen===x[0]&&!readonly?' open':'')+'><summary><span><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span>'+chip(v.status||'Not started',v.status==='Evidence ready'?'ok':'mid')+'</summary><div class="eb-item-body"><p class="small"><b>Current step:</b> '+esc(EB_STEPS[step])+' · <b>Responsible:</b> '+esc(v.owner||(readonly?'Advisory team':'Unassigned'))+'</p><div class="eb-step-track">'+EB_STEPS.map(function(n,i){return '<span class="'+(i<step?'complete':i===step?'current':'')+'">'+(i+1)+'. '+esc(n)+'</span>'}).join('')+'</div>'+(v.plan?'<p><b>Plan:</b> '+esc(v.plan)+'</p>':'')+(readonly?'':'<div class="eb-fields"><label>Status<select data-eb-field="status" data-eb-key="'+x[0]+'">'+options(EB_STATUS,v.status||'Not started')+'</select></label><label>Current step<select data-eb-field="step" data-eb-key="'+x[0]+'">'+EB_STEPS.map(function(n,i){return '<option value="'+i+'"'+(i===step?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select></label><label>Assigned owner<input data-eb-field="owner" data-eb-key="'+x[0]+'" value="'+esc(v.owner||'')+'"></label><label>Strategy / next actions<textarea data-eb-field="plan" data-eb-key="'+x[0]+'">'+esc(v.plan||'')+'</textarea></label><label><input type="checkbox" data-eb-field="candidateVisible" data-eb-key="'+x[0]+'"'+(v.candidateVisible!==false?' checked':'')+'> Visible to candidate</label><button class="btn pri sm" data-a="eb-save-criterion" data-id="'+x[0]+'">Save criterion</button></div>')+'</div></details>';
  });
- h+=ebArticlePanel(c,readonly);return h+'</div>';
+ if(scope.some(function(x){return x[0]==='articles'}))h+=ebArticlePanel(c,readonly);return h+'</div>';
 }
 var PATHWAY_REQUIREMENTS={
  niw:[
@@ -1609,15 +1611,17 @@ document.addEventListener('click',async function(e){
       case 'eb-cancel-article':S.ebArticleEdit=null;S.ebArticleDraft=null;break;
       case 'eb-save-article':{
         if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
+        if(!pathwayV2Evidence(c).some(function(x){return x[0]==='articles'})){say('Approve scholarly articles under Criteria Strategy first.','err');break}
         var val=function(k){return (document.getElementById(k)||{}).value||''},title=val('eb-title').trim(),status=val('eb-status'),pub=val('eb-published');
         if(!title){say('Article title is required.','err');break}
         if(status==='Published'&&!pub){say('Published articles require a publication date.','err');break}
-        var list=ebArticleRows(c).slice(),article={title:title,candidate:val('eb-candidate').trim()||c.name,abstract:val('eb-abstract').trim(),keywords:val('eb-keywords').trim(),journal:val('eb-journal').trim(),status:status,publishedDate:status==='Published'?pub:null};
+        var list=ebArticleRows(c).slice(),prior=Number.isInteger(S.ebArticleEdit)?list[S.ebArticleEdit]:null,article=Object.assign({},prior||{},{title:title,candidate:val('eb-candidate').trim()||c.name,abstract:val('eb-abstract').trim(),keywords:val('eb-keywords').trim(),journal:val('eb-journal').trim(),status:status,publishedDate:status==='Published'?pub:null,updatedAt:nowIso()});
         if(Number.isInteger(S.ebArticleEdit)&&list[S.ebArticleEdit])list[S.ebArticleEdit]=article;else list.push(article);
         await candRef(c.id).update({scholarlyArticles:list});c.scholarlyArticles=list;S.ebArticleEdit=null;S.ebArticleDraft=null;say('Scholarly article saved.','ok');break;
       }
       case 'eb-save-criterion':{
         if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
+        if(!pathwayV2Evidence(c).some(function(x){return x[0]===id})){say('Approve this criterion in Criteria Strategy first.','err');break}
         var root=document.querySelector('[data-eb-field="status"][data-eb-key="'+id+'"]');if(!root)break;
         var field=function(n){return document.querySelector('[data-eb-field="'+n+'"][data-eb-key="'+id+'"]')},old=ebCriterion(c,id);
         var entry={status:field('status').value,step:Number(field('step').value),owner:field('owner').value.trim(),plan:field('plan').value.trim(),candidateVisible:field('candidateVisible').checked,updatedAt:new Date().toISOString()};
