@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'web/src/ui.js'
+      - 'web/src/pathway-v2.js'
+      - 'tests/pathway-v2.test.cjs'
+      - 'web/build.py'
       - 'tests/evidence-intelligence.test.cjs'
       - '.github/workflows/evidence-intelligence.yml'
   push:
@@ -23,4 +26,7 @@ jobs:
         with:
           node-version: '22'
       - run: node --check web/src/ui.js
+      - run: node --check web/src/pathway-v2.js
+      - run: node --test tests/pathway-v2.test.cjs
+      - run: python3 web/build.py
       - run: node --test tests/evidence-intelligence.test.cjs
