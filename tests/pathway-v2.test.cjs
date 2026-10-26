@@ -44,3 +44,9 @@ test('article edits preserve original metadata',()=>{
 test('no automatic writes or destructive migrations in compatibility module',()=>{
  assert.doesNotMatch(source,/\.update\(|\.delete\(|\.insert\(|\.rpc\(|drop table|truncate/i);
 });
+
+test('nine-stage candidate schedule has a duration and label for every stage',()=>{
+ assert.match(ui,/var PLAN=\[10,14,35,21,21,75,34,14,14\]/);
+ assert.match(ui,/sg=\{n:PATHWAY_V2_STAGES\[st\]\}/);
+ assert.match(ui,/pathwayV2Stage\(t\)===si/);
+});
