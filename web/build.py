@@ -2,7 +2,7 @@
 import os
 d=os.path.dirname(os.path.abspath(__file__))
 r=lambda n:open(os.path.join(d,'src',n)).read()
-js='\n'.join(r(n) for n in ['brand.js','defs.js','engine.js','pathway-v2.js','ui.js','adapter.js','main.js'])
+js='\n'.join(r(n) for n in ['brand.js','defs.js','engine.js','pathway-v2.js','ui.js','candidate-stage-v2.js','adapter.js','main.js'])
 html='''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Arcanam Pathway</title>
