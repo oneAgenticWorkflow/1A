@@ -279,68 +279,35 @@ function filingReadinessForecast(c,ts){
 
 /* ----- case view ----- */
 function adminStageWorkspace(c,ts){
- // Pega-style stage / step workspace: read-only projection of real task records.
- // Do not migrate, delete, rename or automatically complete any existing step.
- var stages=PATHWAY_V2_STAGES,st=Math.max(0,Math.min(8,Number(c.stage)||0));
- var approved=pathwayV2Approved(c)||[],approvedNames=pathwayV2Evidence(c).map(function(x){return x[1]});
- var total=ts.filter(function(t){return !t.draft}),finished=total.filter(function(t){return isDone(t.status)}).length;
- var h='<div class="panel pathway-workspace"><div class="ph"><div><h3>Case life cycle</h3><p class="small">Nine-stage case management · open a stage to manage its steps, owners, status and due dates.</p></div>'+chip(finished+' / '+total.length+' steps complete')+'</div>';
- h+='<div class="case-overview-stats"><div><b>'+String(st+1).padStart(2,'0')+' / 09</b><small>Recorded stage</small></div><div><b>'+total.filter(function(t){return !isDone(t.status)&&t.status!=='Skipped'}).length+'</b><small>Open steps</small></div><div><b>'+total.filter(function(t){return t.owner==='Candidate'&&!isDone(t.status)}).length+'</b><small>Candidate actions</small></div><div><b>'+approvedNames.length+'</b><small>Approved evidence tracks</small></div></div>';
- h+='<p class="small">Task status and due dates are taken from the existing case. Internal steps are visible to authorized staff only; candidates see their own visible steps. No historical records are changed.</p>';
- h+=pathwayV2Controls(c,ts);
- stages.forEach(function(name,i){
-   var steps=total.filter(function(t){return pathwayV2Stage(t)===i}).sort(function(a,b){
-     var ad=isDone(a.status)?1:0,bd=isDone(b.status)?1:0;
-     return ad-bd||(a.due||'9999').localeCompare(b.due||'9999')||(a.title||'').localeCompare(b.title||'');
-   });
-   var done=steps.filter(function(t){return isDone(t.status)}).length;
-   var state=i<st?'Earlier stage':i===st?'Current stage':'Upcoming stage';
-   var gate=i===3?'FOE approval gate':i===4?'Criteria approval gate':i===6?'Evidence review gate':i===7?'Attorney handover gate':i===8?'Filing milestone':'';
-   var ready=i===5&&approved.length===0;
-   h+='<details class="case-stage-detail"'+(i===st||steps.some(function(t){return !!S.open[t.id]})?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(name)+'</b><small>'+state+(gate?' · '+gate:'')+'</small></span><span class="small">'+done+' / '+steps.length+' complete'+(ready?' · Awaiting criteria approval':'')+'</span></summary><div class="case-stage-steps">';
-   if(ready)h+='<p class="small">Evidence Build is gated until the FOE and criteria strategy are approved. Existing historical tasks remain listed for staff reference; they are not automatically activated.</p>';
-   if(i===5&&approvedNames.length)h+='<p class="small"><b>Approved criteria:</b> '+approvedNames.map(esc).join(', ')+'</p>';
-   // Stage-local work surfaces reuse existing forms, private documents and collaboration.
-   // No new storage or task status transitions are introduced.
-   var stageForms=steps.filter(function(t){return t.kind==='form'&&t.form});
-   var stageFiles=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'&&steps.some(function(t){return d.tid===t.id||d.taskId===t.id})});
-   var stageNotes=S.log.filter(function(n){return n.cid===c.id&&n.kind==='note'&&steps.some(function(t){return n.tid===t.id})});
-   h+='<div class="addrow"><span class="chip">'+stageForms.length+' forms</span><span class="chip">'+stageFiles.length+' linked documents</span><span class="chip">'+stageNotes.length+' step comments</span></div>';
-   h+='<details><summary>Forms in this stage ('+stageForms.length+')</summary><div class="case-stage-steps">';
-   if(!stageForms.length)h+='<p class="small">No forms assigned to this stage.</p>';
-   stageForms.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||'Form')+'</b><small>'+esc(t.owner||'Candidate')+' · '+esc(t.status||'Not started')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open form step</button></div>'});
-   h+='</div></details>';
-   h+='<details><summary>Documents ('+stageFiles.length+' linked)</summary><div class="case-stage-steps">';
-   if(!stageFiles.length)h+='<p class="small">No documents directly linked to steps in this stage. Other case files remain in Candidate records → Documents.</p>';
-   stageFiles.forEach(function(d){h+='<div class="case-overview-action"><span><b>'+esc(d.name||'Document')+'</b><small>'+esc(d.by||'')+'</small></span><button class="btn sm" data-a="getfile" data-path="'+esc(d.path||'')+'">Open</button></div>'});
-   h+='<button class="btn sm" data-a="tab" data-id="docs">Open case documents</button></div></details>';
-   h+='<details><summary>Comments ('+stageNotes.length+')</summary><div class="case-stage-steps">';
-   if(!stageNotes.length)h+='<p class="small">No step comments in this stage.</p>';
-   stageNotes.slice(-12).forEach(function(n){h+='<div class="note"><span class="small">'+esc(fmt(n.ts))+'</span> '+esc(n.text||'')+(n.shared?' · Shared with candidate':' · Internal')+'</div>'});
-   h+='<p class="small">Open an individual step to add a comment, choose whether to share it with the candidate, and save it to the case activity history.</p><button class="btn sm" data-a="tab" data-id="activity">Open case messages</button></div></details>';
-   if(!steps.length)h+='<p class="small">No case steps assigned to this stage yet.</p>';
-   steps.forEach(function(t){
-     h+=taskRow(c,t);
-   });
-   h+='</div></details>';
+ // Read-only projection: never rewrite original task IDs, stages, statuses or evidence.
+ var explicit={foew:3,foe:3,'foe-ai':3,'foe-mkt':3,'foe-mkt-ok':3,analysis:3,review:3,'art-topic':4,art1:5,art2:5,art3:5,art4:5,art5:5,art6:5,'judge-apply':5,f10:2,r10:2};
+ function projectedStage(t){return Object.prototype.hasOwnProperty.call(explicit,t.key)?explicit[t.key]:Math.max(0,Math.min(8,Number(t.stage)||0))}
+ var stages=[
+  {n:'Onboarding',old:[0]},
+  {n:'Profile Intake',old:[1]},
+  {n:'Project Intake',old:[2]},
+  {n:'FOE Lock',old:[3]},
+  {n:'Criteria Strategy',old:[4]},
+  {n:'Evidence Build',old:[5]},
+  {n:'Final Review',old:[6]},
+  {n:'Attorney Handover',old:[7]},
+  {n:'Filing',old:[8]}
+ ];
+ var st=Math.max(0,Math.min(stages.length-1,c.stage||0));
+ var h='<div class="panel"><div class="ph"><div><h3>Candidate pathway</h3><p class="small">Nine stages · existing tasks and submissions retained. Expand a stage to see assigned steps.</p></div>'+chip(caseProgress(c)+'% of existing tasks complete')+'</div>';
+ h+='<p class="small">Tasks are grouped by the new pathway without changing saved stages, status, evidence or history. Mapping is provisional pending supervisor review.</p>';
+ stages.forEach(function(stage,i){
+ var steps=ts.filter(function(t){return projectedStage(t)===i}),done=steps.filter(function(t){return isDone(t.status)}).length;
+ h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(stage.n)+'</b><small>'+((i<st)?'Earlier stage':i===st?'Current recorded stage':'Upcoming stage')+'</small></span><span class="small">'+done+' of '+steps.length+' complete</span></summary><div class="case-stage-steps">';
+ if(!steps.length)h+='<p class="small">No existing steps assigned to this stage.</p>';
+ steps.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(ownerLabel(t.owner||'Unassigned'))+' · '+esc(t.status||'Not started')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></div>'});
+ h+='</div></details>';
  });
  return h+'</div>';
 }
-
-function pathwayV2Controls(c,ts){
- var lock=pathwayV2Gate(c,'foe'),ready=pathwayV2Readiness(c,ts),approved=pathwayV2Evidence(c);
- var h='<div class="entry"><h4>Approval gates and filing readiness</h4><div class="chips">'+chip(lock?'FOE approved':'FOE awaiting approval',lock?'ok':'gate')+chip(approved.length+' approved evidence tracks',approved.length?'ok':'gate')+chip(ready.ready?'Ready for attorney handover':'Readiness checks open',ready.ready?'ok':'mid')+'</div>';
- h+='<p class="small">Only an approved criteria strategy bound to the currently locked field can activate Evidence Build. Earlier evidence stays in the record, even if not selected.</p>';
- if(!lock)h+='<p class="small">FOE approval requires supervisor eligibility review and verified source documentation in Field.</p>';
- if(!approved.length)h+='<p class="small">No criteria are approved for Evidence Build yet. Complete FOE Lock and approve the strategy in Scorecard before proceeding.</p>';
- else h+='<p><b>Active evidence tracks:</b> '+approved.map(function(x){return esc(x[1])}).join(', ')+'</p>';
- if(ready.issues.length)h+='<details><summary>Readiness blockers ('+ready.issues.length+')</summary><ul>'+ready.issues.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')+'</ul></details>';
- h+='<div class="addrow"><button class="btn sm" data-a="tab" data-id="field">Review FOE</button><button class="btn sm" data-a="tab" data-id="score">Approve criteria</button><button class="btn sm" data-a="tab" data-id="criteria-tracker">Open evidence</button></div></div>';
- return h;
-}
 function adminCaseOverview(c,ts){
- var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=pathwayV2Evidence(c).filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=pathwayV2Evidence(c).filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
- var h='<div class="panel"><div class="ph"><div><h3>Case overview</h3><p class="small">Current stage: '+(st+1)+' of '+STAGES.length+' · '+esc(STAGES[st].n)+'</p></div>'+chip(caseProgress(c)+'% tasks completed')+'</div><div class="case-overview-stats"><div><b>'+open.length+'</b><small>Open tasks</small></div><div><b>'+candidate.length+'</b><small>Waiting on candidate</small></div><div><b>'+staff.length+'</b><small>Team actions</small></div><div><b>'+ready+' / '+pathwayV2Evidence(c).length+'</b><small>Evidence ready</small></div></div><h4>Next actions</h4>';
+ var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=EB_CRITERIA.filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
+ var h='<div class="panel"><div class="ph"><div><h3>Case overview</h3><p class="small">Current stage: '+(st+1)+' of '+STAGES.length+' · '+esc(STAGES[st].n)+'</p></div>'+chip(caseProgress(c)+'% tasks completed')+'</div><div class="case-overview-stats"><div><b>'+open.length+'</b><small>Open tasks</small></div><div><b>'+candidate.length+'</b><small>Waiting on candidate</small></div><div><b>'+staff.length+'</b><small>Team actions</small></div><div><b>'+ready+' / 8</b><small>Evidence ready</small></div></div><h4>Next actions</h4>';
  if(!open.length)h+='<p class="small">No open tasks recorded.</p>';
  else h+='<div class="case-overview-actions">'+open.slice().sort(function(a,b){return (a.stage||0)-(b.stage||0)||(a.due||'9999').localeCompare(b.due||'9999')}).slice(0,8).map(function(t){return '<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Task')+'</b><small>Stage '+((t.stage||0)+1)+' · '+esc(t.owner||'Unassigned')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open task</button></div>'}).join('')+'</div>';
  h+='<div class="addrow"><button class="btn pri sm" data-a="tab" data-id="tasks">Open case workflow</button><button class="btn sm" data-a="tab" data-id="criteria-tracker">Review criteria ('+active+' active)</button><button class="btn sm" data-a="tab" data-id="activity">Messages & activity</button></div></div>';
@@ -375,7 +342,7 @@ function caseView(c){
   if(group[2].length>1)h+='<div class="nav tabs case-sub-nav">'+group[2].map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
   h+='<div class="case-tab-content">';
   if(S.tab==='overview')h+=adminCaseOverview(c,ts);
-  else if(S.tab==='tasks')h+=adminStageWorkspace(c,ts);
+  else if(S.tab==='tasks')h+=adminStageWorkspace(c,ts)+tasksTab(c,ts);
   else if(S.tab==='forms')h+=formsTab(c);
   else if(S.tab==='docs')h+=docsPanel(c,true);
   else if(S.tab==='profile')h+=profileTab(c);
@@ -427,14 +394,14 @@ function ebArticlePanel(c,readonly){
  return h+'</div>';
 }
 function ebTrackerPanel(c,readonly){
- var records=ebRecords(c),scope=pathwayV2Evidence(c),complete=scope.filter(function(x){return (records[x[0]]||{}).status==='Evidence ready'}).length,active=scope.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf((records[x[0]]||{}).status)>=0}).length;
- var h='<div class="panel eb-tracker"><div class="ph"><h3>'+(readonly?'My profile development':'EB-1A Criteria & Evidence')+'</h3>'+chip(complete+' evidence ready','ok')+'</div><p class="small">'+(readonly?'Track candidate-visible development work and publications.':'Plan, assign and track criteria independently from the nine-stage case lifecycle.')+' Progress measures documented work, not immigration eligibility or approval likelihood.</p>'+(scope.length?'':'<p class="small">Evidence Build is awaiting approval of selected criteria for the currently locked FOE. Existing records remain saved and unchanged.</p>')+'<div class="eb-stats"><div><b>'+scope.length+'</b><small>Criteria categories</small></div><div><b>'+active+'</b><small>In progress</small></div><div><b>'+complete+'</b><small>Evidence ready</small></div></div>';
- scope.forEach(function(x){
+ var records=ebRecords(c),complete=EB_CRITERIA.filter(function(x){return (records[x[0]]||{}).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf((records[x[0]]||{}).status)>=0}).length;
+ var h='<div class="panel eb-tracker"><div class="ph"><h3>'+(readonly?'My profile development':'EB-1A Criteria & Evidence')+'</h3>'+chip(complete+' evidence ready','ok')+'</div><p class="small">'+(readonly?'Track candidate-visible development work and publications.':'Plan, assign and track criteria independently from the nine-stage case lifecycle.')+' Progress measures documented work, not immigration eligibility or approval likelihood.</p><div class="eb-stats"><div><b>8</b><small>Criteria categories</small></div><div><b>'+active+'</b><small>In progress</small></div><div><b>'+complete+'</b><small>Evidence ready</small></div></div>';
+ EB_CRITERIA.forEach(function(x){
  var v=ebCriterion(c,x[0]);if(readonly&&v.candidateVisible===false)return;
  var step=Math.max(0,Math.min(5,+v.step||0));
  h+='<details class="eb-item"'+(S.ebOpen===x[0]&&!readonly?' open':'')+'><summary><span><b>'+esc(x[1])+'</b><small>'+esc(x[2])+'</small></span>'+chip(v.status||'Not started',v.status==='Evidence ready'?'ok':'mid')+'</summary><div class="eb-item-body"><p class="small"><b>Current step:</b> '+esc(EB_STEPS[step])+' · <b>Responsible:</b> '+esc(v.owner||(readonly?'Advisory team':'Unassigned'))+'</p><div class="eb-step-track">'+EB_STEPS.map(function(n,i){return '<span class="'+(i<step?'complete':i===step?'current':'')+'">'+(i+1)+'. '+esc(n)+'</span>'}).join('')+'</div>'+(v.plan?'<p><b>Plan:</b> '+esc(v.plan)+'</p>':'')+(readonly?'':'<div class="eb-fields"><label>Status<select data-eb-field="status" data-eb-key="'+x[0]+'">'+options(EB_STATUS,v.status||'Not started')+'</select></label><label>Current step<select data-eb-field="step" data-eb-key="'+x[0]+'">'+EB_STEPS.map(function(n,i){return '<option value="'+i+'"'+(i===step?' selected':'')+'>'+esc(n)+'</option>'}).join('')+'</select></label><label>Assigned owner<input data-eb-field="owner" data-eb-key="'+x[0]+'" value="'+esc(v.owner||'')+'"></label><label>Strategy / next actions<textarea data-eb-field="plan" data-eb-key="'+x[0]+'">'+esc(v.plan||'')+'</textarea></label><label><input type="checkbox" data-eb-field="candidateVisible" data-eb-key="'+x[0]+'"'+(v.candidateVisible!==false?' checked':'')+'> Visible to candidate</label><button class="btn pri sm" data-a="eb-save-criterion" data-id="'+x[0]+'">Save criterion</button></div>')+'</div></details>';
  });
- if(scope.some(function(x){return x[0]==='articles'}))h+=ebArticlePanel(c,readonly);return h+'</div>';
+ h+=ebArticlePanel(c,readonly);return h+'</div>';
 }
 var PATHWAY_REQUIREMENTS={
  niw:[
@@ -1244,19 +1211,18 @@ function candidateView(c){
   var ts=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft&&t.req!==false||(t.owner==='Candidate'&&!t.draft&&t.status!=='Not started')});
   var h=S.locked?'':'<div class="candbar"><span class="chip gate">Candidate view (preview)</span> <button class="btn sm" data-a="asAdv">Back to admin view</button></div>';
   if(S.openForm){return h+formEditor(c,S.form)}
-  var LCN=9,st=Math.min(Math.max(0,c.stage||0),LCN-1);
-  if(!tasksOf(c.id).length)st=0;
+  var LCN=7,st=Math.min(c.stage||0,LCN-1);
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
-  var pct=caseProgress(c),sel=Math.min(Math.max(0,S.cvp!==undefined?S.cvp:st),LCN-1),sg={n:PATHWAY_V2_STAGES[st]};
+  var pct=caseProgress(c),sel=Math.min(S.cvp!==undefined?S.cvp:st,LCN),sg=CV_STAGES[st];
   var allc=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft});
   /* Live schedule: 7 months in total, split across the 7 stages. Finished stages use real finish dates,
      the current stage slips by the number of days an open task is overdue, and every later stage moves with it. */
-  var PLAN=[10,14,35,21,21,75,34,14,14],DAY=864e5,iso=function(d){return d.toISOString().slice(0,10)},addD=function(x,n){var d=new Date(x+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+Math.round(n));return iso(d)},tod=iso(new Date());
+  var PLAN=[10,14,35,21,21,75,34],DAY=864e5,iso=function(d){return d.toISOString().slice(0,10)},addD=function(x,n){var d=new Date(x+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+Math.round(n));return iso(d)},tod=iso(new Date());
   var base=(c.startDate||c.createdAt||tod).slice(0,10),cur=base,sched=[];
   for(var si=0;si<LCN;si++){
-    var inS=allc.filter(function(t){return pathwayV2Stage(t)===si}),plan=PLAN[si],e;
+    var inS=allc.filter(function(t){return t.stage===si}),plan=PLAN[si],e;
     if(si<st){var dn=inS.map(function(t){return (t.doneAt||'').slice(0,10)}).filter(Boolean).sort();e=dn.length&&dn[dn.length-1]>cur?dn[dn.length-1]:addD(cur,plan);if(e>tod)e=tod}
     else if(si===st){var open=inS.filter(function(t){return !isDone(t.status)&&t.status!=='Skipped'}),late=0;
       open.forEach(function(t){if(t.due&&t.due<tod)late=Math.max(late,Math.round((new Date(tod)-new Date(t.due))/DAY))});
@@ -1276,24 +1242,44 @@ function candidateView(c){
     '<dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl><p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p>'+
     '</div>'+
     '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
+  /* fast track to the first article */
+  var ftf=['f1','f2','f3'].map(function(k){return allc.filter(function(t){return t.form===k})[0]}).filter(Boolean);
+  var ftLeft=ftf.filter(function(t){return !isDone(t.status)});
+  if(ftf.length&&ftLeft.length&&st<=3){var ftBy=addD(base,18);
+    h+='<section class="cx-fast"><div class="cx-fh"><b>Fast track to your first article</b><span>Target: all three intake forms by '+esc(fmtDate(ftBy).replace(/, \d{4}$/,''))+'</span></div><p>We publish one article a month, and your first one can only start once we know your background, your projects and your publication record. Finishing these three early keeps your whole schedule on time.</p><ul>'+ftf.map(function(t){
+      var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';
+      return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><b>'+esc(cxName(t))+'</b><small>'+(d2?'Completed':open?'Ready for you. Start it under What to do now.':'Opens as soon as your profile is reviewed')+'</small>'+'</li>'}).join('')+'</ul></section>';}
+  /* tasks */
+  h+='<section class="cx-sec" id="cx-todo"><div class="cx-sh"><h3>What to do now</h3>'+(now.length?chip(now.length+(now.length===1?' task':' tasks'),'gate'):chip('Nothing due','ok'))+'</div>';
+  if(now.length){now.forEach(function(t){h+=cxTask(c,t)})}
+  else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'Our team is working on your case. New tasks will appear here.')+'</p></div></div>'}
+  h+='</section>';
+  /* all intake forms in one place */
+  var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&t.stage<LCN}).sort(function(a,b){return a.stage-b.stage||(a.form<b.form?-1:1)});
+  if(fm.length){h+='<details class="cx-sec cx-details" id="cx-forms"><summary><b>Your forms</b><small>'+fm.filter(function(t){return isDone(t.status)}).length+' of '+fm.length+' complete. Tap to see every form, from profile intake to scholarly articles.</small></summary><ul class="cx-steplist" style="margin-top:14px">'+fm.map(function(t){
+    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
+    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul></details>';}
+  var spkNode='<li class="opt'+(sel===LCN?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+LCN+'" aria-pressed="'+(sel===LCN)+'"><i>+</i><span>Conference speaking</span><small>Optional · any time</small></button></li>';
+  var spkT=allc.filter(function(t){return /^speak-/.test(t.key||'')});
+  var speakHtml='<div class="cx-stage"><div class="cx-sth"><div><b>Conference speaking</b></div>'+chip('Optional','')+'</div>'+
+    '<h5>What this is about</h5><p>Being invited to speak at a conference, as a keynote or invited speaker, shows that people in your field want to hear from you. It supports your original contributions and your overall case for sustained acclaim. It is not one of the ten criteria by itself, so it adds to the other evidence and does not replace it.</p>'+
+    '<h5>When</h5><p>Any time, from your first month. Only the articles follow a monthly pace. Speaking can start as soon as you like, and it does not wait for the articles. <span class="cx-more">Your advisor can help you choose events.</span></p>'+
+    '<h5>'+(spkT.length?'Your steps':'Steps you may see')+'</h5><ul class="cx-steplist">'+(spkT.length?spkT.map(function(t){var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'file':'lock')+'</span><div class="cx-sb"><b>'+esc(t.title.replace(/^Choose/,'We choose'))+'</b><small>'+esc(t.detail||'')+' · '+(d2?'Completed':open?'Ready for you':'Opens later')+'</small></div></li>'}).join(''):['Pick 5 target conferences in your field.|We check that each is selective and respected.','Send talk proposals.|One strong abstract, adapted for each event.','Ask organizers about invited or keynote slots.|An invitation counts for more than an accepted submission.','Keep proof for every talk.|Program page with your name, invitation email, and an organizer letter.','Share the talk.|Slides, recording and any coverage.'].map(function(x){var p=x.split('|');return '<li class="l"><span class="cx-si">'+cvIcon('file')+'</span><div class="cx-sb"><b>'+p[0]+'</b><small>'+p[1]+'</small></div></li>'}).join(''))+'</ul><p class="cx-none">Optional. Skip it if it does not fit. Speaking adds to your other evidence and does not replace it.</p></div></section>';
   /* case life cycle */
-  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+PATHWAY_V2_STAGES.slice(0,LCN).map(function(s,i){
+  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
     var e=stEnd(i);
-    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+'</ol>';
-  {
-  var caseSteps=tasksOf(c.id).filter(function(t){return !t.draft&&t.owner==='Candidate'&&t.candidateVisible!==false&&t.visibility!=='internal'}), actualByKey={};
-  caseSteps.forEach(function(t){if(t.key)actualByKey[t.key]=t});
-  var planned=(typeof TEMPLATE!=='undefined'?TEMPLATE:[]).filter(function(t){return pathwayV2Stage({key:t.k,stage:t.s})===sel&&t.o==='Candidate'}).map(function(t){return {key:t.k,title:t.t,owner:t.o,actual:actualByKey[t.k]||null,template:t}});
-  caseSteps.filter(function(t){return pathwayV2Stage(t)===sel&&!/^speak-/.test(t.key||'')&&!planned.some(function(p){return p.key===t.key})}).forEach(function(t){planned.push({key:t.key,title:t.title||t.key,owner:t.owner,actual:t})});
-  h+='<h5>Steps in this stage ('+planned.length+')</h5>';
-  if(planned.length){h+='<div class="cx-stage-actions">'+planned.map(function(step){
-    var t=step.actual,completed=!!t&&isDone(t.status),candidate=step.owner==='Candidate',active=!!t&&candidate&&!completed&&t.status!=='Not started'&&t.status!=='Skipped'&&sel<=st;
-    if(active)return cxTask(c,t);
-    var status=completed?'Completed':t&&t.status==='Skipped'?'Skipped':t&&t.status==='Blocked'?'Blocked':t&&t.status==='In progress'?'In progress':t&&t.status==='Submitted'?'Submitted':t&&t.status==='Under review'?'Under review':t&&t.status==='Not started'?'Not started':t&&t.status==='Done'?'Completed':'Locked';
-    var note=!t?'Not assigned yet':completed?'Finished':sel>st?'Available in a later stage':t.status==='Not started'?'Waiting for prerequisite':'Waiting for enablement';
-    return '<div class="cx-steplist"><div class="cx-sb"><b>'+esc(step.title)+'</b><small>'+esc(note)+'</small></div><span class="chip '+(completed?'ok':status==='Blocked'?'bad':'')+'">'+esc(status)+'</span></div>';
-  }).join('')+'</div>'}
-  else h+='<p class="cx-none">No steps are configured for this stage yet.</p>';
+    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+spkNode+'</ol>';
+  if(sel===LCN){h+=speakHtml;}else{
+  var mine=allc.filter(function(t){return t.stage===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
+  h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(CV_STAGES[sel].n)+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
+    '<h5>What this stage is about</h5><p>'+esc(CV_STAGES[sel].d)+' <span class="cx-more">'+esc(STAGES[sel].d)+'.</span></p>'+
+    '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
+    '<h5>Steps for you in this stage</h5>';
+  if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
+    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',isForm=t.kind==='form'&&t.form;
+    var lab=d2?'Completed':open?'Ready for you':t.status==='Skipped'?'Skipped':'Opens later';
+    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+(cxDesc(t)?esc(cxDesc(t))+' · ':'')+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div></li>'}).join('')+'</ul><p class="cx-none">Anything marked Ready for you also appears under What to do now. Other work in this stage is done by our team.</p>'}
+  else h+='<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
   h+='</div></section>';}
   /* evidence rhythm */
   var rows=[
@@ -1304,12 +1290,12 @@ function candidateView(c){
    ['Article 4','One new article.','Keep reviewing.','Ask organizers about invited or keynote slots.','Pitch your story to approved outlets.'],
    ['Article 5','One new article.','Reviews documented with proof.','Collect programs and invitation letters for each talk.','Apply for senior memberships.'],
    ['Article 6 (optional) and letters','Optional sixth article.','','Talk recordings and organizer letters filed.','Recommendation letters and exhibits.']];
-  if((pathwayV2Approved(c)||[]).indexOf('articles')!==-1)h+='<details class="cx-sec cx-details cx-rhythm" id="cx-rhythm" open><summary><b>Your evidence rhythm: one article a month</b><small>How we build proof steadily, with reviewing, speaking and other evidence running alongside</small></summary>'+
+  h+='<details class="cx-sec cx-details cx-rhythm" id="cx-rhythm" open><summary><b>Your evidence rhythm: one article a month</b><small>How we build proof steadily, with reviewing, speaking and other evidence running alongside</small></summary>'+
     '<p class="cx-why">We publish about one article a month instead of everything at once. A steady record over many months shows recognition that is real and lasting. A burst of articles in a few weeks can look planned for the petition and may raise questions with the reviewing officer. Only the articles follow a monthly pace. Reviewing, speaking and the other evidence can happen at any time that suits you. This is a planning guide, not legal advice. Your advisor confirms venues and timing.</p><div class="cx-months">'+rows.map(function(r,i){
       var ms=addD(base,30*i);
       return '<div class="cx-month'+(Math.floor((new Date(tod)-new Date(base))/DAY/30)===i?' now':'')+'"><div class="cx-mh"><b>Month '+(i+1)+'</b><small>from '+esc(fmtDate(ms).replace(/, \d{4}$/,''))+'</small></div><div class="cx-mt">'+r[0]+'</div>'+
         '<p><em class="a">Articles</em>'+esc(r[1])+'</p>'+(r[2]?'<p><em class="j">Reviewing</em>'+esc(r[2])+'</p>':'')+(r[3]?'<p><em class="s">Speaking</em>'+esc(r[3])+'</p>':'')+(r[4]?'<p><em class="o">Other</em>'+esc(r[4])+'</p>':'')+'</div>'}).join('')+'</div></details>';
-  if(pathwayV2Evidence(c).length)h+=ebTrackerPanel(c,true);
+  h+=ebTrackerPanel(c,true);
   h+=niwCaseFlow(c,true);
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
@@ -1623,17 +1609,15 @@ document.addEventListener('click',async function(e){
       case 'eb-cancel-article':S.ebArticleEdit=null;S.ebArticleDraft=null;break;
       case 'eb-save-article':{
         if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
-        if(!pathwayV2Evidence(c).some(function(x){return x[0]==='articles'})){say('Approve scholarly articles under Criteria Strategy first.','err');break}
         var val=function(k){return (document.getElementById(k)||{}).value||''},title=val('eb-title').trim(),status=val('eb-status'),pub=val('eb-published');
         if(!title){say('Article title is required.','err');break}
         if(status==='Published'&&!pub){say('Published articles require a publication date.','err');break}
-        var list=ebArticleRows(c).slice(),prior=Number.isInteger(S.ebArticleEdit)?list[S.ebArticleEdit]:null,article=Object.assign({},prior||{},{title:title,candidate:val('eb-candidate').trim()||c.name,abstract:val('eb-abstract').trim(),keywords:val('eb-keywords').trim(),journal:val('eb-journal').trim(),status:status,publishedDate:status==='Published'?pub:null,updatedAt:nowIso()});
+        var list=ebArticleRows(c).slice(),article={title:title,candidate:val('eb-candidate').trim()||c.name,abstract:val('eb-abstract').trim(),keywords:val('eb-keywords').trim(),journal:val('eb-journal').trim(),status:status,publishedDate:status==='Published'?pub:null};
         if(Number.isInteger(S.ebArticleEdit)&&list[S.ebArticleEdit])list[S.ebArticleEdit]=article;else list.push(article);
         await candRef(c.id).update({scholarlyArticles:list});c.scholarlyArticles=list;S.ebArticleEdit=null;S.ebArticleDraft=null;say('Scholarly article saved.','ok');break;
       }
       case 'eb-save-criterion':{
         if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
-        if(!pathwayV2Evidence(c).some(function(x){return x[0]===id})){say('Approve this criterion in Criteria Strategy first.','err');break}
         var root=document.querySelector('[data-eb-field="status"][data-eb-key="'+id+'"]');if(!root)break;
         var field=function(n){return document.querySelector('[data-eb-field="'+n+'"][data-eb-key="'+id+'"]')},old=ebCriterion(c,id);
         var entry={status:field('status').value,step:Number(field('step').value),owner:field('owner').value.trim(),plan:field('plan').value.trim(),candidateVisible:field('candidateVisible').checked,updatedAt:new Date().toISOString()};
@@ -1671,7 +1655,7 @@ document.addEventListener('click',async function(e){
       case 'draft-ok':await db.doc('tasks/'+id).update({draft:false});await log(c.id,'You approved a drafted task for the candidate.','task',id);break;
       case 'note':{var txt=(S.draft['nt'+id]||'').trim();if(txt){await db.collection('log').add({cid:c.id,tid:id,ts:nowIso(),text:txt,kind:'note',by:'Admin',shared:!!S.draft['ns'+id]});S.draft['nt'+id]='';S.draft['ns'+id]=false}break}
       case 'runai':{var tr=S.tasks.find(function(x){return x.id===id});if(tr&&!S.busy)Promise.resolve(runAi(tr)).then(function(){var d=RESULT[tr.key];if(d&&S.msgKind==='ok'&&!S.busy){var ft=d.k&&taskByKey(tr.cid,d.k);S.msg=tr.title+' finished. See the result in: '+d.l+'.'+(S.costNote||'');S.msgGo=ft?{a:'gotask',id:ft.id,l:d.l}:{a:'tab',id:d.t,l:d.l};schedule()}});return}
-      case 'openform':{if(S.role==='Candidate'){var allowed=tasksOf(c.id).some(function(t){return t.owner==='Candidate'&&!t.draft&&t.kind==='form'&&t.form===id&&!isDone(t.status)&&t.status!=='Not started'&&t.status!=='Skipped'});if(!allowed){say('This step is not enabled for you.','err');break}}S.form=id;S.openForm=true;S.errs=null;S.tab='forms';break;}
+      case 'openform':S.form=id;S.openForm=true;S.errs=null;S.tab='forms';break;
       case 'closeform':S.openForm=false;S.errs=null;if(S.role==='Advisor')S.tab='forms';break;
       case 'entry-add':{var p1=parsePath(el.dataset.fp);var def1=formDef(p1[0]);var part1=def1.parts.find(function(x){return x.id===p1[1]});var r1=workResp(c.id,p1[0]);var ar=r1.data[part1.id]=r1.data[part1.id]||[];while(ar.length<part1.repeat.min)ar.push({});if(ar.length<part1.repeat.max)ar.push({});touch(p1[0]);await saveResp(c.id,p1[0]);break}
       case 'entry-del':{var p2=parsePath(el.dataset.fp);var r2=workResp(c.id,p2[0]);(r2.data[p2[1]]||[]).splice(+p2[2],1);await saveResp(c.id,p2[0]);break}
@@ -1725,9 +1709,13 @@ document.addEventListener('click',async function(e){
         var prev=c.criteriaFinalization||{},history=(prev.history||[]).slice();if(prev.approvedAt)history.push({criteria:prev.criteria||[],note:prev.note||'',approvedAt:prev.approvedAt});
         await candRef(c.id).update({chosen:ch,chosenAt:nowIso(),criteriaFinalization:{criteria:ch,note:rationale,approvedAt:nowIso(),foe:(c.foe||{}).locked,history:history}});
         delete S.draft.criteria_note;
-        // Criteria selection does not rewrite historical task statuses.
+        var sk=0,rs=0;
+        for(var ci=0;ci<CRIT.length;ci++){var kk=CRIT[ci].id,keys=CRIT_TASKS[kk]||[],on2=ch.indexOf(kk)>=0;
+          for(var ki=0;ki<keys.length;ki++){var tt=taskByKey(c.id,keys[ki]);if(!tt)continue;
+            if(!on2&&!isDone(tt.status)){await setStatus(tt,'Skipped',{skippedBy:'targets'});sk++}
+            else if(on2&&tt.status==='Skipped'&&tt.skippedBy==='targets'){await setStatus(tt,'Not started',{skippedBy:''});rs++}}}
         Object.keys(S.draft).forEach(function(dk){if(dk.indexOf('tg_')===0)delete S.draft[dk]});
-        await log(c.id,'Target criteria confirmed: '+ch.map(function(id){return id.toUpperCase()}).join(', '),'gate');
+        await log(c.id,'Target criteria confirmed: '+ch.map(function(id){return id.toUpperCase()}).join(', ')+(sk?'. '+sk+' evidence tasks skipped.':'')+(rs?'. '+rs+' evidence tasks restored.':''),'gate');
         if((c.articleExamples||[]).length){var fr=workResp(c.id,'f10');if(!fr.data.guide&&fr.status!=='Submitted'&&fr.status!=='Reviewed'){fr.data.guide=c.articleExamples;await saveResp(c.id,'f10')}}
         await completeKey(c.id,'targets','Target criteria confirmed.');
         say('Target criteria confirmed: '+ch.length+'.');break}
@@ -1764,16 +1752,15 @@ document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' '
 /* ---------- Start (called by main.js after sign-in) ---------- */
 function startApp(opts){
   db=opts.db;sampleFn=opts.sample;S.locked=!!opts.locked;S.me=opts.me;S.staff=opts.staff||'admin';if(S.locked){S.role='Candidate';S.cid=opts.caseId}
-  var loaded={},startedAt=Date.now(),collections=['candidates','tasks','responses','log','docs'];
-  var loadWatch=setInterval(function(){if(S.ready||S.dberr){clearInterval(loadWatch);return}if(Date.now()-startedAt>12000){var missing=collections.filter(function(x){return !loaded[x]});S.dberr='Timed out loading: '+missing.join(', ')+'. Your case has not been changed. Please reload or contact support with this message.';clearInterval(loadWatch);var node=document.getElementById('app');if(node)node.innerHTML='<div class="panel"><h2>Case loading timed out</h2><p>'+esc(S.dberr)+'</p><p>Diagnostic version: 2026-10-26-b</p></div>';schedule()}},1000);
+  var loaded={};
   function sub(coll,key){
     db.collection(coll).onSnapshot(function(snap){
       S[key]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o});
       if(key==='resp')S.resp.forEach(function(r){if(!DIRTY[r.id]&&!PEND[r.id]&&WORK[r.id])delete WORK[r.id]});
-      loaded[coll]=1;
-      if(collections.every(function(x){return loaded[x]})){S.ready=true;clearInterval(loadWatch)};
+      loaded[key]=1;
+      if(loaded.cands&&loaded.tasks&&loaded.resp&&loaded.log&&loaded.docs)S.ready=true;
       schedule();
-    },function(err){S.dberr='Failed to load '+coll+': '+((err&&err.message)||'unknown error');clearInterval(loadWatch);schedule()});
+    },function(err){S.dberr=(err&&err.message)||'error';schedule()});
   }
   sub('candidates','cands');sub('tasks','tasks');sub('responses','resp');sub('log','log');sub('docs','docs');
   render();
