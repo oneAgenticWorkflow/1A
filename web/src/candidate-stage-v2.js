@@ -20,7 +20,8 @@
       if(end>=0)html=html.slice(0,start)+'<h5>Steps in this stage ('+tasks.length+')</h5>'+note+(rows||'<p class="cx-none">No steps assigned to this stage.</p>')+html.slice(end);
     }
     if(!pathwayV2Approved(c)){
-      html=html.replace(/<details class="cx-sec cx-details cx-rhythm"[\\s\\S]*?<\\/details>/,'');
+      var rhythm=html.indexOf('<details class="cx-sec cx-details cx-rhythm"');
+      if(rhythm>=0){var rhythmEnd=html.indexOf('</details>',rhythm);if(rhythmEnd>=0)html=html.slice(0,rhythm)+html.slice(rhythmEnd+10);}
     }
     return html;
   };
