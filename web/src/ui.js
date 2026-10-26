@@ -334,7 +334,7 @@ function ebArticlePanel(c,readonly){
  var rows=ebArticleRows(c),h='<div class="entry"><div class="ph"><h4>Scholarly article tracker</h4>'+chip(rows.length+' articles')+'</div>';
  rows.forEach(function(a,i){h+='<div class="formrow"><div><b>'+esc(a.title||'Untitled article')+'</b><p class="small">'+esc(a.journal||'Journal not selected')+' · '+esc(a.candidate||c.name||'')+'</p><p class="small">'+esc(a.keywords||'')+'</p>'+(a.abstract?'<details><summary>Abstract</summary><p>'+esc(a.abstract)+'</p></details>':'')+(a.status==='Published'&&a.publishedDate?'<p class="small">Published '+esc(a.publishedDate)+'</p>':'')+'</div><div>'+chip(a.status||'Draft',a.status==='Published'?'ok':'mid')+(readonly?'':' <button class="btn sm" data-a="eb-edit-article" data-id="'+i+'">Edit</button>')+'</div></div>'});
  if(!readonly){
- var idx=S.ebArticleEdit,editing=Number.isInteger(idx)&&rows[idx],a=editing||{};
+ var idx=S.ebArticleEdit,editing=Number.isInteger(idx)&&rows[idx],a=Object.assign({},editing||{},S.ebArticleDraft||{});
  h+='<div class="entry"><h4>'+(editing?'Edit article':'Add scholarly article')+'</h4>'+
  '<label class="f" for="eb-title">Article title</label><input id="eb-title" value="'+esc(a.title||'')+'">'+
  '<label class="f" for="eb-candidate">Candidate name</label><input id="eb-candidate" value="'+esc(a.candidate||c.name||'')+'">'+
@@ -1284,6 +1284,7 @@ function queueSave(fid){PEND[rid(S.cid,fid)]=1;clearTimeout(saveTimer[fid]);save
 
 document.addEventListener('input',function(e){
   var t=e.target;
+  if(t.id&&t.id.indexOf('eb-')===0&&['eb-title','eb-candidate','eb-abstract','eb-keywords','eb-journal','eb-status','eb-published'].indexOf(t.id)>=0){S.ebArticleDraft=S.ebArticleDraft||{};S.ebArticleDraft[{'eb-title':'title','eb-candidate':'candidate','eb-abstract':'abstract','eb-keywords':'keywords','eb-journal':'journal','eb-status':'status','eb-published':'publishedDate'}[t.id]]=t.value;return}
   if(t.dataset.mk!==undefined){var mq=t.dataset.mk.split('|'),cc=cur(),mm=cc&&mwEdit(cc);if(mm&&mm.rows[+mq[0]])mm.rows[+mq[0]][mq[1]]=mq[1]==='urls'?t.value.split('\n').map(function(x){return x.trim()}).filter(Boolean):t.value;return}
   if(t.dataset.pl!==undefined){setPlanField(t.dataset.pl,t.value);var pq=t.dataset.pl.split('|'),pc=cur();if(pc&&pc.plan&&pc.plan.status==='approved'&&pq[0]==='articles'&&(pq[2]==='state'||pq[2]==='url')){clearTimeout(saveTimer.pl);saveTimer.pl=setTimeout(function(){var pp=S.planWork;if(!pp)return;var cp=JSON.parse(JSON.stringify(pc.plan));pp.articles.forEach(function(a,i){if(cp.articles[i]){cp.articles[i].state=a.state;cp.articles[i].url=a.url}});candRef(pc.id).update({plan:cp})},700)}return}
   if(t.dataset.draft!==undefined){S.draft[t.dataset.draft]=t.value;return}
@@ -1298,6 +1299,7 @@ document.addEventListener('focusout',function(e){
 document.addEventListener('change',async function(e){
   var t=e.target,c=cur();
   try{
+    if(t.id&&['eb-title','eb-candidate','eb-abstract','eb-keywords','eb-journal','eb-status','eb-published'].indexOf(t.id)>=0){S.ebArticleDraft=S.ebArticleDraft||{};S.ebArticleDraft[{'eb-title':'title','eb-candidate':'candidate','eb-abstract':'abstract','eb-keywords':'keywords','eb-journal':'journal','eb-status':'status','eb-published':'publishedDate'}[t.id]]=t.value;return}
     if(t.dataset.docschk!==undefined&&c){await candRef(c.id).update({docsChecked:t.checked});return}
     if(t.dataset.draftChk!==undefined){S.draft[t.dataset.draftChk]=t.checked;return}
     if(t.dataset.up!==undefined&&t.files&&t.files[0]&&c){
@@ -1557,8 +1559,8 @@ document.addEventListener('click',async function(e){
       case 'cvphase':S.cvp=+id;break;
       case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
       case 'cvscroll':{var se=document.getElementById(id);if(se)se.scrollIntoView({behavior:'smooth',block:'start'});return}
-      case 'eb-edit-article':S.ebArticleEdit=+id;break;
-      case 'eb-cancel-article':S.ebArticleEdit=null;break;
+      case 'eb-edit-article':S.ebArticleEdit=+id;S.ebArticleDraft=null;break;
+      case 'eb-cancel-article':S.ebArticleEdit=null;S.ebArticleDraft=null;break;
       case 'eb-save-article':{
         if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
         var val=function(k){return (document.getElementById(k)||{}).value||''},title=val('eb-title').trim(),status=val('eb-status'),pub=val('eb-published');
@@ -1566,7 +1568,7 @@ document.addEventListener('click',async function(e){
         if(status==='Published'&&!pub){say('Published articles require a publication date.','err');break}
         var list=ebArticleRows(c).slice(),article={title:title,candidate:val('eb-candidate').trim()||c.name,abstract:val('eb-abstract').trim(),keywords:val('eb-keywords').trim(),journal:val('eb-journal').trim(),status:status,publishedDate:status==='Published'?pub:null};
         if(Number.isInteger(S.ebArticleEdit)&&list[S.ebArticleEdit])list[S.ebArticleEdit]=article;else list.push(article);
-        await candRef(c.id).update({scholarlyArticles:list});c.scholarlyArticles=list;S.ebArticleEdit=null;say('Scholarly article saved.','ok');break;
+        await candRef(c.id).update({scholarlyArticles:list});c.scholarlyArticles=list;S.ebArticleEdit=null;S.ebArticleDraft=null;say('Scholarly article saved.','ok');break;
       }
       case 'eb-save-criterion':{
         if(!c||S.locked||S.role==='Candidate'){say('Staff access required.','err');break}
