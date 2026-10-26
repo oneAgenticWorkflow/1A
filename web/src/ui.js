@@ -1254,7 +1254,7 @@ function candidateView(c){
   h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(PATHWAY_V2_STAGES[sel])+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
     '<h5>What this stage is about</h5><p>'+esc((STAGES[sel]&&STAGES[sel].d||'Track assigned work and required approvals.'))+' <span class="cx-more">'+esc((STAGES[sel]&&STAGES[sel].d)||'')+'.</span></p>'+
     '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
-    '<h5>Steps for you in this stage</h5>';
+    '<h5>Steps in this stage</h5>';
   if(mine.length){h+='<div class="cx-stage-actions">'+mine.map(function(t){
     var completed=isDone(t.status),enabled=!completed&&t.status!=='Not started'&&t.status!=='Skipped';
     if(enabled)return cxTask(c,t);
@@ -1638,7 +1638,7 @@ document.addEventListener('click',async function(e){
       case 'draft-ok':await db.doc('tasks/'+id).update({draft:false});await log(c.id,'You approved a drafted task for the candidate.','task',id);break;
       case 'note':{var txt=(S.draft['nt'+id]||'').trim();if(txt){await db.collection('log').add({cid:c.id,tid:id,ts:nowIso(),text:txt,kind:'note',by:'Admin',shared:!!S.draft['ns'+id]});S.draft['nt'+id]='';S.draft['ns'+id]=false}break}
       case 'runai':{var tr=S.tasks.find(function(x){return x.id===id});if(tr&&!S.busy)Promise.resolve(runAi(tr)).then(function(){var d=RESULT[tr.key];if(d&&S.msgKind==='ok'&&!S.busy){var ft=d.k&&taskByKey(tr.cid,d.k);S.msg=tr.title+' finished. See the result in: '+d.l+'.'+(S.costNote||'');S.msgGo=ft?{a:'gotask',id:ft.id,l:d.l}:{a:'tab',id:d.t,l:d.l};schedule()}});return}
-      case 'openform':S.form=id;S.openForm=true;S.errs=null;S.tab='forms';break;
+      case 'openform':{if(S.role==='Candidate'){var allowed=tasksOf(c.id).some(function(t){return t.owner==='Candidate'&&!t.draft&&t.kind==='form'&&t.form===id&&!isDone(t.status)&&t.status!=='Not started'&&t.status!=='Skipped'});if(!allowed){say('This step is not enabled for you.','err');break}}S.form=id;S.openForm=true;S.errs=null;S.tab='forms';break;}
       case 'closeform':S.openForm=false;S.errs=null;if(S.role==='Advisor')S.tab='forms';break;
       case 'entry-add':{var p1=parsePath(el.dataset.fp);var def1=formDef(p1[0]);var part1=def1.parts.find(function(x){return x.id===p1[1]});var r1=workResp(c.id,p1[0]);var ar=r1.data[part1.id]=r1.data[part1.id]||[];while(ar.length<part1.repeat.min)ar.push({});if(ar.length<part1.repeat.max)ar.push({});touch(p1[0]);await saveResp(c.id,p1[0]);break}
       case 'entry-del':{var p2=parsePath(el.dataset.fp);var r2=workResp(c.id,p2[0]);(r2.data[p2[1]]||[]).splice(+p2[2],1);await saveResp(c.id,p2[0]);break}
