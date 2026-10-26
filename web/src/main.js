@@ -3,8 +3,6 @@
   var cfg=window.PORTAL_CONFIG||{};
   (function(){var l=document.querySelector('link[rel=icon]');if(!l){l=document.createElement('link');l.rel='icon';document.head.appendChild(l)}l.type='image/png';l.href=BRAND_FAV})();
   var app=document.getElementById('app');
-  window.addEventListener('error',function(e){if(app&&/Loading cases|Loading…/.test(app.textContent||''))app.innerHTML='<div class="panel"><h2>Application startup error</h2><p>'+String(e.message||'Unexpected JavaScript error').replace(/[&<>]/g,'')+'</p><p>Diagnostic version: 2026-10-26-b</p></div>'});
-  window.addEventListener('unhandledrejection',function(e){if(app&&/Loading cases|Loading…/.test(app.textContent||''))app.innerHTML='<div class="panel"><h2>Application request failed</h2><p>'+String(e.reason&&e.reason.message||'Unhandled request error').replace(/[&<>]/g,'')+'</p><p>Diagnostic version: 2026-10-26-b</p></div>'});
   function shell(html){app.innerHTML='<div class="panel newcase" style="margin-top:48px"><img class="brandfull" src="'+BRAND_FULL+'" alt="Arcanam Pathway">'+html+'</div>'}
   function esc2(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
   if(!cfg.SUPABASE_URL||!cfg.SUPABASE_ANON_KEY||cfg.SUPABASE_URL.indexOf('YOUR-')>=0){shell('<p>This site is not configured yet. Fill in <code>config.js</code> (see the README).</p>');return}
