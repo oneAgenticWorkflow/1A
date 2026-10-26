@@ -1250,17 +1250,19 @@ function candidateView(c){
     var e=stEnd(i);
     return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+'</ol>';
   {
-  var mine=allc.filter(function(t){return pathwayV2Stage(t)===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
-  h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(PATHWAY_V2_STAGES[sel])+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
-    '<h5>What this stage is about</h5><p>'+esc((STAGES[sel]&&STAGES[sel].d||'Track assigned work and required approvals.'))+' <span class="cx-more">'+esc((STAGES[sel]&&STAGES[sel].d)||'')+'.</span></p>'+
-    '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
-    '<h5>Steps in this stage</h5>';
-  if(mine.length){h+='<div class="cx-stage-actions">'+mine.map(function(t){
-    var completed=isDone(t.status),enabled=!completed&&t.status!=='Not started'&&t.status!=='Skipped';
-    if(enabled)return cxTask(c,t);
-    return '<div class="cx-steplist"><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(completed?'Completed':t.status==='Skipped'?'Skipped':'Locked until the preceding step is complete')+'</small></div></div>';
+  var caseSteps=tasksOf(c.id).filter(function(t){return !t.draft}), actualByKey={};
+  caseSteps.forEach(function(t){if(t.key)actualByKey[t.key]=t});
+  var planned=(typeof TEMPLATE!=='undefined'?TEMPLATE:[]).filter(function(t){return pathwayV2Stage({key:t.k,stage:t.s})===sel}).map(function(t){return {key:t.k,title:t.t,owner:t.o,actual:actualByKey[t.k]||null,template:t}});
+  caseSteps.filter(function(t){return pathwayV2Stage(t)===sel&&!/^speak-/.test(t.key||'')&&!planned.some(function(p){return p.key===t.key})}).forEach(function(t){planned.push({key:t.key,title:t.title||t.key,owner:t.owner,actual:t})});
+  h+='<h5>Steps in this stage ('+planned.length+')</h5>';
+  if(planned.length){h+='<div class="cx-stage-actions">'+planned.map(function(step){
+    var t=step.actual,completed=!!t&&isDone(t.status),candidate=step.owner==='Candidate',active=!!t&&candidate&&!completed&&t.status!=='Not started'&&t.status!=='Skipped'&&sel<=st;
+    if(active)return cxTask(c,t);
+    var status=completed?'Completed':t&&t.status==='Skipped'?'Skipped':t&&t.status==='Blocked'?'Blocked':t&&t.status==='In progress'?'In progress':t&&t.status==='Submitted'?'Submitted':t&&t.status==='Under review'?'Under review':t&&t.status==='Not started'?'Not started':t&&t.status==='Done'?'Completed':'Locked';
+    var note=!t?'Not assigned yet':!candidate?'Handled by '+(step.owner==='Advisor'?'Supervisor':esc(step.owner||'team')):completed?'Finished':sel>st?'Available in a later stage':t.status==='Not started'?'Waiting for prerequisite':'Waiting for enablement';
+    return '<div class="cx-steplist"><div class="cx-sb"><b>'+esc(step.title)+'</b><small>'+esc(note)+'</small></div><span class="chip '+(completed?'ok':status==='Blocked'?'bad':'')+'">'+esc(status)+'</span></div>';
   }).join('')+'</div>'}
-  else h+='<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
+  else h+='<p class="cx-none">No steps are configured for this stage yet.</p>';
   h+='</div></section>';}
   /* evidence rhythm */
   var rows=[
