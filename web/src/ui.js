@@ -308,7 +308,7 @@ function pathwayV2Controls(c,ts){
  return h;
 }
 function adminCaseOverview(c,ts){
- var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=EB_CRITERIA.filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
+ var st=Math.max(0,Math.min(STAGES.length-1,c.stage||0)),open=ts.filter(function(t){return t.req!==false&&!isDone(t.status)&&t.status!=='Skipped'}),candidate=open.filter(function(t){return t.owner==='Candidate'}),staff=open.filter(function(t){return t.owner!=='Candidate'}),ready=pathwayV2Evidence(c).filter(function(x){return ebCriterion(c,x[0]).status==='Evidence ready'}).length,active=pathwayV2Evidence(c).filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf(ebCriterion(c,x[0]).status)>=0}).length;
  var h='<div class="panel"><div class="ph"><div><h3>Case overview</h3><p class="small">Current stage: '+(st+1)+' of '+STAGES.length+' · '+esc(STAGES[st].n)+'</p></div>'+chip(caseProgress(c)+'% tasks completed')+'</div><div class="case-overview-stats"><div><b>'+open.length+'</b><small>Open tasks</small></div><div><b>'+candidate.length+'</b><small>Waiting on candidate</small></div><div><b>'+staff.length+'</b><small>Team actions</small></div><div><b>'+ready+' / 8</b><small>Evidence ready</small></div></div><h4>Next actions</h4>';
  if(!open.length)h+='<p class="small">No open tasks recorded.</p>';
  else h+='<div class="case-overview-actions">'+open.slice().sort(function(a,b){return (a.stage||0)-(b.stage||0)||(a.due||'9999').localeCompare(b.due||'9999')}).slice(0,8).map(function(t){return '<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Task')+'</b><small>Stage '+((t.stage||0)+1)+' · '+esc(t.owner||'Unassigned')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open task</button></div>'}).join('')+'</div>';
@@ -1213,7 +1213,7 @@ function candidateView(c){
   var ts=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft&&t.req!==false||(t.owner==='Candidate'&&!t.draft&&t.status!=='Not started')});
   var h=S.locked?'':'<div class="candbar"><span class="chip gate">Candidate view (preview)</span> <button class="btn sm" data-a="asAdv">Back to admin view</button></div>';
   if(S.openForm){return h+formEditor(c,S.form)}
-  var LCN=7,st=Math.min(c.stage||0,LCN-1);
+  var LCN=9,st=Math.min(Math.max(0,c.stage||0),LCN-1);
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
