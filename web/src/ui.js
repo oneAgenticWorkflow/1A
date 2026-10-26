@@ -279,19 +279,36 @@ function filingReadinessForecast(c,ts){
 
 /* ----- case view ----- */
 function adminStageWorkspace(c,ts){
- // Read-only projection: never rewrite original task IDs, stages, statuses or evidence.
- function projectedStage(t){return pathwayV2Stage(t)}
- var stages=PATHWAY_V2_STAGES.map(function(name){return {n:name}});
- var st=Math.max(0,Math.min(stages.length-1,c.stage||0));
- var h='<div class="panel"><div class="ph"><div><h3>Candidate pathway</h3><p class="small">Nine stages · existing tasks and submissions retained. Expand a stage to see assigned steps.</p></div>'+chip(caseProgress(c)+'% of existing tasks complete')+'</div>';
- h+='<p class="small">Legacy task mapping is display-only until a supervisor approves a permanent mapping. Existing task records have not been moved.</p>';
+ // Pega-style stage / step workspace: read-only projection of real task records.
+ // Do not migrate, delete, rename or automatically complete any existing step.
+ var stages=PATHWAY_V2_STAGES,st=Math.max(0,Math.min(8,Number(c.stage)||0));
+ var approved=pathwayV2Approved(c)||[],approvedNames=pathwayV2Evidence(c).map(function(x){return x[1]});
+ var total=ts.filter(function(t){return !t.draft}),finished=total.filter(function(t){return isDone(t.status)}).length;
+ var h='<div class="panel pathway-workspace"><div class="ph"><div><h3>Case life cycle</h3><p class="small">Nine-stage case management · open a stage to manage its steps, owners, status and due dates.</p></div>'+chip(finished+' / '+total.length+' steps complete')+'</div>';
+ h+='<div class="case-overview-stats"><div><b>'+String(st+1).padStart(2,'0')+' / 09</b><small>Recorded stage</small></div><div><b>'+total.filter(function(t){return !isDone(t.status)&&t.status!=='Skipped'}).length+'</b><small>Open steps</small></div><div><b>'+total.filter(function(t){return t.owner==='Candidate'&&!isDone(t.status)}).length+'</b><small>Candidate actions</small></div><div><b>'+approvedNames.length+'</b><small>Approved evidence tracks</small></div></div>';
+ h+='<p class="small">Task status and due dates are taken from the existing case. Internal steps are visible to authorized staff only; candidates see their own visible steps. No historical records are changed.</p>';
  h+=pathwayV2Controls(c,ts);
- stages.forEach(function(stage,i){
- var steps=ts.filter(function(t){return projectedStage(t)===i}),done=steps.filter(function(t){return isDone(t.status)}).length;
- h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(stage.n)+'</b><small>'+((i<st)?'Earlier stage':i===st?'Current recorded stage':'Upcoming stage')+'</small></span><span class="small">'+done+' of '+steps.length+' complete</span></summary><div class="case-stage-steps">';
- if(!steps.length)h+='<p class="small">No existing steps assigned to this stage.</p>';
- steps.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(pathwayV2Role(t.owner||'Candidate'))+' · '+esc(t.status||'Not started')+(t.due?' · Due '+esc(t.due):'')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></div>'});
- h+='</div></details>';
+ stages.forEach(function(name,i){
+   var steps=total.filter(function(t){return pathwayV2Stage(t)===i}).sort(function(a,b){
+     var ad=isDone(a.status)?1:0,bd=isDone(b.status)?1:0;
+     return ad-bd||(a.due||'9999').localeCompare(b.due||'9999')||(a.title||'').localeCompare(b.title||'');
+   });
+   var done=steps.filter(function(t){return isDone(t.status)}).length;
+   var state=i<st?'Earlier stage':i===st?'Current stage':'Upcoming stage';
+   var gate=i===3?'FOE approval gate':i===4?'Criteria approval gate':i===6?'Evidence review gate':i===7?'Attorney handover gate':i===8?'Filing milestone':'';
+   var ready=i===5&&approved.length===0;
+   h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(name)+'</b><small>'+state+(gate?' · '+gate:'')+'</small></span><span class="small">'+done+' / '+steps.length+' complete'+(ready?' · Awaiting criteria approval':'')+'</span></summary><div class="case-stage-steps">';
+   if(ready)h+='<p class="small">Evidence Build is gated until the FOE and criteria strategy are approved. Existing historical tasks remain listed for staff reference; they are not automatically activated.</p>';
+   if(i===5&&approvedNames.length)h+='<p class="small"><b>Approved criteria:</b> '+approvedNames.map(esc).join(', ')+'</p>';
+   if(!steps.length)h+='<p class="small">No case steps assigned to this stage yet.</p>';
+   steps.forEach(function(t){
+     var status=t.status||'Not started',owner=pathwayV2Role(t.owner||'Candidate');
+     var statusClass=isDone(status)?'ok':status==='Blocked'?'bad':status==='In progress'?'mid':'';
+     var candidate=t.owner==='Candidate';
+     var visibility=candidate?'Candidate-visible':'Internal team';
+     h+='<div class="case-overview-action"><span><b>'+esc(t.title||t.key||'Step')+'</b><small>'+esc(owner)+' · '+esc(status)+(t.due?' · Due '+esc(t.due):'')+' · '+visibility+'</small></span><span class="chips">'+chip(status,statusClass)+'<button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open step</button></span></div>';
+   });
+   h+='</div></details>';
  });
  return h+'</div>';
 }
