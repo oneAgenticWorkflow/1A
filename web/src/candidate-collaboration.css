@@ -1,0 +1,13 @@
+/* Candidate documents and messaging: balanced premium collaboration panels. */
+.cx .cv-two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch;gap:18px;margin-top:22px}
+.cx .cv-two>div{min-width:0;display:flex}
+.cx .cv-two>div>.panel{width:100%;min-height:365px;box-sizing:border-box;display:flex;flex-direction:column;border:1px solid #dce3e6;border-radius:16px;padding:24px;background:#fff;box-shadow:0 5px 18px rgba(21,44,55,.035)}
+.cx .cv-two .ph{margin-bottom:8px}
+.cx .cv-two .ph h3{font-size:16px;letter-spacing:.035em;text-transform:none;color:#1d3439}
+.cx .cv-two .small{line-height:1.65;color:#596b75}
+.cx #cx-docs .addrow{margin-top:auto;padding-top:18px}
+.cx #cx-docs .up{background:#eef5f1;color:#184f40;border:1px solid #c7dbd1;font-weight:650}
+.cx #cx-msg .msgs{flex:1;min-height:65px;margin:16px 0 12px}
+.cx #cx-msg textarea{min-height:94px;border-radius:10px;resize:vertical}
+.cx #cx-msg .btn.pri{background:#174e40;border-radius:9px}
+@media(max-width:800px){.cx .cv-two{grid-template-columns:minmax(0,1fr)}.cx .cv-two>div>.panel{min-height:260px}}
