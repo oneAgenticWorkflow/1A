@@ -64,6 +64,13 @@
     var p;try{p=await bounded(sb.from('profiles').select('role,case_id,email,username,display_name,must_change').eq('id',uid).maybeSingle(),15000)}catch(e){shell('<p>Could not finish loading your account: '+esc2(e.message)+'</p><p class="small">Your saved candidate data has not been changed. Refresh the page to retry.</p><button class="btn" id="retry">Retry</button>');document.getElementById('retry').onclick=function(){location.reload()};return}
     if(p.error){shell('<p>Could not load your account: '+esc2(p.error.message)+'</p>');return}
     var prof=p.data||{role:'candidate',case_id:null,email:session.user.email};
+    // This branch is deployed only as a test1 UAT preview. Never load staff or real candidate cases.
+    if(prof.username!=='test1'||prof.role!=='candidate'||prof.case_id!=='arcanam-uat-20261026-ramesh'){
+      await sb.auth.signOut();
+      shell('<h2>Test environment</h2><p>This preview is restricted to the test1 candidate account. Production and other candidate cases are not available here.</p><button class="btn pri" id="uat-login">Sign in as test1</button>');
+      document.getElementById('uat-login').onclick=function(){login()};
+      return;
+    }
     if(prof.must_change){mustChange(session);return}
     app.innerHTML='';
     var isAdmin=prof.role==='admin',isStaff=isAdmin||prof.role==='supervisor';
