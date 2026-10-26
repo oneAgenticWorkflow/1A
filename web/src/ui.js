@@ -300,6 +300,24 @@ function adminStageWorkspace(c,ts){
    h+='<details class="case-stage-detail"'+(i===st?' open':'')+'><summary><span><b>'+String(i+1).padStart(2,'0')+' · '+esc(name)+'</b><small>'+state+(gate?' · '+gate:'')+'</small></span><span class="small">'+done+' / '+steps.length+' complete'+(ready?' · Awaiting criteria approval':'')+'</span></summary><div class="case-stage-steps">';
    if(ready)h+='<p class="small">Evidence Build is gated until the FOE and criteria strategy are approved. Existing historical tasks remain listed for staff reference; they are not automatically activated.</p>';
    if(i===5&&approvedNames.length)h+='<p class="small"><b>Approved criteria:</b> '+approvedNames.map(esc).join(', ')+'</p>';
+   // Stage-local work surfaces reuse existing forms, private documents and collaboration.
+   // No new storage or task status transitions are introduced.
+   var stageForms=steps.filter(function(t){return t.kind==='form'&&t.form});
+   var stageFiles=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'&&steps.some(function(t){return d.tid===t.id||d.taskId===t.id})});
+   var stageNotes=S.log.filter(function(n){return n.cid===c.id&&n.kind==='note'&&steps.some(function(t){return n.tid===t.id})});
+   h+='<div class="addrow"><span class="chip">'+stageForms.length+' forms</span><span class="chip">'+stageFiles.length+' linked documents</span><span class="chip">'+stageNotes.length+' step comments</span></div>';
+   h+='<details><summary>Forms in this stage ('+stageForms.length+')</summary><div class="case-stage-steps">';
+   if(!stageForms.length)h+='<p class="small">No forms assigned to this stage.</p>';
+   stageForms.forEach(function(t){h+='<div class="case-overview-action"><span><b>'+esc(t.title||'Form')+'</b><small>'+esc(t.owner||'Candidate')+' · '+esc(t.status||'Not started')+'</small></span><button class="btn sm" data-a="gotask" data-id="'+esc(t.id)+'">Open form step</button></div>'});
+   h+='</div></details>';
+   h+='<details><summary>Documents ('+stageFiles.length+' linked)</summary><div class="case-stage-steps">';
+   if(!stageFiles.length)h+='<p class="small">No documents directly linked to steps in this stage. Other case files remain in Candidate records → Documents.</p>';
+   stageFiles.forEach(function(d){h+='<div class="case-overview-action"><span><b>'+esc(d.name||'Document')+'</b><small>'+esc(d.by||'')+'</small></span><button class="btn sm" data-a="getfile" data-path="'+esc(d.path||'')+'">Open</button></div>'});
+   h+='<button class="btn sm" data-a="tab" data-id="docs">Open case documents</button></div></details>';
+   h+='<details><summary>Comments ('+stageNotes.length+')</summary><div class="case-stage-steps">';
+   if(!stageNotes.length)h+='<p class="small">No step comments in this stage.</p>';
+   stageNotes.slice(-12).forEach(function(n){h+='<div class="note"><span class="small">'+esc(fmt(n.ts))+'</span> '+esc(n.text||'')+(n.shared?' · Shared with candidate':' · Internal')+'</div>'});
+   h+='<p class="small">Open an individual step to add a comment, choose whether to share it with the candidate, and save it to the case activity history.</p><button class="btn sm" data-a="tab" data-id="activity">Open case messages</button></div></details>';
    if(!steps.length)h+='<p class="small">No case steps assigned to this stage yet.</p>';
    steps.forEach(function(t){
      var status=t.status||'Not started',owner=pathwayV2Role(t.owner||'Candidate');
