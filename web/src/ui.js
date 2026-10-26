@@ -49,6 +49,7 @@ function render(){
     if(tabRow){var top=tabRow.getBoundingClientRect().top+window.scrollY-16;window.scrollTo({top:Math.max(0,top),behavior:'instant'});}
   }else if(typeof y==='number')window.scrollTo(0,y);
   if(S.focusMsg){S.focusMsg=false;var fme=document.getElementById('adm-msg');if(fme){fme.scrollIntoView({block:'start'});var fta=fme.querySelector('textarea');if(fta){try{fta.focus({preventScroll:true})}catch(e){}}}}
+  if(S.focusSw){S.focusSw=false;var fw=document.getElementById('sw-ws');if(fw)fw.scrollIntoView({block:'start'});if(S.focusBox){S.focusBox=false;var mb=document.getElementById('msgbox');if(mb){try{mb.focus({preventScroll:true})}catch(e){}}}}
   reconcile();
 }
 
@@ -313,51 +314,157 @@ function adminCaseOverview(c,ts){
  h+='<div class="addrow"><button class="btn pri sm" data-a="tab" data-id="tasks">Open case workflow</button><button class="btn sm" data-a="tab" data-id="criteria-tracker">Review criteria ('+active+' active)</button><button class="btn sm" data-a="tab" data-id="activity">Messages & activity</button></div></div>';
  return h;
 }
+/* ---------- stage workspace (shared by staff and candidate) ---------- */
+function swId(c){return 'PW-'+String(c.id||'').replace(/[^A-Za-z0-9]/g,'').slice(0,6).toUpperCase()}
+function swShort(d){return d?fmtDate(d).replace(/, \d{4}$/,''):''}
+function swPill(t){var s=t.status;
+  if(isDone(s))return ['Completed','ok'];
+  if(s==='Skipped')return ['Skipped',''];
+  if(s==='Blocked')return ['Blocked','bad'];
+  if(s==='Not started')return ['Locked',''];
+  if(s==='In progress')return ['In progress','mid'];
+  return ['Ready','gate'];
+}
+function swHead(c,staff,actions,extra){
+  var st=c.stage||0,pct=caseProgress(c),total=staff?STAGES.length:7,sn=staff?STAGES[Math.min(st,STAGES.length-1)].n:CV_STAGES[Math.min(st,6)].n,done=pct>=100;
+  return '<section class="sw-head"><div class="sw-ht"><div class="sw-tt">'+(staff?'<button class="link" data-a="home">&larr; All cases</button>':'')+'<h2>'+(staff?'EB-1A Candidate Case':'Your EB-1A case')+'</h2>'+chip(done?'Complete':'Active',done?'ok':'gate')+'</div><div class="chips">'+(actions||'')+'</div></div>'+
+   '<dl class="sw-meta"><div><dt>Case ID</dt><dd>'+esc(swId(c))+'</dd></div><div><dt>Candidate</dt><dd>'+esc(c.name||'Candidate')+'</dd></div><div><dt>Case type</dt><dd>EB-1A Profile Enhancement</dd></div><div><dt>Current stage</dt><dd>Stage '+(Math.min(st,total-1)+1)+' of '+total+'<small>'+esc(sn)+'</small></dd></div><div class="pr"><dt>Overall progress</dt><dd><span class="sw-pct">'+pct+'%</span>'+bar(pct)+'</dd></div></dl>'+(extra||'')+'</section>';
+}
+function swPipe(nodes,sel,act){
+  return '<ol class="sw-pipe" role="group" aria-label="Case stages">'+nodes.map(function(n,i){
+    return '<li class="'+(n.state||'')+(i===sel?' sel':'')+(n.opt?' opt':'')+'"><button type="button" data-a="'+act+'" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(n.state==='done'?cvIcon('check'):n.opt?'+':(i+1))+'</i><span><b>'+esc(n.n)+'</b><small>'+esc(n.s)+'</small>'+(n.dates?'<small class="dt">'+esc(n.dates)+'</small>':'')+'</span></button></li>'}).join('')+'</ol>';
+}
+function swSide(o){
+  return '<aside class="sw-side"><div class="sw-st"><h3>'+esc(o.title)+'</h3><p>'+esc(o.desc)+'</p></div><div class="sw-ringrow">'+cvRing(o.pct)+'<div><b>'+esc(o.lbl)+'</b><small>'+esc(o.sub)+'</small></div></div><nav class="sw-nav" aria-label="Case sections">'+o.nav.map(function(n){return '<button type="button" class="'+(o.active===n[0]?'on':'')+'" data-a="'+o.act+'" data-id="'+n[0]+'">'+esc(n[1])+((n[2]!==undefined&&n[2]!==''&&n[2]!==0)?'<em>'+esc(n[2])+'</em>':'')+'</button>'}).join('')+'</nav></aside>';
+}
+function swLegend(staff){
+  return '<div class="sw-leg" aria-label="Legend"><b>Lifecycle</b><span><i class="lg ok"></i>Completed</span><span><i class="lg mid"></i>In progress</span><span><i class="lg gate"></i>Ready</span><span><i class="lg"></i>Not started or locked</span>'+(staff?'<span><i class="lg bad"></i>Blocked</span>':'')+'</div>';
+}
+function swCandBody(c,t){
+  var isForm=t.kind==='form'&&t.form,r=isForm?getResp(c.id,t.form):null,p=isForm?progress(formDef(t.form),r):0,started=isForm&&r&&r.status==='In progress',locked=t.status==='Not started',d2=isDone(t.status);
+  var txt=t.detail||(isForm?(cxDesc(t)+' You can save and come back later.'):'Share the requested information or files with your advisor.');
+  var h='<p>'+esc(txt)+'</p>';
+  if(isForm&&r&&r.status!=='Not started')h+='<div class="cv-prog"><div class="bar"><i style="width:'+p+'%"></i></div><span class="small">'+p+'% of required answers</span></div>';
+  if(/^art\d/.test(t.key||''))h+='<p class="cx-note">Publishing on time keeps the dates after it. If it slips, every date after it moves out by the same amount.</p>';
+  if(locked)h+='<p class="small">This opens when our team finishes the step before it. We will message you.</p>';
+  else if(d2)h+='<p class="small">Completed'+(t.doneAt?' on '+esc(swShort(t.doneAt.slice(0,10))):'')+'.</p>';
+  else h+='<div class="cx-actions">'+(isForm?'<button class="btn pri" data-a="openform" data-id="'+t.form+'">'+(started?'Continue form':'Start form')+'</button>':'<button class="btn pri" data-a="cvscroll" data-id="cx-docs">Upload a file</button>')+'<button class="btn" data-a="cvscroll" data-id="cx-msg">Message us</button></div>';
+  return h;
+}
+function swRows(c,list,staff){
+  if(!list.length)return '<p class="empty">No steps in this stage.</p>';
+  var cols=staff?8:7,h='<div class="sw-tw"><table class="sw-t"><thead><tr><th class="n">#</th><th>Step</th>'+(staff?'<th>Owner</th>':'')+'<th>Status</th><th>Due</th><th class="n">Forms</th><th class="n">Comments</th><th><span class="vh">Action</span></th></tr></thead><tbody>';
+  list.forEach(function(t,i){
+    var p=swPill(t),open=!!S.open[t.id],nc=S.log.filter(function(l){return l.cid===c.id&&l.tid===t.id&&l.kind==='note'}).length,nodue=/^speak-/.test(t.key||''),dc=dueCls(t);
+    h+='<tr class="'+(open?'op':'')+'"><td class="n">'+(i+1)+'</td><td class="nm"><b>'+esc(staff?t.title:cxName(t))+'</b>'+(t.req===false?' <small class="o">optional</small>':'')+(t.draft?' <small class="o">draft</small>':'')+'</td>'+(staff?'<td>'+ownerChip(t.owner)+'</td>':'')+
+     '<td><span class="chip '+p[1]+'">'+p[0]+'</span></td><td class="du">'+(t.due&&!nodue?'<span class="sw-due '+dc+'">'+esc(dueTxt(t))+'</span>':'<span class="mut">'+(nodue?'Any time':'None')+'</span>')+'</td><td class="n">'+(t.form?'1':'<span class="mut">&ndash;</span>')+'</td><td class="n">'+(nc||'<span class="mut">&ndash;</span>')+'</td>'+
+     '<td class="ac"><button class="btn sm" data-a="tog" data-id="'+esc(t.id)+'" aria-expanded="'+open+'">'+(open?'Hide':'View')+'</button></td></tr>';
+    if(open)h+='<tr class="det"><td colspan="'+cols+'"><div class="detail">'+(staff?taskDetail(c,t):swCandBody(c,t))+'</div></td></tr>';
+  });
+  return h+'</tbody></table></div>';
+}
+function swStageDates(ts,i){
+  var d=ts.filter(function(t){return t.stage===i&&t.due&&!/^speak-/.test(t.key||'')}).map(function(t){return t.due}).sort();
+  return d.length?(d.length>1&&d[0]!==d[d.length-1]?swShort(d[0])+' – '+swShort(d[d.length-1]):swShort(d[0])):'';
+}
+function commentsTab(c){return '<div id="adm-msg">'+messagesPanel(c,true)+'</div>'+(S.staff==='admin'?costPanel(c):'')}
+function historyTab(c){
+  var l=S.log.filter(function(x){return x.cid===c.id&&!(x.kind==='note'&&!x.tid)}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
+  return '<div class="panel"><h3>History</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
+}
+var SW_WS=['steps','details','forms','docs','activity','history'];
+function cxFormsList(c,allc){
+  var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&t.stage<7}).sort(function(a,b){return a.stage-b.stage||(a.form<b.form?-1:1)});
+  if(!fm.length)return '<p class="empty">No forms yet.</p>';
+  return '<p class="small">'+fm.filter(function(t){return isDone(t.status)}).length+' of '+fm.length+' complete.</p><ul class="cx-steplist" style="margin-top:10px">'+fm.map(function(t){
+    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
+    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul>';
+}
+function cxWorkspace(c,e){
+  var LCN=7,sel=e.sel,st=e.st,allc=e.allc,tab=S.ctab||'steps',sched=e.sched;
+  var nodes=CV_STAGES.slice(0,LCN).map(function(s,i){return {n:s.n,state:i<st?'done':i===st?'now':'',s:i<st?'Completed':i===st?'In progress':'Not started',dates:swShort(sched[i].s)+' – '+swShort(sched[i].e)}});
+  nodes.push({n:'Conference speaking',opt:true,s:'Optional',dates:'Any time'});
+  var isSpk=sel===LCN,mine=isSpk?[]:allc.filter(function(t){return t.stage===sel&&!/^speak-/.test(t.key||'')}).sort(function(a,b){return (a.due||'9')<(b.due||'9')?-1:1});
+  var sdone=mine.filter(function(t){return isDone(t.status)}).length,spct=mine.length?Math.round(sdone/mine.length*100):(sel<st?100:0);
+  var title=isSpk?'Conference speaking':(sel+1)+'. '+CV_STAGES[sel].n,desc=isSpk?'Optional. Start any time.':CV_STAGES[sel].d;
+  var nr=newReplies(c.id);
+  var side=swSide({title:title,desc:desc,pct:spct,lbl:isSpk?'Optional':sel<st?'Completed':sel===st?'In progress':'Not started',sub:isSpk?'Any time':mine.length?sdone+' of '+mine.length+' steps done':'Handled by our team',act:'ctab',active:tab,
+    nav:[['steps','Steps',isSpk?'':mine.length],['details','Stage details'],['forms','Forms'],['docs','Documents'],['comments','Comments',nr?nr+' new':''],['history','History']]});
+  var body='';
+  if(tab==='steps'){
+    if(isSpk)body=e.speakHtml;
+    else{
+      body='<div class="sw-rh"><h3>Steps for you in this stage</h3>'+(e.now.length?chip(e.now.length+' ready',  'gate'):chip('Nothing due','ok'))+'</div>';
+      body+=mine.length?swRows(c,mine,false):'<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
+      if(mine.length)body+='<p class="cx-none">Tap View to see what a step needs. Other work in this stage is done by our team.</p>';
+    }
+  }else if(tab==='details'){
+    var se=sched[Math.min(sel,LCN-1)];
+    body='<div class="panel"><h3>'+esc(title)+'</h3><p>'+esc(CV_STAGES[Math.min(sel,LCN-1)].d)+(isSpk?'':' <span class="cx-more">'+esc(STAGES[sel].d)+'.</span>')+'</p>'+(isSpk?'<p>Speaking can start from your first month and never waits for the articles.</p>':'<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(se.e))+' <span class="cx-more">· about '+Math.max(1,Math.round(se.plan/7))+(Math.round(se.plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&se.len>se.plan+3?', running '+(se.len-se.plan)+' days longer':'')+'</span></p>')+'</div>';
+  }else if(tab==='forms')body='<div class="panel"><h3>Your forms</h3>'+cxFormsList(c,allc)+'</div>';
+  else if(tab==='docs')body='<div id="cx-docs">'+docsPanel(c,false)+evidencePanel(c)+'</div>';
+  else if(tab==='comments')body='<div id="cx-msg">'+messagesPanel(c,false)+'</div>';
+  else{
+    var dn=allc.filter(function(t){return isDone(t.status)}).sort(function(a,b){return (a.doneAt||'')<(b.doneAt||'')?1:-1});
+    body='<div class="panel"><h3>History</h3>'+(dn.length?'<div class="log">'+dn.map(function(t){return '<div><time>'+esc(t.doneAt?swShort(t.doneAt.slice(0,10)):'')+'</time><span>Completed: '+esc(cxName(t))+'</span></div>'}).join('')+'</div>':'<p class="empty">Nothing completed yet.</p>')+'</div>';
+  }
+  return swPipe(nodes,sel,'cvphase')+'<div class="sw-grid" id="sw-ws">'+side+'<div class="sw-main">'+body+'</div></div>'+swLegend(false);
+}
 function caseView(c){
-  var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c);
-  var h='<div class="casehead"><div><button class="link" data-a="home">&larr; All cases</button><h2>'+esc(c.name)+'</h2><div class="meta"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span><span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div></div>'+
-   '<div class="chips"><button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>')+'</div></div>';
+  var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c),NS=STAGES.length;
+  var sel=(S.swSelCid===c.id&&S.swSel!=null)?S.swSel:st;sel=Math.max(0,Math.min(NS-1,sel));
+  var acts='<button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>');
+  var meta='<div class="meta sw-chips"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span>'+evidenceLine(c)+'<span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div>';
+  var h=swHead(c,true,acts,meta);
   if(S.staff==='admin')h+='<div class="addrow"><button class="btn sm" data-a="candidate-login-toggle" aria-expanded="'+(S.showCandidateLogin===c.id?'true':'false')+'">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button></div>';
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
-  h+='<div class="steps">'+STAGES.map(function(s,i){return '<div class="step'+(i<st?' done':i===st?' now':'')+(s.gate?' g':'')+'" title="'+esc(s.d)+'"><i>'+(i+1)+'</i>'+esc(s.n)+'</div>'}).join('')+'</div>'+bar(caseProgress(c));
-  var blockers=ts.filter(function(t){return t.stage===st&&t.req!==false&&!isDone(t.status)});
-  if(blockers.length){
-    var byO={};blockers.forEach(function(t){byO[t.owner]=(byO[t.owner]||0)+1});
-    h+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';
-  }
-  h+=lanes(c,ts);
-  h+=filingReadinessForecast(c,ts);
-  var groups=[
-    ['overview','Overview',[['overview','Case overview']]],
-    ['workflow','Case workflow',[['tasks','Tasks & stages']]],
-    ['evidence','Criteria & evidence',[['criteria-tracker','Criteria & Articles'],['development','Evidence tracks']]],
-    ['records','Candidate records',[['profile','Profile'],['forms','Forms'],['docs','Documents']]],
-    ['management','Case management',[['strategy','Strategy'],['field','Field'],['plan','Plan'],['pathway','Pathway screening'],['score','Scorecard'],['feas','Feasibility'],['niwcase','NIW case'],['activity','Messages & activity'],['guide','Pathway guide']]]
-  ];
-  var group=groups.find(function(g){return g[2].some(function(t){return t[0]===S.tab})})||groups[0];
-  var tabs=groups.map(function(g){return [g[2][0][0],g[1],g[0]]});
   var awc=awaitingReply(c.id);if(awc&&S.tab!=='activity')h+='<div class="panel msgalert"><div><b>'+esc((c.name||'Candidate').split(' ')[0])+' sent '+(awc.n===1?'a message':awc.n+' messages')+'</b><div class="small">"'+esc(awc.last.text.length>110?awc.last.text.slice(0,110)+'...':awc.last.text)+'" · '+esc(agoStr(awc.last.ts))+'</div></div><button class="btn pri sm" data-a="openmsg" data-id="'+esc(c.id)+'">Reply</button></div>';
-  h+='<div class="nav tabs case-main-nav">'+tabs.map(function(t){return '<button class="tab'+(group[0]===t[2]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
-  if(group[2].length>1)h+='<div class="nav tabs case-sub-nav">'+group[2].map(function(t){return '<button class="tab'+(S.tab===t[0]?' on':'')+'" data-a="tab" data-id="'+t[0]+'">'+t[1]+'</button>'}).join('')+'</div>';
-  h+='<div class="case-tab-content">';
-  if(S.tab==='overview')h+=adminCaseOverview(c,ts);
-  else if(S.tab==='tasks')h+=adminStageWorkspace(c,ts)+tasksTab(c,ts);
-  else if(S.tab==='forms')h+=formsTab(c);
-  else if(S.tab==='docs')h+=docsPanel(c,true);
-  else if(S.tab==='profile')h+=profileTab(c);
-  else if(S.tab==='pathway')h+=pathwayScreening(c);
-  else if(S.tab==='development')h+=pathwayDevelopment(c);
-  else if(S.tab==='criteria-tracker')h+=ebTrackerPanel(c,false);
-  else if(S.tab==='niwcase')h+=niwCaseFlow(c,false);
-  else if(S.tab==='strategy')h+=pathwayStrategy(c);
-  else if(S.tab==='guide')h+=pathwayGuide();
-  else if(S.tab==='score')h+=scoreTab(c);
-  else if(S.tab==='field')h+=fieldTab(c);
-  else if(S.tab==='plan')h+=planTab(c);
-  else if(S.tab==='feas')h+=feasTab(c);
-  else h+=activityTab(c);
-  return h+'</div>';
+  var nodes=STAGES.map(function(s,i){return {n:s.n,state:i<st?'done':i===st?'now':'',s:i<st?'Completed':i===st?'In progress':'Not started',dates:swStageDates(ts,i)}});
+  h+=swPipe(nodes,sel,'swsel');
+  var ws=SW_WS.indexOf(S.tab)>=0;
+  var more=[['Profile','profile'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
+  h+='<div class="nav tabs"><button class="tab'+(ws?' on':'')+'" data-a="tab" data-id="steps">Case workspace</button>'+more.map(function(t){return '<button class="tab'+(S.tab===t[1]?' on':'')+'" data-a="tab" data-id="'+t[1]+'">'+t[0]+'</button>'}).join('')+'</div>';
+  var body='';
+  if(ws){
+    var grp=ts.filter(function(t){return t.stage===sel}).sort(function(a,b){var x=tIdx(a),y=tIdx(b);if(x!==y)return x-y;return (a.due||'9')<(b.due||'9')?-1:1});
+    var all=grp.filter(function(t){return t.req!==false}),dn=all.filter(function(t){return isDone(t.status)}).length,pct=all.length?Math.round(dn/all.length*100):(sel<st?100:0),aw=awaitingReply(c.id);
+    var side=swSide({title:(sel+1)+'. '+STAGES[sel].n,desc:STAGES[sel].d,pct:pct,lbl:sel<st?'Completed':sel===st?'In progress':'Not started',sub:dn+' of '+all.length+' steps done',act:'tab',active:S.tab,
+      nav:[['steps','Steps',grp.length],['details','Stage details'],['forms','Forms'],['docs','Documents'],['activity','Comments',aw?aw.n:''],['history','History']]});
+    var main='';
+    if(S.tab==='steps'){
+      var have={};ts.forEach(function(t){have[t.key]=1});var miss=TEMPLATE.filter(function(t){return !have[t.k]});
+      if(miss.length&&S.staff==='admin')main+='<div class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px"><div><b>'+miss.length+' newer workflow steps are not on this case yet</b><div class="small">For example the monthly article steps and optional speaking. Adding them keeps all your existing work. Nothing is removed or changed.</div></div><button class="btn pri sm" data-a="sync-tpl">Add the '+miss.length+' missing steps</button></div>';
+      main+='<div class="sw-rh"><h3>Steps</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div>'+swRows(c,grp,true)+
+        '<div class="panel"><h3>Add a task</h3><div class="addrow"><input type="text" data-draft="tt" placeholder="Task title" value="'+esc(S.draft.tt||'')+'"><select data-draft="to">'+options(OWNERS,S.draft.to||'Advisor')+'</select><input type="date" data-draft="td" value="'+esc(S.draft.td||'')+'"><button class="btn" data-a="task-add">Add</button></div></div>';
+    }else if(S.tab==='details'){
+      main='<div class="panel"><div class="ph"><h3>'+(sel+1)+'. '+esc(STAGES[sel].n)+'</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div><p>'+esc(STAGES[sel].d)+'.</p><p class="small">'+dn+' of '+all.length+' required steps done.</p></div>';
+      var blockers=ts.filter(function(t){return t.stage===st&&t.req!==false&&!isDone(t.status)});
+      if(blockers.length){var byO={};blockers.forEach(function(t){byO[t.owner]=(byO[t.owner]||0)+1});
+        main+='<div class="blockers"><b>Stage '+(st+1)+' ('+esc(STAGES[st].n)+') finishes when these are done.</b> Waiting on: '+Object.keys(byO).map(function(o){return byO[o]+' '+o}).join(', ')+'.<ul>'+blockers.slice(0,6).map(function(t){return '<li>'+esc(t.title)+' <span class="small">('+esc(t.owner)+(t.status==='Not started'?', locked':'')+')</span></li>'}).join('')+(blockers.length>6?'<li class="small">and '+(blockers.length-6)+' more</li>':'')+'</ul></div>';}
+      main+=lanes(c,ts)+filingReadinessForecast(c,ts);
+    }else if(S.tab==='forms')main=formsTab(c);
+    else if(S.tab==='docs')main=docsPanel(c,true);
+    else if(S.tab==='activity')main=commentsTab(c);
+    else main=historyTab(c);
+    body='<div class="sw-grid" id="sw-ws">'+side+'<div class="sw-main case-tab-content">'+main+'</div></div>'+swLegend(true);
+  }else{
+    var x='';
+    if(S.tab==='tasks')x=tasksTab(c,ts);
+    else if(S.tab==='profile')x=profileTab(c);
+    else if(S.tab==='pathway')x=pathwayScreening(c);
+    else if(S.tab==='development')x=pathwayDevelopment(c);
+    else if(S.tab==='criteria-tracker')x=ebTrackerPanel(c,false);
+    else if(S.tab==='niwcase')x=niwCaseFlow(c,false);
+    else if(S.tab==='strategy')x=pathwayStrategy(c);
+    else if(S.tab==='guide')x=pathwayGuide();
+    else if(S.tab==='score')x=scoreTab(c);
+    else if(S.tab==='field')x=fieldTab(c);
+    else if(S.tab==='plan')x=planTab(c);
+    else x=feasTab(c);
+    body='<div class="case-tab-content">'+x+'</div>';
+  }
+  return h+body;
 }
 
 var EB_CRITERIA=[
@@ -1147,6 +1254,22 @@ function docsPanel(c,admin){
   if(S.upBusy)h+='<p class="small">Uploading…</p>';
   return h+'</div>';
 }
+function supportLine(){var e=((window.PORTAL_CONFIG||{}).SUPPORT_EMAIL||'').trim();return /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(e)?' If you need to email us, write to '+esc(e)+'.':' Messages here are the fastest way to reach us.'}
+function evidenceOf(c){
+  var best=null;S.log.forEach(function(l){if(l.cid===c.id&&l.evidenceLink&&(!best||l.ts>best.ts))best=l});
+  var f=(getResp(c.id,'f1').data||{}).evid||{};
+  return {link:(best&&best.evidenceLink)||f.ev_drive||'',email:(best&&best.evidenceEmail)||f.ev_email||''};
+}
+function safeUrl(s){s=String(s||'').trim();return /^https:\/\/[^\s<>"']+$/.test(s)?s:''}
+function evidenceLine(c){var e=evidenceOf(c),u=safeUrl(e.link);if(!e.link&&!e.email)return '<span class="warnm">Evidence folder: not shared yet</span>';return '<span>Evidence folder: '+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">open</a>':esc(e.link))+(e.email?' · '+esc(e.email):'')+'</span>'}
+function evidencePanel(c){
+  var e=evidenceOf(c),u=safeUrl(e.link);
+  return '<div class="panel evp"><h3>Your evidence folder</h3><p class="small">Share one Google Drive folder with your advisor and paste its link here. You can update it any time, even after Form 1 is submitted.</p>'+
+   (e.link?'<p class="small">Saved: '+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">open your folder</a>':esc(e.link))+(e.email?' · '+esc(e.email):'')+'</p>':'')+
+   '<label class="f" for="evl">Google Drive folder link</label><input id="evl" type="url" data-draft="evl" placeholder="https://drive.google.com/..." value="'+esc(S.draft.evl!==undefined?S.draft.evl:e.link)+'">'+
+   '<label class="f" for="eve">Email you use for journals, reviewing and talks</label><input id="eve" type="text" data-draft="eve" placeholder="name.research@gmail.com" value="'+esc(S.draft.eve!==undefined?S.draft.eve:e.email)+'">'+
+   '<div class="addrow"><button class="btn pri" data-a="ev-save">Save and tell my advisor</button></div></div>';
+}
 function msgThread(cid,admin){return S.log.filter(function(l){return l.cid===cid&&l.kind==='note'&&!l.tid&&(admin||l.by==='Candidate'||l.shared)}).sort(function(a,b){return a.ts<b.ts?-1:1})}
 function msgWho(m,admin){var r=m.role==='supervisor'?'supervisor':'advisor',n=(m.from||'').split(' ')[0];if(admin)return esc((n||'Staff')+(m.role?' ('+(m.role==='supervisor'?'supervisor':'admin')+')':''));return esc(n?n+', your '+r:'Your '+r)}
 function awaitingReply(cid){var ms=msgThread(cid,false),n=0;for(var i=ms.length-1;i>=0;i--){if(ms[i].by!=='Candidate')break;n++}return n?{n:n,last:ms[ms.length-1]}:null}
@@ -1157,7 +1280,7 @@ function agoStr(iso){var m=Math.max(0,Math.round((Date.now()-new Date(iso).getTi
 function messagesPanel(c,admin){
   var ms=msgThread(c.id,admin),aw=awaitingReply(c.id),seen=admin?'':msgSeen(c.id);
   var h='<div class="panel msgp"><div class="ph"><h3>'+(admin?'Messages with '+esc((c.name||'candidate').split(' ')[0]):'Message your advisor')+'</h3>'+(admin&&aw?'<span class="chip bad">Awaiting your reply</span>':'')+'</div>';
-  h+=admin?'<p class="small">Replies go to the candidate by default. Tick "Internal note" to keep a note for staff only.</p>':'<p class="small">Ask a question or send an update. Your advisor reads this thread and replies here. Please do not put passport or Social Security numbers in messages.</p>';
+  h+=admin?'<p class="small">Replies go to the candidate by default. Tick "Internal note" to keep a note for staff only.</p>':'<p class="small">Ask a question or send an update. Your advisor reads this thread and replies here. Please do not put passport or Social Security numbers in messages.'+supportLine()+'</p>';
   h+='<div class="msgs" aria-live="polite">'+(ms.length?ms.map(function(m){
     var mine=admin?m.by!=='Candidate':m.by==='Candidate',who=m.by==='Candidate'?(admin?esc((c.name||'Candidate').split(' ')[0]):'You'):msgWho(m,admin);
     var priv=admin&&m.by!=='Candidate'&&!m.shared,isNew=!admin&&!mine&&m.ts>seen;
@@ -1236,51 +1359,23 @@ function candidateView(c){
   var evEnd={d:sched[5].e};
   var nf=function(v){return v?esc(String(v)):'<span class="cx-na">Not provided</span>'};
   h+='<div class="cx">';
-  /* summary */
-  h+='<section class="cx-hero"><div class="cx-hl"><p class="cx-eyebrow">Your case</p><h2>'+esc(c.name||'Candidate')+'</h2><p class="cx-sub">Stage '+(st+1)+' of '+LCN+': <b>'+esc(sg.n)+'</b></p>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+
-    '<div class="cx-ask"><button class="btn big cx-askb" data-a="msgread">Message your advisor'+(newReplies(c.id)?' <span class="cx-badge">'+newReplies(c.id)+' new '+(newReplies(c.id)===1?'reply':'replies')+'</span>':'')+'</button></div>'+
-    '<dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl><p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p>'+
-    '</div>'+
-    '<div class="cx-prog"><b>'+pct+'%</b><div class="cx-bar" role="img" aria-label="'+pct+' percent complete"><i style="width:'+pct+'%"></i></div><span>overall progress</span></div></section>';
+  var acts='<button class="btn sm pri" data-a="msgread">Message your advisor'+(newReplies(c.id)?' <span class="cx-badge">'+newReplies(c.id)+' new</span>':'')+'</button>';
+  var facts='<dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+'<p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p>';
+  h+=swHead(c,false,acts,facts);
   /* fast track to the first article */
   var ftf=['f1','f2','f3'].map(function(k){return allc.filter(function(t){return t.form===k})[0]}).filter(Boolean);
   var ftLeft=ftf.filter(function(t){return !isDone(t.status)});
   if(ftf.length&&ftLeft.length&&st<=3){var ftBy=addD(base,18);
     h+='<section class="cx-fast"><div class="cx-fh"><b>Fast track to your first article</b><span>Target: all three intake forms by '+esc(fmtDate(ftBy).replace(/, \d{4}$/,''))+'</span></div><p>We publish one article a month, and your first one can only start once we know your background, your projects and your publication record. Finishing these three early keeps your whole schedule on time.</p><ul>'+ftf.map(function(t){
       var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';
-      return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><b>'+esc(cxName(t))+'</b><small>'+(d2?'Completed':open?'Ready for you. Start it under What to do now.':'Opens as soon as your profile is reviewed')+'</small>'+'</li>'}).join('')+'</ul></section>';}
-  /* tasks */
-  h+='<section class="cx-sec" id="cx-todo"><div class="cx-sh"><h3>What to do now</h3>'+(now.length?chip(now.length+(now.length===1?' task':' tasks'),'gate'):chip('Nothing due','ok'))+'</div>';
-  if(now.length){now.forEach(function(t){h+=cxTask(c,t)})}
-  else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'Our team is working on your case. New tasks will appear here.')+'</p></div></div>'}
-  h+='</section>';
-  /* all intake forms in one place */
-  var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&t.stage<LCN}).sort(function(a,b){return a.stage-b.stage||(a.form<b.form?-1:1)});
-  if(fm.length){h+='<details class="cx-sec cx-details" id="cx-forms"><summary><b>Your forms</b><small>'+fm.filter(function(t){return isDone(t.status)}).length+' of '+fm.length+' complete. Tap to see every form, from profile intake to scholarly articles.</small></summary><ul class="cx-steplist" style="margin-top:14px">'+fm.map(function(t){
-    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
-    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul></details>';}
+      return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><b>'+esc(cxName(t))+'</b><small>'+(d2?'Completed':open?'Ready for you. Open it from Steps below.':'Opens as soon as your profile is reviewed')+'</small>'+'</li>'}).join('')+'</ul></section>';}
   var spkNode='<li class="opt'+(sel===LCN?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+LCN+'" aria-pressed="'+(sel===LCN)+'"><i>+</i><span>Conference speaking</span><small>Optional · any time</small></button></li>';
   var spkT=allc.filter(function(t){return /^speak-/.test(t.key||'')});
   var speakHtml='<div class="cx-stage"><div class="cx-sth"><div><b>Conference speaking</b></div>'+chip('Optional','')+'</div>'+
     '<h5>What this is about</h5><p>Being invited to speak at a conference, as a keynote or invited speaker, shows that people in your field want to hear from you. It supports your original contributions and your overall case for sustained acclaim. It is not one of the ten criteria by itself, so it adds to the other evidence and does not replace it.</p>'+
     '<h5>When</h5><p>Any time, from your first month. Only the articles follow a monthly pace. Speaking can start as soon as you like, and it does not wait for the articles. <span class="cx-more">Your advisor can help you choose events.</span></p>'+
     '<h5>'+(spkT.length?'Your steps':'Steps you may see')+'</h5><ul class="cx-steplist">'+(spkT.length?spkT.map(function(t){var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'file':'lock')+'</span><div class="cx-sb"><b>'+esc(t.title.replace(/^Choose/,'We choose'))+'</b><small>'+esc(t.detail||'')+' · '+(d2?'Completed':open?'Ready for you':'Opens later')+'</small></div></li>'}).join(''):['Pick 5 target conferences in your field.|We check that each is selective and respected.','Send talk proposals.|One strong abstract, adapted for each event.','Ask organizers about invited or keynote slots.|An invitation counts for more than an accepted submission.','Keep proof for every talk.|Program page with your name, invitation email, and an organizer letter.','Share the talk.|Slides, recording and any coverage.'].map(function(x){var p=x.split('|');return '<li class="l"><span class="cx-si">'+cvIcon('file')+'</span><div class="cx-sb"><b>'+p[0]+'</b><small>'+p[1]+'</small></div></li>'}).join(''))+'</ul><p class="cx-none">Optional. Skip it if it does not fit. Speaking adds to your other evidence and does not replace it.</p></div></section>';
-  /* case life cycle */
-  h+='<section class="cx-sec" id="cx-stages"><div class="cx-sh"><h3>Your case life cycle</h3><span class="small">About 7 months in total. Dates move as you progress, so finishing early or late shifts what follows.</span></div><ol class="cx-tl" role="group" aria-label="Case life cycle">'+CV_STAGES.slice(0,LCN).map(function(s,i){
-    var e=stEnd(i);
-    return '<li class="'+(i<st?'done':i===st?'now':'')+(i===sel?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+i+'" aria-pressed="'+(i===sel)+'"><i>'+(i<st?cvIcon('check'):(i+1))+'</i><span>'+esc(s.n)+'</span><small>'+(i<st?'Complete':i===st?'In progress':e?'by '+esc(fmtDate(e).replace(/, \d{4}$/,'')):'Upcoming')+'</small></button></li>'}).join('')+spkNode+'</ol>';
-  if(sel===LCN){h+=speakHtml;}else{
-  var mine=allc.filter(function(t){return t.stage===sel&&!/^speak-/.test(t.key||'')}).sort(by),ss=sel<st?'Complete':sel===st?'You are here':'Coming up',se=stEnd(sel);
-  h+='<div class="cx-stage"><div class="cx-sth"><div><b>'+(sel+1)+'. '+esc(CV_STAGES[sel].n)+'</b></div>'+chip(ss,sel<st?'ok':sel===st?'gate':'')+'</div>'+
-    '<h5>What this stage is about</h5><p>'+esc(CV_STAGES[sel].d)+' <span class="cx-more">'+esc(STAGES[sel].d)+'.</span></p>'+
-    '<h5>'+(sel===5?'Anticipated evidence collection end':'Expected to finish')+'</h5><p>'+esc(fmtDate(sched[sel].e))+' <span class="cx-more">· about '+Math.max(1,Math.round(sched[sel].plan/7))+(Math.round(sched[sel].plan/7)<=1?' week':' weeks')+' planned'+(sel===st&&sched[sel].len>sched[sel].plan+3?', running '+(sched[sel].len-sched[sel].plan)+' days longer':'')+'</span></p>'+
-    '<h5>Steps for you in this stage</h5>';
-  if(mine.length){h+='<ul class="cx-steplist">'+mine.map(function(t){
-    var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',isForm=t.kind==='form'&&t.form;
-    var lab=d2?'Completed':open?'Ready for you':t.status==='Skipped'?'Skipped':'Opens later';
-    return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?(isForm?'form':'file'):'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+(cxDesc(t)?esc(cxDesc(t))+' · ':'')+lab+(t.due&&!d2?' · due '+esc(fmtDate(t.due).replace(/, \d{4}$/,'')):'')+'</small></div></li>'}).join('')+'</ul><p class="cx-none">Anything marked Ready for you also appears under What to do now. Other work in this stage is done by our team.</p>'}
-  else h+='<p class="cx-none">Our team handles this stage. Nothing is needed from you.</p>';
-  h+='</div></section>';}
+  h+=cxWorkspace(c,{sel:sel,st:st,allc:allc,sched:sched,now:now,speakHtml:speakHtml});
   /* evidence rhythm */
   var rows=[
    ['Intake and first topic','Finish Profile, Project and Scholarly intake. We approve your first article topic and venue.','','Speaking can start now: pick target conferences.','Collect your CV proof and employer proof.'],
@@ -1299,7 +1394,6 @@ function candidateView(c){
   h+=niwCaseFlow(c,true);
   var fz=S.locked?c.feasibility:c.feasibilityReleased;
   if(fz&&fz.outlook)h+='<section class="panel cv-feas">'+feasCard(fz,false)+'</section>';
-  h+='<div class="cv-two"><div id="cx-docs">'+docsPanel(c,false)+'</div><div id="cx-msg">'+messagesPanel(c,false)+'</div></div>';
   /* details */
   h+='<p class="cv-foot">Arcanam Pathway is a planning and coaching service. It is not legal advice and does not guarantee any outcome. Only you and your advisory team can see this page.</p></div>';
   return h;
@@ -1593,18 +1687,21 @@ document.addEventListener('click',async function(e){
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
       case 'req-del':{await db.doc('docs/'+id).delete();break}
       case 'msg':{var mt=(S.draft.msg||'').trim();if(!mt){say('Write your message first.','err');return}var adm=!S.locked,pv=adm&&!!S.draft.msgPriv;await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:mt,kind:'note',by:adm?'Admin':'Candidate',role:adm?(S.staff||'admin'):'candidate',from:adm?((S.me&&(S.me.name||S.me.username))||''):'',shared:adm?!pv:true});S.draft.msg='';S.draft.msgPriv=false;if(!adm)msgMarkSeen(c.id);S.focusMsg=adm;break}
+      case 'ev-save':{var el=(S.draft.evl!==undefined?S.draft.evl:evidenceOf(c).link||'').trim(),ee=(S.draft.eve!==undefined?S.draft.eve:evidenceOf(c).email||'').trim();if(!safeUrl(el)){say('Paste the full folder link. It must start with https://','err');return}await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:'Evidence folder shared: '+el+(ee?' · Evidence email: '+ee:''),kind:'note',by:'Candidate',role:'candidate',from:'',shared:true,evidenceLink:el,evidenceEmail:ee});delete S.draft.evl;delete S.draft.eve;say('Saved. Your advisor can see it in your messages.','ok');break}
       case 'openmsg':{S.cid=id;S.showCandidateLogin=null;S.tab='activity';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';S.focusMsg=true;break}
-      case 'msgread':{msgMarkSeen(c.id);var me2=document.getElementById('cx-msg');if(me2){me2.scrollIntoView({behavior:'smooth',block:'start'});setTimeout(function(){var t2=document.getElementById('msgbox');if(t2)t2.focus({preventScroll:true})},350)}break}
+      case 'msgread':{msgMarkSeen(c.id);S.ctab='comments';S.focusSw=true;S.focusBox=true;break}
       case 'cancel':if(ctl)ctl.abort();break;
       case 'home':S.cid=null;S.home='cases';S.openForm=false;S.role='Advisor';break;
       case 'alltasks':S.cid=null;S.home='tasks';break;
       case 'newcase':S.cid=null;S.home='new';break;
       case 'create':await createCase();return;
-      case 'open':S.cid=id;S.showCandidateLogin=null;S.tab='tasks';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
-      case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='tasks';S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
+      case 'open':S.cid=id;S.showCandidateLogin=null;S.tab='steps';S.swSel=null;S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
+      case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='steps';S.swSelCid=tk.cid;S.swSel=tk.stage;S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
       case 'cvphase':S.cvp=+id;break;
+      case 'ctab':S.ctab=id;break;
+      case 'swsel':S.swSelCid=c.id;S.swSel=+id;if(SW_WS.indexOf(S.tab)<0)S.tab='steps';break;
       case 'form-tpl':{var tf=id,tg2=tf==='f10'&&c?(getResp(c.id,'f10').data.guide||c.articleExamples||[]):[];var bl=new Blob([formTemplate(tf,tg2)],{type:'application/msword'}),ua=document.createElement('a');ua.href=URL.createObjectURL(bl);ua.download=(formDef(tf).n.replace(/[^A-Za-z0-9]+/g,'_'))+'_template.doc';document.body.appendChild(ua);ua.click();setTimeout(function(){URL.revokeObjectURL(ua.href);ua.remove()},500);return}
-      case 'cvscroll':{var se=document.getElementById(id);if(se)se.scrollIntoView({behavior:'smooth',block:'start'});return}
+      case 'cvscroll':{S.ctab=/msg/.test(id)?'comments':'docs';S.focusSw=true;break}
       case 'eb-edit-article':S.ebArticleEdit=+id;S.ebArticleDraft=null;break;
       case 'eb-cancel-article':S.ebArticleEdit=null;S.ebArticleDraft=null;break;
       case 'eb-save-article':{
