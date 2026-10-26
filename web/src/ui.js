@@ -1732,12 +1732,18 @@ document.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' '
 function startApp(opts){
   db=opts.db;sampleFn=opts.sample;S.locked=!!opts.locked;S.me=opts.me;S.staff=opts.staff||'admin';if(S.locked){S.role='Candidate';S.cid=opts.caseId}
   var loaded={};
+  var loadWatch=setTimeout(function(){
+    if(S.ready||S.dberr)return;
+    var pending=['candidates','tasks','responses','log','docs'].filter(function(n){return !loaded[n]});
+    S.dberr='Preview timed out loading '+pending.join(', ')+'. Please refresh or contact the administrator.';
+    render();
+  },15000);
   function sub(coll,key){
     db.collection(coll).onSnapshot(function(snap){
       S[key]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o});
       if(key==='resp')S.resp.forEach(function(r){if(!DIRTY[r.id]&&!PEND[r.id]&&WORK[r.id])delete WORK[r.id]});
       loaded[key]=1;
-      if(loaded.cands&&loaded.tasks&&loaded.resp&&loaded.log&&loaded.docs)S.ready=true;
+      if(loaded.cands&&loaded.tasks&&loaded.resp&&loaded.log&&loaded.docs){S.ready=true;clearTimeout(loadWatch)}
       schedule();
     },function(err){S.dberr=(err&&err.message)||'error';schedule()});
   }
