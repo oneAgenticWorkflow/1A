@@ -1218,7 +1218,7 @@ function candidateView(c){
   var by=function(a,b){return (a.due||'9')<(b.due||'9')?-1:1};
   var now=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.status!=='Skipped'}).sort(by);
   var later=ts.filter(function(t){return t.status==='Not started'}).sort(by),done=ts.filter(function(t){return isDone(t.status)});
-  var pct=caseProgress(c),sel=Math.min(S.cvp!==undefined?S.cvp:st,LCN),sg={n:PATHWAY_V2_STAGES[st]};
+  var pct=caseProgress(c),sel=Math.min(Math.max(0,S.cvp!==undefined?S.cvp:st),LCN),sg={n:PATHWAY_V2_STAGES[st]};
   var allc=tasksOf(c.id).filter(function(t){return t.owner==='Candidate'&&!t.draft});
   /* Live schedule: 7 months in total, split across the 7 stages. Finished stages use real finish dates,
      the current stage slips by the number of days an open task is overdue, and every later stage moves with it. */
@@ -1258,7 +1258,7 @@ function candidateView(c){
   else{var l0=later[0];h+='<div class="cx-calm"><span class="cx-ticon ok">'+cvIcon(l0?'lock':'check')+'</span><div><b>Nothing for you to do today</b><p>'+(l0?'Next for you: <b>'+esc(l0.title)+'</b>'+(l0.due?' (due '+esc(fmtDate(l0.due).replace(/, \d{4}$/,''))+')':'')+'. It opens when our team finishes the step before it, and we will message you.':'No candidate tasks have been assigned yet. Please contact your advisor to begin onboarding.')+'</p></div></div>'}
   h+='</section>';
   /* all intake forms in one place */
-  var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&t.stage<LCN}).sort(function(a,b){return a.stage-b.stage||(a.form<b.form?-1:1)});
+  var fm=allc.filter(function(t){return t.kind==='form'&&t.form&&pathwayV2Stage(t)<LCN}).sort(function(a,b){return pathwayV2Stage(a)-pathwayV2Stage(b)||(a.form<b.form?-1:1)});
   if(fm.length){h+='<details class="cx-sec cx-details" id="cx-forms"><summary><b>Your forms</b><small>'+fm.filter(function(t){return isDone(t.status)}).length+' of '+fm.length+' complete. Tap to see every form, from profile intake to scholarly articles.</small></summary><ul class="cx-steplist" style="margin-top:14px">'+fm.map(function(t){
     var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped',r=getResp(c.id,t.form),lab=d2?'Completed':open?(r&&r.status==='In progress'?'In progress':'Ready for you'):'Opens later';
     return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><div class="cx-sb"><b>'+esc(cxName(t))+'</b><small>'+esc(cxDesc(t))+' · '+lab+'</small></div>'+(open?'<button class="btn sm pri" data-a="openform" data-id="'+t.form+'">'+(r&&r.status==='In progress'?'Continue':'Open')+'</button>':'')+'</li>'}).join('')+'</ul></details>';}
