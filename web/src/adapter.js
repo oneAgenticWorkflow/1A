@@ -36,7 +36,9 @@ function makeDb(sb,isAdmin,caseId,cfg){
     }
     var out=[],from=0,page=1000;
     for(;;){
-      var r=await sb.from(coll).select('id,data').order('id').range(from,from+page-1);
+      var query=sb.from(coll).select('id,data');
+      if(!isAdmin&&caseId)query=query.eq('case_id',caseId);
+      var r=await query.order('id').range(from,from+page-1);
       if(r.error)throw fail(r.error);
       r.data.forEach(function(row){out.push({id:row.id,data:function(){return JSON.parse(JSON.stringify(row.data))}})});
       if(r.data.length<page)break;from+=page;
