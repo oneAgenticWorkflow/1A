@@ -370,10 +370,26 @@ function swPill(t){var s=t.status;
   if(s==='In progress')return ['In progress','mid'];
   return ['Ready','gate'];
 }
+var CD_EMAIL=/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
+function cdLink(v){return CD_EMAIL.test(v||'')?'<a href="mailto:'+esc(v)+'">'+esc(v)+'</a>':esc(v||'')}
+function idStrip(c){
+  var it=[['Employer',c.employer?esc(c.employer):''],['Work email',c.workEmail?cdLink(c.workEmail):''],['University email',c.schoolEmail?cdLink(c.schoolEmail):''],['Primary email',c.email?cdLink(c.email):'']].filter(function(x){return x[1]});
+  if(!it.length)return '';
+  return '<div class="idstrip">'+it.map(function(x){return '<span><em>'+x[0]+'</em><b>'+x[1]+'</b></span>'}).join('')+'</div>';
+}
+function cdVal(k,cur){return esc(S.draft[k]!==undefined?S.draft[k]:(cur||''))}
+function cdPanel(c){
+  return '<div class="cdp"><h4>Edit case details</h4><p class="small">These show in the case header. Email alerts to the candidate go to the primary email, so change that one only if the candidate asks.</p>'+
+    '<label class="f" for="cd-emp">Employer</label><input id="cd-emp" type="text" data-draft="cd-emp" maxlength="200" value="'+cdVal('cd-emp',c.employer)+'">'+
+    '<div class="two"><div><label class="f" for="cd-we">Work email</label><input id="cd-we" type="text" data-draft="cd-we" maxlength="200" value="'+cdVal('cd-we',c.workEmail)+'"></div>'+
+    '<div><label class="f" for="cd-se">University email</label><input id="cd-se" type="text" data-draft="cd-se" maxlength="200" value="'+cdVal('cd-se',c.schoolEmail)+'"></div></div>'+
+    '<label class="f" for="cd-em">Primary email</label><input id="cd-em" type="text" data-draft="cd-em" maxlength="200" value="'+cdVal('cd-em',c.email)+'">'+
+    '<div class="addrow"><button class="btn pri sm" data-a="cd-save">Save details</button><button class="btn sm" data-a="cd-cancel">Cancel</button></div></div>';
+}
 function swHead(c,staff,actions,extra){
   var st=c.stage||0,pct=caseProgress(c),total=staff?STAGES.length:7,sn=staff?STAGES[Math.min(st,STAGES.length-1)].n:CV_STAGES[Math.min(st,6)].n,done=pct>=100;
   return '<section class="sw-head"><div class="sw-ht"><div class="sw-tt">'+(staff?'<button class="link" data-a="home">&larr; All cases</button>':'')+'<h2>'+(staff?'EB-1A Candidate Case':'Your EB-1A case')+'</h2>'+chip(done?'Complete':'Active',done?'ok':'gate')+'</div><div class="chips">'+(actions||'')+'</div></div>'+
-   '<dl class="sw-meta"><div><dt>Case ID</dt><dd>'+esc(swId(c))+'</dd></div><div><dt>Candidate</dt><dd>'+esc(c.name||'Candidate')+'</dd></div><div><dt>Case type</dt><dd>EB-1A Profile Enhancement</dd></div><div><dt>Current stage</dt><dd>Stage '+(Math.min(st,total-1)+1)+' of '+total+'<small>'+esc(sn)+'</small></dd></div><div class="pr"><dt>Overall progress</dt><dd><span class="sw-pct">'+pct+'%</span>'+bar(pct)+'</dd></div></dl>'+(extra||'')+'</section>';
+   '<dl class="sw-meta"><div><dt>Case ID</dt><dd>'+esc(swId(c))+'</dd></div><div><dt>Candidate</dt><dd>'+esc(c.name||'Candidate')+'</dd></div><div><dt>Case type</dt><dd>EB-1A Profile Enhancement</dd></div><div><dt>Current stage</dt><dd>Stage '+(Math.min(st,total-1)+1)+' of '+total+'<small>'+esc(sn)+'</small></dd></div><div class="pr"><dt>Overall progress</dt><dd><span class="sw-pct">'+pct+'%</span>'+bar(pct)+'</dd></div></dl>'+(staff?idStrip(c)+(S.cdOpen===c.id?cdPanel(c):''):'')+(extra||'')+'</section>';
 }
 function swPipe(nodes,sel,act){
   return '<ol class="sw-pipe" role="group" aria-label="Case stages">'+nodes.map(function(n,i){
@@ -473,7 +489,7 @@ function cxWorkspace(c,e){
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c),NS=STAGES.length;
   var sel=(S.swSelCid===c.id&&S.swSel!=null)?S.swSel:st;sel=Math.max(0,Math.min(NS-1,sel));
-  var acts='<button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button>'+(S.confirmDel&&S.staff==='admin'?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<details class="more"><summary class="btn sm">More</summary><div class="more-m"><button data-a="copy">Copy summary</button>'+(S.staff==='admin'?'<button data-a="candidate-login-toggle">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button><button class="dng" data-a="delete">Delete case</button>':'')+'</div></details>');
+  var acts='<button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button>'+(S.confirmDel&&S.staff==='admin'?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<details class="more"><summary class="btn sm">More</summary><div class="more-m"><button data-a="cd-edit">Edit details</button><button data-a="copy">Copy summary</button>'+(S.staff==='admin'?'<button data-a="candidate-login-toggle">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button><button class="dng" data-a="delete">Delete case</button>':'')+'</div></details>');
   var meta='<div class="meta sw-chips"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span>'+(visaWarn(c)?'<span>'+chip(visaWarn(c).txt,visaWarn(c).cls)+'</span>':'')+'<span>Goal: '+esc(c.goal||'')+'</span>'+evidenceLine(c)+'<span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div>';
   var h=swHead(c,true,acts,meta);
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
@@ -1516,7 +1532,7 @@ function candidateView(c){
   var nf=function(v){return v?esc(String(v)):'<span class="cx-na">Not provided</span>'};
   h+='<div class="cx">';
   var acts='<button class="btn sm pri" data-a="msgread">Message your advisor'+(newReplies(c.id)?' <span class="cx-badge">'+newReplies(c.id)+' new</span>':'')+'</button>';
-  var facts='<details class="cx-fd"><summary>Your details</summary><dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+'<p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p></details>';
+  var facts='<details class="cx-fd"><summary>Your details</summary><dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Work email',c.workEmail],['University email',c.schoolEmail],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+'<p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p></details>';
   h+=swHead(c,false,acts,facts);
   h+=askPanel(c,true);
   /* fast track to the first article */
@@ -1631,6 +1647,19 @@ document.addEventListener('click',async function(e){
     if(S.staff==='supervisor'&&['feas-release','plan-approve','att-ok','delete-yes','newcase','create'].indexOf(a)>=0){say('An admin has to do this step.','err');return}
     switch(a){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
+      case 'cd-edit':{if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});S.cdOpen=c.id;break}
+      case 'cd-cancel':{S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});break}
+      case 'cd-save':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var g=function(k,cur){return (S.draft[k]!==undefined?S.draft[k]:(cur||'')).trim()};
+        var cp={employer:g('cd-emp',c.employer),workEmail:g('cd-we',c.workEmail),schoolEmail:g('cd-se',c.schoolEmail),email:g('cd-em',c.email)};
+        var bad=['workEmail','schoolEmail','email'].filter(function(k){return cp[k]&&!CD_EMAIL.test(cp[k])})[0];
+        if(bad){say('That email address does not look right. Please check it.','err');break}
+        if(!cp.email){say('Keep a primary email, it is used for alerts.','err');break}
+        await candRef(c.id).update(cp);
+        S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});
+        say('Details saved.','ok');break;
+      }
       case 'qa-new':S.qaForm=true;break;
       case 'qa-cancel':S.qaForm=false;break;
       case 'qa-send':{
