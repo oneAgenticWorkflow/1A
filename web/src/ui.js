@@ -512,10 +512,10 @@ function caseView(c){
     if(S.tab==='steps'){
       var have={};ts.forEach(function(t){have[t.key]=1});var miss=TEMPLATE.filter(function(t){return !have[t.k]});
       if(miss.length&&S.staff==='admin')main+='<div class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px"><div><b>'+miss.length+' newer workflow steps are not on this case yet</b><div class="small">For example the monthly article steps and optional speaking. Adding them keeps all your existing work. Nothing is removed or changed.</div></div><button class="btn pri sm" data-a="sync-tpl">Add the '+miss.length+' missing steps</button></div>';
-      main+=askPanel(c,false);
       main+=repairPanel(c,ts);
       main+='<div class="sw-rh"><h3>Steps</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div>'+swRows(c,grp,true)+(sel>=4&&sel<=6?evBoard(c,false):'')+
         '<div class="panel"><h3>Add a task</h3><div class="addrow"><input type="text" data-draft="tt" placeholder="Task title" value="'+esc(S.draft.tt||'')+'"><select data-draft="to">'+options(OWNERS,S.draft.to||'Advisor')+'</select><input type="date" data-draft="td" value="'+esc(S.draft.td||'')+'"><button class="btn" data-a="task-add">Add</button></div></div>';
+      main+=askPanel(c,false);
     }else if(S.tab==='details'){
       main='<div class="panel"><div class="ph"><h3>'+(sel+1)+'. '+esc(STAGES[sel].n)+'</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div><p>'+esc(STAGES[sel].d)+'.</p><p class="small">'+dn+' of '+all.length+' required steps done.</p></div>';
       var blockers=ts.filter(function(t){return t.stage===st&&t.req!==false&&!isDone(t.status)});
@@ -675,7 +675,8 @@ function askPanel(c,ro){
   var all=qaItems(c),list=ro?all.filter(function(r){return r.status!=='Resolved'}):all;
   if(ro&&!list.length)return '';
   var open=all.filter(function(r){return r.status!=='Resolved'}).length;
-  var h='<section class="panel qa"><div class="ph"><div><h3>'+(ro?'Your advisor asked':'Questions for the candidate')+'</h3>'+(ro?'<p class="small">Your advisor needs a little more information. Please answer below.</p>':'<p class="small">Ask for anything the forms missed. The candidate answers on their case page.</p>')+'</div>'+(open?chip(open+(ro?' to answer':' open'),ro?'gate':'mid'):'')+'</div>';
+  if(!ro&&!(S.qaOpen||S.qaForm))return '<section class="panel qa qa-c"><div class="ph"><div><h3>Questions for the candidate</h3><p class="small">'+(all.length?all.length+' asked, '+open+' open.':'None asked yet.')+'</p></div><div class="chips">'+(open?chip(open+' open','mid'):'')+'<button class="btn sm" data-a="qa-tog">Show</button></div></div></section>';
+  var h='<section class="panel qa"><div class="ph"><div><h3>'+(ro?'Your advisor asked':'Questions for the candidate')+'</h3>'+(ro?'<p class="small">Your advisor needs a little more information. Please answer below.</p>':'<p class="small">Ask for anything the forms missed. The candidate answers on their case page.</p>')+'</div>'+(open?chip(open+(ro?' to answer':' open'),ro?'gate':'mid'):'')+(!ro&&!S.qaForm?'<button class="btn sm" data-a="qa-tog">Hide</button>':'')+'</div>';
   if(!ro&&S.qaForm){
     h+='<div class="entry"><h4>Ask a question</h4><label class="f" for="qa-q">Question</label><textarea id="qa-q" placeholder="For example: What is your current office email address?"></textarea>'+
       '<div class="two"><div><label class="f" for="qa-w">About</label><select id="qa-w">'+options(['General'].concat(STAGES.map(function(s){return s.n})),'General')+'</select></div><div><label class="f" for="qa-t">Answer type</label><select id="qa-t">'+options(QA_TYPES,'Short text')+'</select></div></div>'+
@@ -1666,7 +1667,8 @@ document.addEventListener('click',async function(e){
         S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em','cd-dob','cd-co'].forEach(function(k){delete S.draft[k]});
         say('Details saved.','ok');break;
       }
-      case 'qa-new':S.qaForm=true;break;
+      case 'qa-tog':S.qaOpen=!S.qaOpen;break;
+      case 'qa-new':S.qaForm=true;S.qaOpen=true;break;
       case 'qa-cancel':S.qaForm=false;break;
       case 'qa-send':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
