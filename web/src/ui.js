@@ -593,7 +593,7 @@ function ebTrackerPanel(c,readonly){
 var EV_STAGE=['Idea','In progress','Collected'];
 var EV_SECT=[
  {k:'articles',n:'Scholarly articles',d:'Published or accepted articles in journals, conferences and trade publications',min:10,max:10,f:[['venue','Journal or conference','t'],['citations','Citations so far','t']]},
- {k:'judging',n:'Judging and peer review',d:'Reviews, panels and committees where you judged the work of others',min:10,max:10,f:[['venue','Journal, conference or event','t'],['role','Role','s',['Peer reviewer','Program committee','Panel judge','Editorial board','Other']]]},
+ {k:'judging',n:'Judging and peer review',d:'Reviewer requests you sent and reviews you completed. Only completed reviews with proof count toward the target.',min:10,max:10,st:['Request sent','Replied','Accepted','Review assigned','Review completed','Declined or no reply'],f:[['venue','Journal, conference or event','t'],['role','Role','s',['Technical reviewer','Peer reviewer','Program committee','Panel judge','Editorial board','Other']],['contact','Contact email','t']]},
  {k:'memberships',n:'Memberships',d:'Associations that admit members only for outstanding achievement',min:3,max:5,f:[['org','Association','t'],['req','Admission requirement','a']]},
  {k:'awards',n:'Awards',d:'Nationally or internationally recognized prizes for excellence',min:2,max:4,f:[['org','Awarded by','t'],['req','Selection criteria','a'],['scope','Reach','s',['Local','Regional','National','International']]]},
  {k:'media',n:'Published media',d:'Independent coverage about you and your work',min:2,max:4,f:[['outlet','Publication or outlet','t'],['about','Coverage is','s',['About me or my work','Mentions me only']]]},
@@ -628,7 +628,7 @@ function evForm(c,s,ro){
 function evRow(c,s,r){
   var meta=s.f.map(function(x){return r[x[0]]}).filter(Boolean);if(r.date)meta.push(fmtDate(r.date));if(r.by==='Candidate')meta.push('added by candidate');
   var u=safeUrl(r.link||''),fin=r.status==='Verified';
-  return '<div class="ev-row"><div class="ev-m"><b>'+esc(r.title||'Untitled')+'</b>'+(meta.length?'<small>'+meta.map(esc).join(' · ')+'</small>':'')+(u?'<small><a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Proof</a></small>':'')+'</div><div class="ev-a">'+(fin?chip('Verified','ok')+' ':'')+chip(r.stage||evStages(s)[0],(r.stage==='Collected'||r.stage==='Signed')?'gate':'')+' <button class="btn sm" data-a="evx-edit" data-id="'+s.k+'|'+esc(r.id)+'">'+(fin&&S.role==='Candidate'?'View':'Edit')+'</button></div></div>';
+  return '<div class="ev-row"><div class="ev-m"><b>'+esc(r.title||'Untitled')+'</b>'+(meta.length?'<small>'+meta.map(esc).join(' · ')+'</small>':'')+(u?'<small><a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Proof</a></small>':'')+'</div><div class="ev-a">'+(fin?chip('Verified','ok')+' ':'')+chip(r.stage||evStages(s)[0],(r.stage==='Collected'||r.stage==='Signed'||r.stage==='Review completed'||r.stage==='Accepted')?'gate':'')+' <button class="btn sm" data-a="evx-edit" data-id="'+s.k+'|'+esc(r.id)+'">'+(fin&&S.role==='Candidate'?'View':'Edit')+'</button></div></div>';
 }
 function evSection(c,s,ro){
   var t=evTarget(c,s),n=evCount(c,s),open=!!(S.evOpen&&S.evOpen[s.k]),pct=t[1]?Math.min(100,Math.round(n.done/Math.max(t[1],1)*100)):0,met=n.done>=t[0];
@@ -637,6 +637,7 @@ function evSection(c,s,ro){
   if(open){
     h+='<div class="ev-b">';
     if(plan)h+='<p class="ev-plan"><b>Team plan:</b> '+esc(plan)+'</p>';
+    if(s.k==='judging'){var jv=evItems(c,'judging'),jc=function(n){return jv.filter(function(r){return r.stage===n}).length};if(jv.length)h+='<p class="small ev-pipe"><b>Outreach:</b> '+jv.length+' tracked · '+jc('Request sent')+' sent, '+jc('Replied')+' replied, '+jc('Accepted')+' accepted, '+jc('Review assigned')+' assigned, '+jc('Review completed')+' completed, '+jc('Declined or no reply')+' declined or no reply</p>'}
     var it=evItems(c,s.k);
     if(!it.length&&!(S.evForm&&S.evForm.k===s.k))h+='<p class="small">Nothing added yet.</p>';
     it.forEach(function(r){h+=(S.evForm&&S.evForm.k===s.k&&S.evForm.id===r.id)?evForm(c,s,ro):evRow(c,s,r)});
