@@ -628,7 +628,7 @@ function evForm(c,s,ro){
 function evRow(c,s,r){
   var meta=s.f.map(function(x){return r[x[0]]}).filter(Boolean);if(r.date)meta.push(fmtDate(r.date));if(r.by==='Candidate')meta.push('added by candidate');
   var u=safeUrl(r.link||''),fin=r.status==='Verified';
-  return '<div class="ev-row"><div class="ev-m"><b>'+esc(r.title||'Untitled')+'</b>'+(meta.length?'<small>'+meta.map(esc).join(' · ')+'</small>':'')+(u?'<small><a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Proof</a></small>':'')+'</div><div class="ev-a">'+(fin?chip('Verified','ok')+' ':'')+chip(r.stage||evStages(s)[0],(r.stage==='Collected'||r.stage==='Signed'||r.stage==='Review completed'||r.stage==='Accepted')?'gate':'')+' <button class="btn sm" data-a="evx-edit" data-id="'+s.k+'|'+esc(r.id)+'">'+(fin&&S.role==='Candidate'?'View':'Edit')+'</button></div></div>';
+  return '<div class="ev-row"><div class="ev-m"><b>'+esc(r.title||'Untitled')+'</b>'+(meta.length?'<small>'+meta.map(esc).join(' · ')+'</small>':'')+(u?'<small><a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Proof</a></small>':'')+'</div><div class="ev-a">'+(fin?chip('Verified','ok')+' ':'')+chip(r.stage||evStages(s)[0],(r.stage==='Collected'||r.stage==='Signed'||r.stage==='Review completed'||r.stage==='Accepted')?'gate':'')+' '+(S.role!=='Candidate'&&qaItems(c).some(function(q){return q.evId===r.id&&q.status!=='Resolved'})?chip('Asked','mid')+' ':'')+(S.role!=='Candidate'&&!fin?'<button class="btn sm" data-a="evx-ask" data-id="'+s.k+'|'+esc(r.id)+'">Ask '+esc((c.name||'candidate').split(' ')[0])+' to review</button> ':'')+'<button class="btn sm" data-a="evx-edit" data-id="'+s.k+'|'+esc(r.id)+'">'+(fin&&S.role==='Candidate'?'View':'Edit')+'</button></div></div>';
 }
 function evSection(c,s,ro){
   var t=evTarget(c,s),n=evCount(c,s),open=!!(S.evOpen&&S.evOpen[s.k]),pct=t[1]?Math.min(100,Math.round(n.done/Math.max(t[1],1)*100)):0,met=n.done>=t[0];
@@ -1706,6 +1706,16 @@ document.addEventListener('click',async function(e){
       }
       case 'evx-tog':S.evOpen=S.evOpen||{};S.evOpen[id]=!S.evOpen[id];break;
       case 'evx-add':S.evOpen=S.evOpen||{};S.evOpen[id]=true;S.evForm={k:id,id:null};S.evTgt=null;S.evDel=null;break;
+      case 'evx-ask':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var eap=id.split('|'),eas=evSec(eap[0]),ear=S.resp.find(function(r){return r.id===eap[1]});
+        if(!eas||!ear){say('Item not found.','err');break}
+        if(qaItems(c).some(function(q){return q.evId===ear.id&&q.status!=='Resolved'})){say('Already asked. See Questions for the candidate on the Stage steps tab.','ok');break}
+        var eau=safeUrl(ear.link||''),eaq='Please review "'+(ear.title||'this item').slice(0,120)+'" under '+eas.n+' and confirm it is correct. Reply Approved, or tell us what to change.'+(eau?' Link: '+eau:'');
+        if(eaq.length>600)eaq=eaq.slice(0,600);
+        var eaid=rid(c.id,'ask-'+(window.crypto&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,16):String(Date.now())));
+        await db.doc('responses/'+eaid).set({cid:c.id,formId:'ask',q:eaq,about:'Evidence build',evId:ear.id,type:'Short text',due:'',answer:'',status:'In progress',by:'Team',createdAt:nowIso(),updatedAt:nowIso(),removed:false});
+        say('Question sent. The candidate will see it on their case page.','ok');break}
       case 'evx-edit':{var evp=id.split('|');S.evOpen=S.evOpen||{};S.evOpen[evp[0]]=true;S.evForm={k:evp[0],id:evp[1]};S.evTgt=null;S.evDel=null;break}
       case 'evx-cancel':S.evForm=null;S.evDel=null;break;
       case 'evx-save':{
