@@ -150,6 +150,8 @@ function casesView(){
   if(!sorted.length)return h+'<p class="empty">No cases yet. Use New candidate to start one.</p>';
   var items=[];
   sorted.forEach(function(oc){var aw=awaitingReply(oc.id);if(aw){var tx=aw.last.text;items.push({k:0,ts:aw.last.ts,a:'openmsg',id:oc.id,t:oc.name+(aw.n>1?' ('+aw.n+' messages)':''),s:tx.length>90?tx.slice(0,90)+'...':tx,r:agoStr(aw.last.ts)+' · Reply'})}});
+  var evrev={};S.resp.forEach(function(r){if(r.formId==='ev'&&!r.removed&&r.by==='Candidate'&&r.status!=='Verified')evrev[r.cid]=(evrev[r.cid]||0)+1});
+  sorted.forEach(function(oc){if(evrev[oc.id])items.push({k:1,d:-1,a:'open',id:oc.id,t:oc.name,s:evrev[oc.id]+(evrev[oc.id]===1?' evidence item':' evidence items')+' to review',r:'Review'})});
   S.tasks.forEach(function(t){
     if(t.status==='Not started'||isDone(t.status)||t.status==='Skipped'||!t.due)return;
     var oc=sorted.find(function(c){return c.id===t.cid});if(!oc)return;var d=daysUntil(t.due);
@@ -491,7 +493,7 @@ function caseView(c){
       var have={};ts.forEach(function(t){have[t.key]=1});var miss=TEMPLATE.filter(function(t){return !have[t.k]});
       if(miss.length&&S.staff==='admin')main+='<div class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px"><div><b>'+miss.length+' newer workflow steps are not on this case yet</b><div class="small">For example the monthly article steps and optional speaking. Adding them keeps all your existing work. Nothing is removed or changed.</div></div><button class="btn pri sm" data-a="sync-tpl">Add the '+miss.length+' missing steps</button></div>';
       main+=repairPanel(c,ts);
-      main+='<div class="sw-rh"><h3>Steps</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div>'+swRows(c,grp,true)+
+      main+='<div class="sw-rh"><h3>Steps</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div>'+swRows(c,grp,true)+(sel>=4&&sel<=6?evBoard(c,false):'')+
         '<div class="panel"><h3>Add a task</h3><div class="addrow"><input type="text" data-draft="tt" placeholder="Task title" value="'+esc(S.draft.tt||'')+'"><select data-draft="to">'+options(OWNERS,S.draft.to||'Advisor')+'</select><input type="date" data-draft="td" value="'+esc(S.draft.td||'')+'"><button class="btn" data-a="task-add">Add</button></div></div>';
     }else if(S.tab==='details'){
       main='<div class="panel"><div class="ph"><h3>'+(sel+1)+'. '+esc(STAGES[sel].n)+'</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div><p>'+esc(STAGES[sel].d)+'.</p><p class="small">'+dn+' of '+all.length+' required steps done.</p></div>';
@@ -566,6 +568,69 @@ function ebTrackerPanel(c,readonly){
  });
  h+=ebArticlePanel(c,readonly);return h+'</div>';
 }
+/* ---------- evidence tracker: counted items per criterion, with targets ---------- */
+var EV_STAGE=['Idea','In progress','Collected'];
+var EV_SECT=[
+ {k:'articles',n:'Scholarly articles',d:'Published or accepted articles in journals, conferences and trade publications',min:10,max:10,f:[['venue','Journal or conference','t'],['citations','Citations so far','t']]},
+ {k:'judging',n:'Judging and peer review',d:'Reviews, panels and committees where you judged the work of others',min:10,max:10,f:[['venue','Journal, conference or event','t'],['role','Role','s',['Peer reviewer','Program committee','Panel judge','Editorial board','Other']]]},
+ {k:'memberships',n:'Memberships',d:'Associations that admit members only for outstanding achievement',min:3,max:5,f:[['org','Association','t'],['req','Admission requirement','a']]},
+ {k:'awards',n:'Awards',d:'Nationally or internationally recognized prizes for excellence',min:2,max:4,f:[['org','Awarded by','t'],['req','Selection criteria','a'],['scope','Reach','s',['Local','Regional','National','International']]]},
+ {k:'media',n:'Published media',d:'Independent coverage about you and your work',min:2,max:4,f:[['outlet','Publication or outlet','t'],['about','Coverage is','s',['About me or my work','Mentions me only']]]},
+ {k:'letters',n:'Recommendation letters',d:'Letters from independent experts who know your work',min:4,max:6,st:['Identified','Asked','Drafting','Signed'],f:[['person','Recommender','t'],['org','Institution or company','t'],['indep','Relationship','s',['Independent expert','Collaborator','Manager or colleague']]]},
+ {k:'contributions',n:'Original contributions',d:'Work that changed your field, with proof of adoption or impact',min:3,max:5,f:[['impact','What changed because of it','a'],['org','Who adopted it','t']]},
+ {k:'critical',n:'Critical role',d:'Leading or critical roles at distinguished organizations',min:1,max:3,f:[['org','Organization','t'],['roleT','Your title and scope','t']]},
+ {k:'salary',n:'High salary',d:'Pay documents and reliable comparisons',min:1,max:1,f:[['source','Document or comparison source','t']]}
+];
+function evSec(k){return EV_SECT.filter(function(s){return s.k===k})[0]}
+function evStages(s){return s.st||EV_STAGE}
+function evItems(c,k){return S.resp.filter(function(r){return r.cid===c.id&&r.formId==='ev'&&r.crit===k&&!r.removed}).sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?-1:1})}
+function evTarget(c,s){var t=(c.evTargets||{})[s.k];return (t&&t.length===2)?[+t[0]||0,+t[1]||0]:[s.min,s.max]}
+function evCount(c,s){var it=evItems(c,s.k);return {all:it.length,done:it.filter(function(r){return r.status==='Verified'}).length}}
+function evRoll(c){var need=0,done=0;EV_SECT.forEach(function(s){var t=evTarget(c,s),n=evCount(c,s);need+=t[0];done+=Math.min(n.done,t[0])});return {need:need,done:done}}
+function evField(f,val){var id='evf-'+f[0],lb='<label class="f" for="'+id+'">'+esc(f[1])+'</label>';
+  if(f[2]==='a')return lb+'<textarea id="'+id+'">'+esc(val||'')+'</textarea>';
+  if(f[2]==='s')return lb+'<select id="'+id+'">'+options(f[3],val||f[3][0])+'</select>';
+  return lb+'<input id="'+id+'" type="text" value="'+esc(val||'')+'">'}
+function evForm(c,s,ro){
+  var f=S.evForm,old=f.id?S.resp.find(function(r){return r.id===f.id}):null,v=old||{},locked=ro&&old&&old.status==='Verified',list=evStages(s);
+  var h='<div class="entry ev-form"><h4>'+(old?'Edit item':'Add to '+esc(s.n.toLowerCase()))+'</h4>'+
+   '<label class="f" for="evf-title">Title</label><input id="evf-title" type="text" value="'+esc(v.title||'')+'" placeholder="Short name you will recognize">'+
+   s.f.map(function(x){return evField(x,v[x[0]])}).join('')+
+   '<div class="two"><div><label class="f" for="evf-date">Date</label><input id="evf-date" type="date" value="'+esc(v.date||'')+'"></div><div><label class="f" for="evf-stage">Progress</label><select id="evf-stage">'+options(list,v.stage&&list.indexOf(v.stage)>=0?v.stage:list[0])+'</select></div></div>'+
+   '<label class="f" for="evf-link">Proof link (optional)</label><input id="evf-link" type="text" value="'+esc(v.link||'')+'" placeholder="https:// link to the file in your evidence folder">'+
+   '<label class="f" for="evf-notes">Notes (optional)</label><textarea id="evf-notes">'+esc(v.notes||'')+'</textarea>';
+  if(!ro)h+='<label class="ev-ver"><input type="checkbox" id="evf-ver"'+(v.status==='Verified'?' checked':'')+'> Verified by the team (counts toward the target)</label>';
+  if(locked)return h+'<p class="small">Your team has verified this item. Message them if something needs to change.</p><div class="addrow"><button class="btn sm" data-a="evx-cancel">Close</button></div></div>';
+  return h+'<div class="addrow"><button class="btn pri sm" data-a="evx-save" data-id="'+s.k+'">Save</button><button class="btn sm" data-a="evx-cancel">Cancel</button>'+
+    (old?(S.evDel===old.id?'<button class="btn sm danger" data-a="evx-del-yes" data-id="'+esc(old.id)+'">Yes, remove</button><button class="btn sm" data-a="evx-del-no">Keep</button>':'<button class="btn sm danger" data-a="evx-del-ask" data-id="'+esc(old.id)+'">Remove</button>'):'')+'</div></div>';
+}
+function evRow(c,s,r){
+  var meta=s.f.map(function(x){return r[x[0]]}).filter(Boolean);if(r.date)meta.push(fmtDate(r.date));if(r.by==='Candidate')meta.push('added by candidate');
+  var u=safeUrl(r.link||''),fin=r.status==='Verified';
+  return '<div class="ev-row"><div class="ev-m"><b>'+esc(r.title||'Untitled')+'</b>'+(meta.length?'<small>'+meta.map(esc).join(' · ')+'</small>':'')+(u?'<small><a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Proof</a></small>':'')+'</div><div class="ev-a">'+(fin?chip('Verified','ok')+' ':'')+chip(r.stage||evStages(s)[0],(r.stage==='Collected'||r.stage==='Signed')?'gate':'')+' <button class="btn sm" data-a="evx-edit" data-id="'+s.k+'|'+esc(r.id)+'">'+(fin&&S.role==='Candidate'?'View':'Edit')+'</button></div></div>';
+}
+function evSection(c,s,ro){
+  var t=evTarget(c,s),n=evCount(c,s),open=!!(S.evOpen&&S.evOpen[s.k]),pct=t[1]?Math.min(100,Math.round(n.done/Math.max(t[1],1)*100)):0,met=n.done>=t[0];
+  var tl=t[0]===t[1]?String(t[0]):t[0]+' to '+t[1],plan=(c.evPlan||{})[s.k];
+  var h='<div class="ev-sec'+(open?' open':'')+'"><button type="button" class="ev-h" data-a="evx-tog" data-id="'+s.k+'" aria-expanded="'+open+'"><span class="ev-t"><b>'+esc(s.n)+'</b><small>'+esc(s.d)+'</small></span><span class="ev-c"><b>'+n.done+'</b> of '+tl+(n.all>n.done?'<small>'+(n.all-n.done)+' awaiting verification</small>':'')+'</span><span class="ev-bar">'+bar(pct)+'</span>'+chip(met?'Target met':(t[0]-n.done)+' to go',met?'ok':'')+'</button>';
+  if(open){
+    h+='<div class="ev-b">';
+    if(plan)h+='<p class="ev-plan"><b>Team plan:</b> '+esc(plan)+'</p>';
+    var it=evItems(c,s.k);
+    if(!it.length&&!(S.evForm&&S.evForm.k===s.k))h+='<p class="small">Nothing added yet.</p>';
+    it.forEach(function(r){h+=(S.evForm&&S.evForm.k===s.k&&S.evForm.id===r.id)?evForm(c,s,ro):evRow(c,s,r)});
+    if(S.evForm&&S.evForm.k===s.k&&!S.evForm.id)h+=evForm(c,s,ro);
+    else if(!S.evForm||S.evForm.k!==s.k)h+='<div class="addrow"><button class="btn pri sm" data-a="evx-add" data-id="'+s.k+'">Add item</button>'+(!ro&&S.staff?'<button class="btn sm" data-a="evx-tedit" data-id="'+s.k+'">Target and plan</button>':'')+'</div>';
+    if(!ro&&S.staff&&S.evTgt===s.k)h+='<div class="entry"><h4>Target and plan</h4><div class="two"><div><label class="f" for="evt-min">Minimum verified</label><input id="evt-min" type="number" min="0" max="99" value="'+t[0]+'"></div><div><label class="f" for="evt-max">Goal (maximum)</label><input id="evt-max" type="number" min="0" max="99" value="'+t[1]+'"></div></div><label class="f" for="evt-plan">Team plan and next actions (the candidate can read this)</label><textarea id="evt-plan">'+esc(plan||'')+'</textarea><div class="addrow"><button class="btn pri sm" data-a="evx-tsave" data-id="'+s.k+'">Save</button><button class="btn sm" data-a="evx-tcancel">Cancel</button></div></div>';
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+function evBoard(c,ro){
+  var r=evRoll(c),pct=r.need?Math.round(r.done/r.need*100):0;
+  return '<section class="panel ev"><div class="ph"><div><h3>'+(ro?'Your evidence':'Evidence tracker')+'</h3><p class="small">'+(ro?'Add each piece of evidence as you collect it. Your team checks every item and marks it verified.':'Counted items for each criterion. Only verified items count toward the target.')+' A planning tool, not a prediction of approval.</p></div>'+chip(r.done+' of '+r.need+' verified',r.done>=r.need?'ok':'')+'</div>'+bar(pct)+'<div class="ev-list">'+EV_SECT.map(function(s){return evSection(c,s,ro)}).join('')+'</div></section>';
+}
+function ebTrackerPanel(c,readonly){return evBoard(c,readonly)}
 var PATHWAY_REQUIREMENTS={
  niw:[
  ['eb2_degree','EB-2 threshold','Qualifying completed degree and transcripts, or exceptional-ability evidence'],
@@ -1527,6 +1592,42 @@ document.addEventListener('click',async function(e){
     if(S.staff==='supervisor'&&['feas-release','plan-approve','att-ok','delete-yes','newcase','create'].indexOf(a)>=0){say('An admin has to do this step.','err');return}
     switch(a){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
+      case 'evx-tog':S.evOpen=S.evOpen||{};S.evOpen[id]=!S.evOpen[id];break;
+      case 'evx-add':S.evOpen=S.evOpen||{};S.evOpen[id]=true;S.evForm={k:id,id:null};S.evTgt=null;S.evDel=null;break;
+      case 'evx-edit':{var evp=id.split('|');S.evOpen=S.evOpen||{};S.evOpen[evp[0]]=true;S.evForm={k:evp[0],id:evp[1]};S.evTgt=null;S.evDel=null;break}
+      case 'evx-cancel':S.evForm=null;S.evDel=null;break;
+      case 'evx-save':{
+        if(!c)break;
+        var evs=evSec(id),evg=function(n){return ((document.getElementById('evf-'+n)||{}).value||'').trim()},evCand=S.role==='Candidate'||!S.staff;
+        if(!evs)break;
+        var evt=evg('title');if(!evt){say('Give the item a title.','err');break}
+        var evl=evg('link');if(evl&&!safeUrl(evl)){say('The proof link must start with https://','err');break}
+        var evo=S.evForm&&S.evForm.id?S.resp.find(function(r){return r.id===S.evForm.id}):null;
+        if(evo&&evCand&&evo.status==='Verified'){say('Verified items can only be changed by your team.','err');break}
+        var evck=document.getElementById('evf-ver'),evv2=(!evCand&&evck&&evck.checked)?'Verified':'In progress';
+        var evit={cid:c.id,formId:'ev',crit:id,title:evt,date:evg('date'),link:evl,notes:evg('notes'),stage:evg('stage')||evStages(evs)[0],status:evv2,by:evo?evo.by:(evCand?'Candidate':'Team'),createdAt:evo?evo.createdAt:nowIso(),updatedAt:nowIso(),removed:false};
+        evs.f.forEach(function(f){evit[f[0]]=evg(f[0])});
+        var evid=evo?evo.id:rid(c.id,'ev-'+(window.crypto&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,16):String(Date.now())));
+        await db.doc('responses/'+evid).set(evit);S.evForm=null;S.evDel=null;say('Saved.','ok');
+        break;
+      }
+      case 'evx-del-ask':S.evDel=id;break;
+      case 'evx-del-no':S.evDel=null;break;
+      case 'evx-del-yes':{
+        var evd=S.resp.find(function(r){return r.id===id});if(!evd)break;
+        if((S.role==='Candidate'||!S.staff)&&evd.status==='Verified'){say('Verified items can only be removed by your team.','err');break}
+        var evcp=Object.assign({},evd);delete evcp.id;evcp.removed=true;evcp.updatedAt=nowIso();
+        await db.doc('responses/'+id).set(evcp);S.evForm=null;S.evDel=null;say('Removed.','ok');break;
+      }
+      case 'evx-tedit':S.evOpen=S.evOpen||{};S.evOpen[id]=true;S.evTgt=id;S.evForm=null;break;
+      case 'evx-tcancel':S.evTgt=null;break;
+      case 'evx-tsave':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var evv=function(n){return (document.getElementById(n)||{}).value||''},mn=parseInt(evv('evt-min'),10),mx=parseInt(evv('evt-max'),10);
+        if(isNaN(mn)||isNaN(mx)||mn<0||mx<mn||mx>99){say('Enter a minimum and a goal, with the goal at least as large as the minimum.','err');break}
+        var evtg=Object.assign({},c.evTargets||{}),evpl=Object.assign({},c.evPlan||{});evtg[id]=[mn,mx];evpl[id]=evv('evt-plan').trim();
+        await candRef(c.id).update({evTargets:evtg,evPlan:evpl});c.evTargets=evtg;c.evPlan=evpl;S.evTgt=null;say('Target saved.','ok');break;
+      }
       case 'usr-open':S.cid=null;S.home='users';S.confirmUser=null;refreshUsers();break;
       case 'cred-close':S.cred=null;break;
       case 'pw-open':S.pwOpen=true;S.pwMsg='';break;
