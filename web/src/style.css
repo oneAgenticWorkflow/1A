@@ -805,3 +805,12 @@ details.cx-fast[open]>summary::after{content:"\2212"}
 .ev-form{margin-top:8px}
 @media (max-width:560px){.ev-row{flex-direction:column;align-items:flex-start}.ev-a{width:100%;justify-content:space-between}}
 .ev-ver{display:flex;gap:8px;align-items:center;margin-top:10px;font-size:14px}
+
+/* ---- ask the candidate ---- */
+.qa .ph{align-items:flex-start;gap:12px}
+.qa-list{display:flex;flex-direction:column;margin-top:10px}
+.qa-row{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-top:1px solid var(--line)}
+.qa-q{display:flex;flex-direction:column;gap:2px}
+.qa-q small{color:var(--muted);font-size:12px}
+.qa-a{margin:0;padding:8px 10px;background:var(--surface2);border-radius:8px;font-size:14px;overflow-wrap:anywhere}
+.qa-st{display:flex}
