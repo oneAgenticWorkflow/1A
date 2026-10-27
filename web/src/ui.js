@@ -373,7 +373,7 @@ function swPill(t){var s=t.status;
 var CD_EMAIL=/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
 function cdLink(v){return CD_EMAIL.test(v||'')?'<a href="mailto:'+esc(v)+'">'+esc(v)+'</a>':esc(v||'')}
 function idStrip(c){
-  var it=[['Employer',c.employer?esc(c.employer):''],['Work email',c.workEmail?cdLink(c.workEmail):''],['University email',c.schoolEmail?cdLink(c.schoolEmail):''],['Primary email',c.email?cdLink(c.email):'']].filter(function(x){return x[1]});
+  var it=[['Date of birth',c.dateOfBirth?esc(fmtDate(c.dateOfBirth)):''],['Country',c.country?esc(c.country):''],['Employer',c.employer?esc(c.employer):''],['Work email',c.workEmail?cdLink(c.workEmail):''],['University email',c.schoolEmail?cdLink(c.schoolEmail):''],['Primary email',c.email?cdLink(c.email):'']].filter(function(x){return x[1]});
   if(!it.length)return '';
   return '<div class="idstrip">'+it.map(function(x){return '<span><em>'+x[0]+'</em><b>'+x[1]+'</b></span>'}).join('')+'</div>';
 }
@@ -384,6 +384,8 @@ function cdPanel(c){
     '<div class="two"><div><label class="f" for="cd-we">Work email</label><input id="cd-we" type="text" data-draft="cd-we" maxlength="200" value="'+cdVal('cd-we',c.workEmail)+'"></div>'+
     '<div><label class="f" for="cd-se">University email</label><input id="cd-se" type="text" data-draft="cd-se" maxlength="200" value="'+cdVal('cd-se',c.schoolEmail)+'"></div></div>'+
     '<label class="f" for="cd-em">Primary email</label><input id="cd-em" type="text" data-draft="cd-em" maxlength="200" value="'+cdVal('cd-em',c.email)+'">'+
+    '<div class="two"><div><label class="f" for="cd-dob">Date of birth</label><input id="cd-dob" type="date" data-draft="cd-dob" max="'+esc(new Date().toISOString().slice(0,10))+'" value="'+cdVal('cd-dob',c.dateOfBirth)+'"></div>'+
+    '<div><label class="f" for="cd-co">Country</label><input id="cd-co" type="text" data-draft="cd-co" maxlength="80" value="'+cdVal('cd-co',c.country)+'"></div></div>'+
     '<div class="addrow"><button class="btn pri sm" data-a="cd-save">Save details</button><button class="btn sm" data-a="cd-cancel">Cancel</button></div></div>';
 }
 function swHead(c,staff,actions,extra){
@@ -1647,17 +1649,19 @@ document.addEventListener('click',async function(e){
     if(S.staff==='supervisor'&&['feas-release','plan-approve','att-ok','delete-yes','newcase','create'].indexOf(a)>=0){say('An admin has to do this step.','err');return}
     switch(a){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
-      case 'cd-edit':{if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});S.cdOpen=c.id;break}
-      case 'cd-cancel':{S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});break}
+      case 'cd-edit':{if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});S.cdOpen=c.id;delete S.draft['cd-dob'];delete S.draft['cd-co'];break}
+      case 'cd-cancel':{S.cdOpen=null;delete S.draft['cd-dob'];delete S.draft['cd-co'];['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});break}
       case 'cd-save':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var g=function(k,cur){return (S.draft[k]!==undefined?S.draft[k]:(cur||'')).trim()};
-        var cp={employer:g('cd-emp',c.employer),workEmail:g('cd-we',c.workEmail),schoolEmail:g('cd-se',c.schoolEmail),email:g('cd-em',c.email)};
+        var cp={employer:g('cd-emp',c.employer),workEmail:g('cd-we',c.workEmail),schoolEmail:g('cd-se',c.schoolEmail),email:g('cd-em',c.email),dateOfBirth:g('cd-dob',c.dateOfBirth),country:g('cd-co',c.country)};
+        if(cp.dateOfBirth&&(!/^\d{4}-\d{2}-\d{2}$/.test(cp.dateOfBirth)||cp.dateOfBirth>new Date().toISOString().slice(0,10))){say('Enter a valid date of birth.','err');break}
+        if(cp.dateOfBirth){var bd=new Date(cp.dateOfBirth+'T12:00:00Z'),nw=new Date();cp.age=nw.getUTCFullYear()-bd.getUTCFullYear()-((nw.getUTCMonth()<bd.getUTCMonth()||(nw.getUTCMonth()===bd.getUTCMonth()&&nw.getUTCDate()<bd.getUTCDate()))?1:0)}
         var bad=['workEmail','schoolEmail','email'].filter(function(k){return cp[k]&&!CD_EMAIL.test(cp[k])})[0];
         if(bad){say('That email address does not look right. Please check it.','err');break}
         if(!cp.email){say('Keep a primary email, it is used for alerts.','err');break}
         await candRef(c.id).update(cp);
-        S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});
+        S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em','cd-dob','cd-co'].forEach(function(k){delete S.draft[k]});
         say('Details saved.','ok');break;
       }
       case 'qa-new':S.qaForm=true;break;
