@@ -143,6 +143,47 @@ function ensurePathwayDashboardStyle(){
 function casesView(){
   ensurePathwayDashboardStyle();
   var open=0,late=0,wait=0;
+  S.tasks.forEach(function(t){if(t.status==='Not started'||isDone(t.status)||t.status==='Skipped')return;open++;if(t.due&&daysUntil(t.due)<0)late++;if(t.owner==='Candidate')wait++});
+  var sorted=S.cands.slice().sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?1:-1});
+  var active=sorted.filter(function(c){return caseProgress(c)<100}).length;
+  var h='<div class="nd-stats"><div><b>'+active+'</b><small>Active cases</small></div><div><b>'+open+'</b><small>Open tasks</small></div><div'+(late?' class="bad"':'')+'><b>'+late+'</b><small>Overdue</small></div><div><b>'+wait+'</b><small>With candidates</small></div></div>';
+  if(!sorted.length)return h+'<p class="empty">No cases yet. Use New candidate to start one.</p>';
+  var items=[];
+  sorted.forEach(function(oc){var aw=awaitingReply(oc.id);if(aw){var tx=aw.last.text;items.push({k:0,ts:aw.last.ts,a:'openmsg',id:oc.id,t:oc.name+(aw.n>1?' ('+aw.n+' messages)':''),s:tx.length>90?tx.slice(0,90)+'...':tx,r:agoStr(aw.last.ts)+' · Reply'})}});
+  S.tasks.forEach(function(t){
+    if(t.status==='Not started'||isDone(t.status)||t.status==='Skipped'||!t.due)return;
+    var oc=sorted.find(function(c){return c.id===t.cid});if(!oc)return;var d=daysUntil(t.due);
+    if(t.owner==='Candidate'){
+      if((t.req===false&&!/^art/.test(t.key||''))||d>3)return;
+      items.push({k:2,d:d,a:'nudge',id:t.id,t:oc.name,s:cxName(t),r:(d<0?'Overdue '+(-d)+'d':d===0?'Due today':'Due in '+d+'d')+' · Remind'});
+    }else if(d<0){
+      items.push({k:1,d:d,a:'gotask',id:t.id,t:t.title,s:oc.name+' · '+t.owner,r:dueTxt(t)+' · Open'});
+    }
+  });
+  items.sort(function(a,b){return a.k-b.k||(a.d||0)-(b.d||0)});
+  h+='<section class="pathway-attention"><div class="pathway-section-title"><h3>Needs you</h3><span>'+(items.length?items.length+(items.length===1?' item':' items'):'All caught up')+'</span></div>';
+  if(!items.length)h+='<p class="small" style="margin:4px 2px 0">No replies, overdue steps or reminders waiting.</p>';
+  items.slice(0,6).forEach(function(x){h+='<button class="pathway-alert" data-a="'+x.a+'" data-id="'+esc(x.id)+'"><span><b>'+esc(x.t)+'</b><small>'+esc(x.s)+'</small></span><span class="pathway-alert-due">'+esc(x.r)+' &rarr;</span></button>'});
+  if(items.length>6)h+='<p class="small" style="margin:8px 2px 0">+'+(items.length-6)+' more. Open <b>All tasks</b> to see everything.</p>';
+  if(items.some(function(x){return x.a==='nudge'}))h+='<p class="small" style="margin:8px 2px 0">Nothing is sent automatically. Remind gives you a message to copy.</p>';
+  h+='</section>';
+  if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Reminder (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
+  h+='<div class="pathway-section-title"><h3>Cases</h3><span>'+sorted.length+'</span></div><div class="pathway-cases">';
+  sorted.forEach(function(c){
+    var ts=tasksOf(c.id),progress=caseProgress(c);
+    var next=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.due}).sort(function(a,b){return a.due<b.due?-1:1})[0];
+    var overdue=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.due&&daysUntil(t.due)<0}).length;
+    var stage=STAGES[Math.min(c.stage||0,STAGES.length-1)];
+    h+='<button class="pathway-case" data-a="open" data-id="'+esc(c.id)+'"><span class="pathway-case-top"><span><b>'+esc(c.name)+'</b><small>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</small></span><span class="pathway-case-arrow" aria-hidden="true">&rarr;</span></span>'+
+      '<span class="pathway-case-tags">'+chip('Stage '+((c.stage||0)+1)+' · '+stage.n,stage.gate?'gate':'')+(overdue?chip(overdue+' overdue','bad'):'')+'</span>'+
+      '<span class="pathway-case-progress"><span>Progress</span><strong>'+progress+'%</strong></span>'+bar(progress)+
+      '<span class="pathway-case-foot"><span>'+(next?'Next: '+esc(next.title):'No dated step coming up')+'</span></span></button>';
+  });
+  return h+'</div>';
+}
+function casesViewOld(){
+  ensurePathwayDashboardStyle();
+  var open=0,late=0,wait=0;
   S.tasks.forEach(function(t){if(t.status==='Not started'||isDone(t.status))return;open++;if(t.due&&daysUntil(t.due)<0)late++;if(t.owner==='Candidate')wait++});
   var sorted=S.cands.slice().sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?1:-1});
   var active=sorted.filter(function(c){return caseProgress(c)<100}).length;
