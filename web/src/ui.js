@@ -63,7 +63,7 @@ function topbar0(){
   if(S.locked){var em=(S.me&&(S.me.name||S.me.username||S.me.email))||'',nm=(c&&c.name)||em;var ini=nm.split(/[ @.]+/).filter(Boolean).slice(0,2).map(function(x){return x[0].toUpperCase()}).join('');
     return '<header class="cv-top"><div class="cv-brand"><span class="cv-logo">'+LOGO_SVG+'</span><div><b>Arcanam Pathway</b><small>Your private case page</small></div></div><div class="cv-user"><span class="cv-av" aria-hidden="true">'+esc(ini)+'</span><span class="cv-em">'+esc(em)+'</span><button class="btn sm ghost" data-a="pw-open">Change password</button><button class="btn sm" data-a="signout">Sign out</button></div></header>';}
   var adm=S.staff==='admin';
-  return '<div class="top"><div class="brandh"><span class="cv-logo">'+LOGO_SVG+'</span><div><h1>Arcanam Pathway</h1><div class="priv">'+(adm?'Admin':'Supervisor')+' · '+esc(S.me&&(S.me.name||S.me.username||S.me.email)||'')+' · screening aid, not legal advice</div></div></div>'+
+  return '<div class="top"><div class="brandh"><span class="cv-logo">'+LOGO_SVG+'</span><div><h1>Arcanam Pathway</h1><div class="priv">'+(function(){var nm=S.me&&(S.me.name||S.me.username||S.me.email)||'',rl=adm?'Admin':'Supervisor';return esc(nm&&nm.toLowerCase()!==rl.toLowerCase()?nm+' · '+rl:rl)})()+' · screening aid, not legal advice</div></div></div>'+
    '<div class="nav"><button class="tab'+(!c&&S.home==='cases'?' on':'')+'" data-a="home">Cases</button>'+
    '<button class="tab'+(!c&&S.home==='tasks'?' on':'')+'" data-a="alltasks">All tasks</button>'+
    (adm?'<button class="tab'+(!c&&S.home==='users'?' on':'')+'" data-a="usr-open">People</button><button class="btn pri" data-a="newcase">New candidate</button>':'')+'<button class="btn sm ghost" data-a="pw-open">Change password</button><button class="btn sm ghost" data-a="signout">Sign out</button></div></div>';
@@ -428,10 +428,9 @@ function cxWorkspace(c,e){
 function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c),NS=STAGES.length;
   var sel=(S.swSelCid===c.id&&S.swSel!=null)?S.swSel:st;sel=Math.max(0,Math.min(NS-1,sel));
-  var acts='<button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button><button class="btn sm" data-a="copy">Copy summary</button>'+(S.staff!=='admin'?'':S.confirmDel?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<button class="btn sm danger" data-a="delete">Delete case</button>');
+  var acts='<button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button>'+(S.confirmDel&&S.staff==='admin'?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<details class="more"><summary class="btn sm">More</summary><div class="more-m"><button data-a="copy">Copy summary</button>'+(S.staff==='admin'?'<button data-a="candidate-login-toggle">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button><button class="dng" data-a="delete">Delete case</button>':'')+'</div></details>');
   var meta='<div class="meta sw-chips"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span>'+evidenceLine(c)+'<span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div>';
   var h=swHead(c,true,acts,meta);
-  if(S.staff==='admin')h+='<div class="addrow"><button class="btn sm" data-a="candidate-login-toggle" aria-expanded="'+(S.showCandidateLogin===c.id?'true':'false')+'">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button></div>';
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   var awc=awaitingReply(c.id);if(awc&&S.tab!=='activity')h+='<div class="panel msgalert"><div><b>'+esc((c.name||'Candidate').split(' ')[0])+' sent '+(awc.n===1?'a message':awc.n+' messages')+'</b><div class="small">"'+esc(awc.last.text.length>110?awc.last.text.slice(0,110)+'...':awc.last.text)+'" · '+esc(agoStr(awc.last.ts))+'</div></div><button class="btn pri sm" data-a="openmsg" data-id="'+esc(c.id)+'">Reply</button></div>';
@@ -1277,7 +1276,7 @@ function evidenceOf(c){
   return {link:(best&&best.evidenceLink)||f.ev_drive||'',email:(best&&best.evidenceEmail)||f.ev_email||''};
 }
 function safeUrl(s){s=String(s||'').trim();return /^https:\/\/[^\s<>"']+$/.test(s)?s:''}
-function evidenceLine(c){var e=evidenceOf(c),u=safeUrl(e.link);if(!e.link&&!e.email)return '<span class="warnm">Evidence folder: not shared yet</span>';return '<span>Evidence folder: '+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">open</a>':esc(e.link))+(e.email?' · '+esc(e.email):'')+'</span>'}
+function evidenceLine(c){var e=evidenceOf(c),u=safeUrl(e.link);if(!e.link&&!e.email)return '<span class="warnm">Evidence folder: not shared yet</span>';return '<span>Evidence folder: '+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">open</a>':esc(e.link))+(e.email?(u?' · ':'')+esc(e.email):'')+'</span>'}
 function evidencePanel(c){
   var e=evidenceOf(c),u=safeUrl(e.link);
   return '<div class="panel evp"><h3>Your evidence folder</h3><p class="small">Share one Google Drive folder with your advisor and paste its link here. You can update it any time, even after Form 1 is submitted.</p>'+
