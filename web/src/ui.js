@@ -153,6 +153,7 @@ function casesView(){
   var evrev={};S.resp.forEach(function(r){if(r.formId==='ev'&&!r.removed&&r.by==='Candidate'&&r.status!=='Verified')evrev[r.cid]=(evrev[r.cid]||0)+1});
   sorted.forEach(function(oc){if(evrev[oc.id])items.push({k:1,d:-1,a:'open',id:oc.id,t:oc.name,s:evrev[oc.id]+(evrev[oc.id]===1?' evidence item':' evidence items')+' to review',r:'Review'})});
   S.resp.forEach(function(r){if(r.formId==='ask'&&!r.removed&&r.status!=='Resolved'&&r.answer){var oc2=sorted.find(function(c){return c.id===r.cid});if(oc2)items.push({k:0,d:-1,a:'open',id:oc2.id,t:oc2.name,s:'Answered: '+(r.q||'').slice(0,80),r:'Review'})}});
+  sorted.forEach(function(oc){var vw=visaWarn(oc);if(vw)items.push({k:vw.d<=30?0:1,d:vw.d,a:'open',id:oc.id,t:oc.name,s:vw.txt,r:'Review'})});
   S.tasks.forEach(function(t){
     if(t.status==='Not started'||isDone(t.status)||t.status==='Skipped'||!t.due)return;
     var oc=sorted.find(function(c){return c.id===t.cid});if(!oc)return;var d=daysUntil(t.due);
@@ -178,7 +179,7 @@ function casesView(){
     var overdue=ts.filter(function(t){return t.status!=='Not started'&&!isDone(t.status)&&t.due&&daysUntil(t.due)<0}).length;
     var stage=STAGES[Math.min(c.stage||0,STAGES.length-1)];
     h+='<button class="pathway-case" data-a="open" data-id="'+esc(c.id)+'"><span class="pathway-case-top"><span><b>'+esc(c.name)+'</b><small>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</small></span><span class="pathway-case-arrow" aria-hidden="true">&rarr;</span></span>'+
-      '<span class="pathway-case-tags">'+chip('Stage '+((c.stage||0)+1)+' · '+stage.n,stage.gate?'gate':'')+(overdue?chip(overdue+' overdue','bad'):'')+'</span>'+
+      '<span class="pathway-case-tags">'+chip('Stage '+((c.stage||0)+1)+' · '+stage.n,stage.gate?'gate':'')+(overdue?chip(overdue+' overdue','bad'):'')+(visaWarn(c)?chip(visaWarn(c).txt,visaWarn(c).cls):'')+'</span>'+
       '<span class="pathway-case-progress"><span>Progress</span><strong>'+progress+'%</strong></span>'+bar(progress)+
       '<span class="pathway-case-foot"><span>'+(next?'Next: '+esc(next.title):'No dated step coming up')+'</span></span></button>';
   });
@@ -473,7 +474,7 @@ function caseView(c){
   var ts=tasksOf(c.id),st=c.stage||0,rd=readiness(c),NS=STAGES.length;
   var sel=(S.swSelCid===c.id&&S.swSel!=null)?S.swSel:st;sel=Math.max(0,Math.min(NS-1,sel));
   var acts='<button class="btn sm pri" data-a="openmsg" data-id="'+esc(c.id)+'">Message candidate</button><button class="btn sm" data-a="asCand">View as candidate</button>'+(S.confirmDel&&S.staff==='admin'?'<button class="btn sm danger" data-a="delete-yes">Yes, delete this case</button><button class="btn sm" data-a="delete-no">Keep</button>':'<details class="more"><summary class="btn sm">More</summary><div class="more-m"><button data-a="copy">Copy summary</button>'+(S.staff==='admin'?'<button data-a="candidate-login-toggle">'+(S.showCandidateLogin===c.id?'Hide candidate login':'Candidate login')+'</button><button class="dng" data-a="delete">Delete case</button>':'')+'</div></details>');
-  var meta='<div class="meta sw-chips"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span><span>Goal: '+esc(c.goal||'')+'</span>'+evidenceLine(c)+'<span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div>';
+  var meta='<div class="meta sw-chips"><span>'+esc(c.visa||'')+(c.visaExpiry?' · expires '+esc(c.visaExpiry):'')+'</span>'+(visaWarn(c)?'<span>'+chip(visaWarn(c).txt,visaWarn(c).cls)+'</span>':'')+'<span>Goal: '+esc(c.goal||'')+'</span>'+evidenceLine(c)+'<span>'+chip(rd.k,rd.cls)+'</span><span>FOE: '+esc((c.foe&&c.foe.locked)||'not locked')+'</span>'+((S.staff==='admin'&&c.costs&&c.costs.length)?'<span title="AI cost, admins only">AI cost: $'+c.costs.reduce(function(a,x){return a+(x.usd||0)},0).toFixed(2)+'</span>':'')+'</div>';
   var h=swHead(c,true,acts,meta);
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
@@ -664,6 +665,7 @@ function askPanel(c,ro){
   if(list.length)h+='<div class="qa-list">'+list.map(function(r){return qaRow(c,r,ro)}).join('')+'</div>';
   return h+'</section>';
 }
+function visaWarn(c){if(!c.visaExpiry)return null;var d=daysUntil(c.visaExpiry);if(isNaN(d)||d>180)return null;return {d:d,cls:d<=30?'bad':d<=90?'gate':'mid',txt:d<0?'Status expired '+(-d)+(d===-1?' day':' days')+' ago':d===0?'Status expires today':'Status expires in '+d+(d===1?' day':' days')}}
 var PATHWAY_REQUIREMENTS={
  niw:[
  ['eb2_degree','EB-2 threshold','Qualifying completed degree and transcripts, or exceptional-ability evidence'],
