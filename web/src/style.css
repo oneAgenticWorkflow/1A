@@ -776,3 +776,9 @@ code{font-family:var(--mono);font-size:12px}
 .cx-fd summary::-webkit-details-marker{display:none}
 .cx-fd summary::after{content:" +"}
 .cx-fd[open] summary::after{content:" \2212"}
+
+/* ---- candidate: fast-track summary ---- */
+details.cx-fast>summary{cursor:pointer;list-style:none}
+details.cx-fast>summary::-webkit-details-marker{display:none}
+details.cx-fast>summary::after{content:"+";margin-left:auto;font-weight:700}
+details.cx-fast[open]>summary::after{content:"\2212"}
