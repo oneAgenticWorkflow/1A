@@ -642,7 +642,7 @@ function qaRow(c,r,ro){
   var st=qaState(r),h='<div class="qa-row"><div class="qa-q"><b>'+esc(r.q||'')+'</b><small>'+(r.about?'About: '+esc(r.about):'')+(r.due?(r.about?' · ':'')+'Please answer by '+esc(fmtDate(r.due)):'')+'</small></div>';
   if(ro){
     var area=r.type==='Longer text';
-    h+='<label class="f" for="qa-a-'+esc(r.id)+'">Your answer'+(r.type==='Link'?' (paste a link starting with https://)':'')+'</label>'+(area?'<textarea id="qa-a-'+esc(r.id)+'">'+esc(r.answer||'')+'</textarea>':'<input id="qa-a-'+esc(r.id)+'" type="text" value="'+esc(r.answer||'')+'">')+
+    h+='<label class="f" for="qa-a-'+esc(r.id)+'">Your answer'+(r.type==='Link'?' (paste a link starting with https://)':'')+'</label>'+(area?'<textarea id="qa-a-'+esc(r.id)+'" data-draft="qa-a-'+esc(r.id)+'">'+esc(S.draft['qa-a-'+r.id]!==undefined?S.draft['qa-a-'+r.id]:(r.answer||''))+'</textarea>':'<input id="qa-a-'+esc(r.id)+'" data-draft="qa-a-'+esc(r.id)+'" type="text" value="'+esc(S.draft['qa-a-'+r.id]!==undefined?S.draft['qa-a-'+r.id]:(r.answer||''))+'">')+
       '<div class="addrow"><button class="btn pri sm" data-a="qa-answer" data-id="'+esc(r.id)+'">'+(r.answer?'Update answer':'Send answer')+'</button>'+(r.answer?chip('Sent','ok'):'')+'</div>';
   }else{
     var u=r.type==='Link'?safeUrl(r.answer||''):'';
@@ -1588,10 +1588,13 @@ document.addEventListener('input',function(e){
   if(t.dataset.fp!==undefined&&t.type!=='checkbox'&&t.tagName!=='SELECT'){setField(t.dataset.fp,t.value);queueSave(parsePath(t.dataset.fp)[0])}
   if(t.dataset.cnotes!==undefined){var c=cur();if(c){clearTimeout(saveTimer.n);var v=t.value;saveTimer.n=setTimeout(function(){candRef(c.id).update({notes:v})},700)}}
 });
+var ptrDown=false;
+document.addEventListener('pointerdown',function(){ptrDown=true},true);
+['pointerup','pointercancel'].forEach(function(ev){document.addEventListener(ev,function(){setTimeout(function(){ptrDown=false;if(pendingRender){var a=document.activeElement;if(!(a&&a.closest&&a.closest('#app')&&(a.tagName==='TEXTAREA'||a.tagName==='INPUT'))){pendingRender=false;schedule()}}},120)},true)});
 document.addEventListener('focusout',function(e){
   var t=e.target;
   if(t.dataset&&t.dataset.fp!==undefined){var fid=parsePath(t.dataset.fp)[0];clearTimeout(saveTimer[fid]);saveResp(S.cid,fid)}
-  setTimeout(function(){if(pendingRender){var a=document.activeElement;if(!(a&&a.closest&&a.closest('#app')&&(a.tagName==='TEXTAREA'||a.tagName==='INPUT'))){pendingRender=false;schedule()}}},50);
+  setTimeout(function(){if(ptrDown)return;if(pendingRender){var a=document.activeElement;if(!(a&&a.closest&&a.closest('#app')&&(a.tagName==='TEXTAREA'||a.tagName==='INPUT'))){pendingRender=false;schedule()}}},50);
 });
 document.addEventListener('change',async function(e){
   var t=e.target,c=cur();
@@ -1648,7 +1651,7 @@ document.addEventListener('click',async function(e){
         if(qa.length>4000){say('That answer is too long. Shorten it a little.','err');break}
         if(qr.status==='Resolved'){say('This question is already closed.','err');break}
         var qcp=Object.assign({},qr);delete qcp.id;qcp.answer=qa;qcp.answeredAt=nowIso();qcp.updatedAt=nowIso();qcp.status='In progress';
-        await db.doc('responses/'+id).set(qcp);say('Thank you. Your advisor will see your answer.','ok');break;
+        await db.doc('responses/'+id).set(qcp);delete S.draft['qa-a-'+id];say('Thank you. Your advisor will see your answer.','ok');break;
       }
       case 'qa-resolve':case 'qa-reopen':{
         if(S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
