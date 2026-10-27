@@ -717,3 +717,22 @@ code{font-family:var(--mono);font-size:12px}
 .sw-head .cx-badge{background:var(--accent-ink);color:var(--accent)}
 .sw-pipe{padding-bottom:10px}
 .sw-pipe li.sel::after{bottom:0}
+
+/* ---- stage pipeline: uniform, refined ---- */
+.sw-pipe{align-items:stretch;gap:0;padding:2px 0 14px;margin:0 0 16px}
+.sw-pipe li{flex:1 1 0;min-width:132px;display:flex}
+.sw-pipe li+li{margin-left:-12px}
+.sw-pipe button{height:124px;min-height:124px;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:8px;padding:14px 20px 20px 26px;background:var(--surface2);border:0;transition:background .15s,transform .15s}
+.sw-pipe li:first-child button{padding-left:16px}
+.sw-pipe button:hover{background:var(--na-bg)}
+.sw-pipe li.done button{background:var(--ok-bg)}
+.sw-pipe li.now button{background:var(--accent);color:var(--accent-ink)}
+.sw-pipe li.now button:hover{background:var(--accent)}
+.sw-pipe i{width:24px;height:24px;font-size:11px}
+.sw-pipe span{gap:3px;width:100%;align-content:start}
+.sw-pipe b{font-size:13px;line-height:1.25;font-weight:650;min-height:2.5em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.sw-pipe small{font-size:11px;line-height:1.3;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw-pipe small:not(.dt){font-weight:600;letter-spacing:.03em}
+.sw-pipe small.dt{opacity:.7}
+.sw-pipe li.sel::after{left:16px;right:20px;bottom:6px;height:3px}
+.sw-pipe{scrollbar-width:thin}
