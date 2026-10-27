@@ -16,9 +16,10 @@
     if(msg)h+='<div class="banner ok">'+msg+'</div>';
     h+='<p class="small">Sign in with the username and password your administrator gave you.</p>'+field('em','Username','text','username')+field('pw','Password','password','current-password')+
       '<div class="addrow"><button class="btn pri" id="go">Sign in</button></div><p class="small" id="lerr"></p>'+
-      '<p class="small">Forgot your password or need access? Ask your administrator.</p>';
+      '<p class="small"><a href="#" id="fp">Forgot your password or need access?</a></p>';
     shell(h);
     var go=document.getElementById('go');
+    document.getElementById('fp').onclick=function(e){e.preventDefault();helpForm(val('em'))};
     var doGo=async function(){
       var id=val('em').toLowerCase(),pw=document.getElementById('pw').value;
       if(!id||!pw){err('Enter your username and password.');return}
@@ -29,6 +30,26 @@
     };
     go.onclick=doGo;
     ['em','pw'].forEach(function(i){document.getElementById(i).onkeydown=function(e){if(e.key==='Enter')doGo()}});
+  }
+  function helpForm(prefill){
+    shell('<p class="small">Tell us who you are. Your advisor will check with you and set a new password. Nothing changes automatically.</p>'+
+      field('hw','Your username or email','text','username')+
+      '<label class="f" for="hk">What do you need?</label><select id="hk"><option value="password">I forgot my password</option><option value="access">I need access</option></select>'+
+      '<label class="f" for="hn">Anything we should know (optional)</label><input id="hn" type="text" maxlength="300" autocomplete="off">'+
+      '<input id="hx" type="text" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">'+
+      '<div class="addrow"><button class="btn pri" id="hs">Send request</button> <button class="btn" id="hb">Back to sign in</button></div><p class="small" id="lerr"></p>');
+    var w=document.getElementById('hw');w.value=prefill||'';
+    document.getElementById('hb').onclick=function(){login()};
+    document.getElementById('hs').onclick=async function(){
+      var who=val('hw');if(who.length<2){err('Enter your username or email.');return}
+      var b=document.getElementById('hs');b.disabled=true;err('');
+      try{
+        var r=await fetch(cfg.SUPABASE_URL+'/functions/v1/help-request',{method:'POST',headers:{'Content-Type':'application/json',apikey:cfg.SUPABASE_ANON_KEY},body:JSON.stringify({who:who,kind:document.getElementById('hk').value,note:val('hn'),website:document.getElementById('hx').value})});
+        var j={};try{j=await r.json()}catch(e){}
+        if(r.ok&&j.ok){shell('<div class="banner ok">Request sent. Your advisor has been told and will contact you.</div><p class="small">For anything urgent, contact your advisor directly. Never send passwords by email or message.</p><div class="addrow"><button class="btn" id="hb">Back to sign in</button></div>');document.getElementById('hb').onclick=function(){login()};return}
+        err(j.error||'Could not send the request. Please contact your advisor directly.');b.disabled=false;
+      }catch(e){err('Could not send the request. Please contact your advisor directly.');b.disabled=false}
+    };
   }
   function mustChange(session){
     shell('<div class="banner ok">Welcome. Please choose your own password before you continue.</div>'+field('p1','New password (at least 8 characters)','password','new-password')+field('p2','Repeat the new password','password','new-password')+
