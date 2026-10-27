@@ -1422,9 +1422,9 @@ function candidateView(c){
   var ftf=['f1','f2','f3'].map(function(k){return allc.filter(function(t){return t.form===k})[0]}).filter(Boolean);
   var ftLeft=ftf.filter(function(t){return !isDone(t.status)});
   if(ftf.length&&ftLeft.length&&st<=3){var ftBy=addD(base,18);
-    h+='<section class="cx-fast"><div class="cx-fh"><b>Fast track to your first article</b><span>Target: all three intake forms by '+esc(fmtDate(ftBy).replace(/, \d{4}$/,''))+'</span></div><p>Your first article starts once we know your background, projects and publications. Finishing these three early keeps your schedule on time.</p><ul>'+ftf.map(function(t){
+    h+='<details class="cx-fast"><summary class="cx-fh"><b>Fast track to your first article</b><span>Target: all three intake forms by '+esc(fmtDate(ftBy).replace(/, \d{4}$/,''))+'</span></summary><p>Your first article starts once we know your background, projects and publications. Finishing these three early keeps your schedule on time.</p><ul>'+ftf.map(function(t){
       var d2=isDone(t.status),open=!d2&&t.status!=='Not started'&&t.status!=='Skipped';
-      return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><b>'+esc(cxName(t))+'</b><small>'+(d2?'Completed':open?'Ready for you. Open it from Steps below.':'Opens as soon as your profile is reviewed')+'</small>'+'</li>'}).join('')+'</ul></section>';}
+      return '<li class="'+(d2?'d':open?'o':'l')+'"><span class="cx-si">'+cvIcon(d2?'check':open?'form':'lock')+'</span><b>'+esc(cxName(t))+'</b><small>'+(d2?'Completed':open?'Ready for you. Open it from Steps below.':'Opens as soon as your profile is reviewed')+'</small>'+'</li>'}).join('')+'</ul></details>';}
   var spkNode='<li class="opt'+(sel===LCN?' sel':'')+'"><button type="button" data-a="cvphase" data-id="'+LCN+'" aria-pressed="'+(sel===LCN)+'"><i>+</i><span>Conference speaking</span><small>Optional · any time</small></button></li>';
   var spkT=allc.filter(function(t){return /^speak-/.test(t.key||'')});
   var speakHtml='<div class="cx-stage"><div class="cx-sth"><div><b>Conference speaking</b></div>'+chip('Optional','')+'</div>'+
