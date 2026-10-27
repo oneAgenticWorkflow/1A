@@ -814,3 +814,12 @@ details.cx-fast[open]>summary::after{content:"\2212"}
 .qa-q small{color:var(--muted);font-size:12px}
 .qa-a{margin:0;padding:8px 10px;background:var(--surface2);border-radius:8px;font-size:14px;overflow-wrap:anywhere}
 .qa-st{display:flex}
+
+.idstrip{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.idstrip span{display:flex;flex-direction:column;gap:2px;min-width:0;max-width:100%}
+.idstrip em{font-style:normal;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.idstrip b{font-weight:500;font-size:14px;overflow-wrap:anywhere}
+.idstrip a{color:var(--accent);text-decoration:none}
+.idstrip a:hover{text-decoration:underline}
+.cdp{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
+.cdp h4{margin:0 0 4px;font-size:15px}
