@@ -968,7 +968,8 @@ function fieldTab(c){
   var m=mw(c),foe=(c.foe&&c.foe.locked)||'';
   var h='<div class="panel"><div class="ph"><h3>Field of endeavor and market evidence</h3><div class="chips">'+(m?chip(m.checked?'Checked':'Draft, not checked',m.checked?'ok':'gate'):chip('Not run','gate'))+'</div></div>';
   h+='<div class="row"><div class="nm">Working field</div><div><p>'+esc((c.foe&&c.foe.working)||'Not set')+'</p></div></div><div class="row"><div class="nm">Final field</div><div><p>'+esc(foe||'Not locked yet')+'</p></div></div>';
-  if(!m)return h+'<p class="empty">The table is drafted after the field is locked (step: Research the market and evidence for the field).</p></div>';
+  h+='<div class="opt"><label class="f" for="foedraft">Working field (admin draft)</label><textarea id="foedraft" data-draft="foeDraft">'+esc(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||''))+'</textarea><div class="addrow"><button class="btn sm" data-a="foe-draft">Save working field</button></div><p class="small">Saved for staff only. The candidate does not see the field or the table, and no steps are unlocked.</p></div>';
+  if(!m)return h+'<p class="empty">The table is normally drafted after the field is locked. You can also start it by hand.</p><div class="addrow"><button class="btn sm" data-a="mk-start">Start the table by hand</button></div></div>';
   h+='<p class="small">Figures and links come from a web search run when the table was drafted. Open each link, confirm the number and the year, and fix anything that does not match. Links the search did not return were dropped.</p>';
   (m.rows||[]).forEach(function(r,i){
     h+='<div class="opt"><label class="f">FOE</label><textarea data-mk="'+i+'|foe">'+esc(r.foe)+'</textarea><label class="f">Market size and growth</label><textarea class="tall" data-mk="'+i+'|market">'+esc(r.market)+'</textarea><label class="f">Why it matters to the US</label><textarea class="tall" data-mk="'+i+'|importance">'+esc(r.importance||r.evidence)+'</textarea><label class="f">Maps to the Critical and Emerging Technologies list</label><textarea data-mk="'+i+'|cet">'+esc(r.cet)+'</textarea><label class="f">Where the candidate fits</label><textarea data-mk="'+i+'|fit">'+esc(r.fit)+'</textarea><label class="f">Not found or not confirmed (chase these)</label><textarea data-mk="'+i+'|gaps">'+esc(r.gaps)+'</textarea><label class="f">Source links (one per line)</label><textarea data-mk="'+i+'|urls">'+esc((r.urls||[]).join('\n'))+'</textarea>'+(r.urls&&r.urls.length?'<p class="small">Open: '+r.urls.map(function(u){return '<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(u.replace(/^https?:\/\/(www\.)?/,'').slice(0,60))+'</a>'}).join(' · ')+'</p>':'')+(r.dropped?'<p class="small">'+r.dropped+' link(s) removed because the search did not return them.</p>':'')+'<button class="btn sm danger" data-a="mk-del" data-id="'+i+'">Remove row</button></div>';
@@ -2054,6 +2055,13 @@ document.addEventListener('click',async function(e){
         await log(c.id,'Working FOE set: '+wt,'gate');await completeKey(c.id,'foew','Working field set.');S.draft.foeWText=undefined;break}
       case 'pl-add':{var pp=pwEdit(c)||(S.planWork={articles:[],memberships:[],judging:{count:0,types:[],note:''},status:'draft'});
         if(id==='articles')pp.articles.push({id:'a'+Date.now().toString(36),title:'',abstract:'',journals:[],note:''});else pp.memberships.push({id:'m'+Date.now().toString(36),name:'',why:'',note:''});break}
+      case 'foe-draft':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var fdt=(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||'')).trim();
+        await candRef(c.id).update({foe:Object.assign({},c.foe||{},{working:fdt})});S.draft.foeDraft=undefined;say('Working field saved (staff only).','ok');break}
+      case 'mk-start':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        await candRef(c.id).update({market:{rows:[{foe:'',market:'',importance:'',cet:'',fit:'',gaps:'',urls:[]}],checked:false,pages:[],editedAt:nowIso()}});S.mktWork=null;break}
       case 'mk-add':{var ma=mwEdit(c);if(ma)ma.rows.push({foe:'',market:'',importance:'',cet:'',fit:'',gaps:'',urls:[]});break}
       case 'mk-del':{var md=mwEdit(c);if(md)md.rows.splice(+id,1);break}
       case 'mk-save':case 'mk-ok':{var mv=mwEdit(c);if(!mv)break;var m2=JSON.parse(JSON.stringify(mv));if(a==='mk-ok')m2.checked=!m2.checked;m2.editedAt=nowIso();await candRef(c.id).update({market:m2});S.mktWork=null;say(a==='mk-ok'?(m2.checked?'Marked as checked.':'Marked as not checked.'):'Saved.','ok');break}
