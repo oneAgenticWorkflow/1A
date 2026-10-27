@@ -152,6 +152,7 @@ function casesView(){
   sorted.forEach(function(oc){var aw=awaitingReply(oc.id);if(aw){var tx=aw.last.text;items.push({k:0,ts:aw.last.ts,a:'openmsg',id:oc.id,t:oc.name+(aw.n>1?' ('+aw.n+' messages)':''),s:tx.length>90?tx.slice(0,90)+'...':tx,r:agoStr(aw.last.ts)+' · Reply'})}});
   var evrev={};S.resp.forEach(function(r){if(r.formId==='ev'&&!r.removed&&r.by==='Candidate'&&r.status!=='Verified')evrev[r.cid]=(evrev[r.cid]||0)+1});
   sorted.forEach(function(oc){if(evrev[oc.id])items.push({k:1,d:-1,a:'open',id:oc.id,t:oc.name,s:evrev[oc.id]+(evrev[oc.id]===1?' evidence item':' evidence items')+' to review',r:'Review'})});
+  S.resp.forEach(function(r){if(r.formId==='ask'&&!r.removed&&r.status!=='Resolved'&&r.answer){var oc2=sorted.find(function(c){return c.id===r.cid});if(oc2)items.push({k:0,d:-1,a:'open',id:oc2.id,t:oc2.name,s:'Answered: '+(r.q||'').slice(0,80),r:'Review'})}});
   S.tasks.forEach(function(t){
     if(t.status==='Not started'||isDone(t.status)||t.status==='Skipped'||!t.due)return;
     var oc=sorted.find(function(c){return c.id===t.cid});if(!oc)return;var d=daysUntil(t.due);
@@ -492,6 +493,7 @@ function caseView(c){
     if(S.tab==='steps'){
       var have={};ts.forEach(function(t){have[t.key]=1});var miss=TEMPLATE.filter(function(t){return !have[t.k]});
       if(miss.length&&S.staff==='admin')main+='<div class="panel" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px"><div><b>'+miss.length+' newer workflow steps are not on this case yet</b><div class="small">For example the monthly article steps and optional speaking. Adding them keeps all your existing work. Nothing is removed or changed.</div></div><button class="btn pri sm" data-a="sync-tpl">Add the '+miss.length+' missing steps</button></div>';
+      main+=askPanel(c,false);
       main+=repairPanel(c,ts);
       main+='<div class="sw-rh"><h3>Steps</h3>'+(STAGES[sel].gate?chip('GATE','gate'):'')+'</div>'+swRows(c,grp,true)+(sel>=4&&sel<=6?evBoard(c,false):'')+
         '<div class="panel"><h3>Add a task</h3><div class="addrow"><input type="text" data-draft="tt" placeholder="Task title" value="'+esc(S.draft.tt||'')+'"><select data-draft="to">'+options(OWNERS,S.draft.to||'Advisor')+'</select><input type="date" data-draft="td" value="'+esc(S.draft.td||'')+'"><button class="btn" data-a="task-add">Add</button></div></div>';
@@ -631,6 +633,37 @@ function evBoard(c,ro){
   return '<section class="panel ev"><div class="ph"><div><h3>'+(ro?'Your evidence':'Evidence tracker')+'</h3><p class="small">'+(ro?'Add each piece of evidence as you collect it. Your team checks every item and marks it verified.':'Counted items for each criterion. Only verified items count toward the target.')+' A planning tool, not a prediction of approval.</p></div>'+chip(r.done+' of '+r.need+' verified',r.done>=r.need?'ok':'')+'</div>'+bar(pct)+'<div class="ev-list">'+EV_SECT.map(function(s){return evSection(c,s,ro)}).join('')+'</div></section>';
 }
 function ebTrackerPanel(c,readonly){return evBoard(c,readonly)}
+/* ---------- ask the candidate: structured requests for missing information ---------- */
+var QA_TYPES=['Short text','Longer text','Link'];
+function qaItems(c){return S.resp.filter(function(r){return r.cid===c.id&&r.formId==='ask'&&!r.removed}).sort(function(a,b){return (a.createdAt||'')<(b.createdAt||'')?1:-1})}
+function qaState(r){return r.status==='Resolved'?['Resolved','ok']:(r.answer?['Answered','gate']:['Waiting for candidate','mid'])}
+function qaRow(c,r,ro){
+  var st=qaState(r),h='<div class="qa-row"><div class="qa-q"><b>'+esc(r.q||'')+'</b><small>'+(r.about?'About: '+esc(r.about):'')+(r.due?(r.about?' · ':'')+'Please answer by '+esc(fmtDate(r.due)):'')+'</small></div>';
+  if(ro){
+    var area=r.type==='Longer text';
+    h+='<label class="f" for="qa-a-'+esc(r.id)+'">Your answer'+(r.type==='Link'?' (paste a link starting with https://)':'')+'</label>'+(area?'<textarea id="qa-a-'+esc(r.id)+'">'+esc(r.answer||'')+'</textarea>':'<input id="qa-a-'+esc(r.id)+'" type="text" value="'+esc(r.answer||'')+'">')+
+      '<div class="addrow"><button class="btn pri sm" data-a="qa-answer" data-id="'+esc(r.id)+'">'+(r.answer?'Update answer':'Send answer')+'</button>'+(r.answer?chip('Sent','ok'):'')+'</div>';
+  }else{
+    var u=r.type==='Link'?safeUrl(r.answer||''):'';
+    h+='<div class="qa-st">'+chip(st[0],st[1])+'</div>'+(r.answer?'<p class="qa-a">'+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(r.answer)+'</a>':esc(r.answer))+'</p>':'')+
+      '<div class="addrow">'+(r.status==='Resolved'?'<button class="btn sm" data-a="qa-reopen" data-id="'+esc(r.id)+'">Reopen</button>':'<button class="btn pri sm" data-a="qa-resolve" data-id="'+esc(r.id)+'"'+(r.answer?'':' disabled')+'>Mark resolved</button>')+
+      (S.qaDel===r.id?'<button class="btn sm danger" data-a="qa-del-yes" data-id="'+esc(r.id)+'">Yes, remove</button><button class="btn sm" data-a="qa-del-no">Keep</button>':'<button class="btn sm" data-a="qa-del-ask" data-id="'+esc(r.id)+'">Remove</button>')+'</div>';
+  }
+  return h+'</div>';
+}
+function askPanel(c,ro){
+  var all=qaItems(c),list=ro?all.filter(function(r){return r.status!=='Resolved'}):all;
+  if(ro&&!list.length)return '';
+  var open=all.filter(function(r){return r.status!=='Resolved'}).length;
+  var h='<section class="panel qa"><div class="ph"><div><h3>'+(ro?'Your advisor asked':'Questions for the candidate')+'</h3>'+(ro?'<p class="small">Your advisor needs a little more information. Please answer below.</p>':'<p class="small">Ask for anything the forms missed. The candidate answers on their case page.</p>')+'</div>'+(open?chip(open+(ro?' to answer':' open'),ro?'gate':'mid'):'')+'</div>';
+  if(!ro&&S.qaForm){
+    h+='<div class="entry"><h4>Ask a question</h4><label class="f" for="qa-q">Question</label><textarea id="qa-q" placeholder="For example: What is your current office email address?"></textarea>'+
+      '<div class="two"><div><label class="f" for="qa-w">About</label><select id="qa-w">'+options(['General'].concat(STAGES.map(function(s){return s.n})),'General')+'</select></div><div><label class="f" for="qa-t">Answer type</label><select id="qa-t">'+options(QA_TYPES,'Short text')+'</select></div></div>'+
+      '<label class="f" for="qa-d">Answer by (optional)</label><input id="qa-d" type="date"><div class="addrow"><button class="btn pri sm" data-a="qa-send">Send to candidate</button><button class="btn sm" data-a="qa-cancel">Cancel</button></div></div>';
+  }else if(!ro){h+='<div class="addrow"><button class="btn pri sm" data-a="qa-new">Ask a question</button></div>'}
+  if(list.length)h+='<div class="qa-list">'+list.map(function(r){return qaRow(c,r,ro)}).join('')+'</div>';
+  return h+'</section>';
+}
 var PATHWAY_REQUIREMENTS={
  niw:[
  ['eb2_degree','EB-2 threshold','Qualifying completed degree and transcripts, or exceptional-ability evidence'],
@@ -1483,6 +1516,7 @@ function candidateView(c){
   var acts='<button class="btn sm pri" data-a="msgread">Message your advisor'+(newReplies(c.id)?' <span class="cx-badge">'+newReplies(c.id)+' new</span>':'')+'</button>';
   var facts='<details class="cx-fd"><summary>Your details</summary><dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+'<p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p></details>';
   h+=swHead(c,false,acts,facts);
+  h+=askPanel(c,true);
   /* fast track to the first article */
   var ftf=['f1','f2','f3'].map(function(k){return allc.filter(function(t){return t.form===k})[0]}).filter(Boolean);
   var ftLeft=ftf.filter(function(t){return !isDone(t.status)});
@@ -1592,6 +1626,42 @@ document.addEventListener('click',async function(e){
     if(S.staff==='supervisor'&&['feas-release','plan-approve','att-ok','delete-yes','newcase','create'].indexOf(a)>=0){say('An admin has to do this step.','err');return}
     switch(a){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
+      case 'qa-new':S.qaForm=true;break;
+      case 'qa-cancel':S.qaForm=false;break;
+      case 'qa-send':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var qv=function(n){return ((document.getElementById(n)||{}).value||'').trim()},qq=qv('qa-q');
+        if(!qq){say('Write the question first.','err');break}
+        if(qq.length>600){say('Keep the question under 600 characters.','err');break}
+        var qid=rid(c.id,'ask-'+(window.crypto&&crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,16):String(Date.now())));
+        var qw=qv('qa-w');
+        await db.doc('responses/'+qid).set({cid:c.id,formId:'ask',q:qq,about:qw==='General'?'':qw,type:qv('qa-t')||'Short text',due:qv('qa-d'),answer:'',status:'In progress',by:'Team',createdAt:nowIso(),updatedAt:nowIso(),removed:false});
+        S.qaForm=false;say('Question sent. The candidate will see it on their case page.','ok');break;
+      }
+      case 'qa-answer':{
+        var qr=S.resp.find(function(r){return r.id===id});if(!qr)break;
+        var qel=document.getElementById('qa-a-'+id),qa=((qel||{}).value||'').trim();
+        if(!qa){say('Type your answer first.','err');break}
+        if(qr.type==='Link'&&!safeUrl(qa)){say('Paste a full link that starts with https://','err');break}
+        if(qa.length>4000){say('That answer is too long. Shorten it a little.','err');break}
+        if(qr.status==='Resolved'){say('This question is already closed.','err');break}
+        var qcp=Object.assign({},qr);delete qcp.id;qcp.answer=qa;qcp.answeredAt=nowIso();qcp.updatedAt=nowIso();qcp.status='In progress';
+        await db.doc('responses/'+id).set(qcp);say('Thank you. Your advisor will see your answer.','ok');break;
+      }
+      case 'qa-resolve':case 'qa-reopen':{
+        if(S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var qs=S.resp.find(function(r){return r.id===id});if(!qs)break;
+        var qc2=Object.assign({},qs);delete qc2.id;qc2.status=a==='qa-resolve'?'Resolved':'In progress';qc2.updatedAt=nowIso();
+        await db.doc('responses/'+id).set(qc2);break;
+      }
+      case 'qa-del-ask':S.qaDel=id;break;
+      case 'qa-del-no':S.qaDel=null;break;
+      case 'qa-del-yes':{
+        if(S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var qd=S.resp.find(function(r){return r.id===id});if(!qd)break;
+        var qc3=Object.assign({},qd);delete qc3.id;qc3.removed=true;qc3.updatedAt=nowIso();
+        await db.doc('responses/'+id).set(qc3);S.qaDel=null;say('Removed.','ok');break;
+      }
       case 'evx-tog':S.evOpen=S.evOpen||{};S.evOpen[id]=!S.evOpen[id];break;
       case 'evx-add':S.evOpen=S.evOpen||{};S.evOpen[id]=true;S.evForm={k:id,id:null};S.evTgt=null;S.evDel=null;break;
       case 'evx-edit':{var evp=id.split('|');S.evOpen=S.evOpen||{};S.evOpen[evp[0]]=true;S.evForm={k:evp[0],id:evp[1]};S.evTgt=null;S.evDel=null;break}
