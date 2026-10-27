@@ -122,6 +122,7 @@ var FORMS=[
  {id:'affil',title:'Where you work or study now',fields:[
   fd('affil_type','Which describes you today?','select',{o:['Working for an employer','Studying (Master\'s)','Studying (PhD)','Working and studying','Founder or self-employed','Between jobs'],req:1}),
   fd('employer_name','Current employer name (company, lab or institution)','text'),
+  fd('work_email','Your current work or office email address','text',{h:'We use it only to confirm your employer and role. Leave it blank if you are not employed right now.'}),
   fd('employer_loc','Employer city and state','text'),
   fd('employer_start','Start date with this employer','date'),
   fd('employer_type','What kind of organization is it?','select',{o:['Startup','Mid-size company','Large company (Fortune 500 or similar)','University or research lab','Government or non-profit','Own company','Other']}),
