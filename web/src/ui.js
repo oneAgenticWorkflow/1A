@@ -787,11 +787,11 @@ function profileSummary(c){
     (p.questions&&p.questions.length?'<h4>Questions for the first call</h4>'+ul(p.questions):'');
 }
 function decisionUi(c){
-  var d=c.decision,t=taskByKey(c.id,'proceed');
+  var d=c.decision,t=taskByKey(c.id,'proceed');var fw=taskByKey(c.id,'foew');
   var h='<div class="gatebox"><b>Your decision</b>';
   if(d)h+='<p>'+chip(d.choice==='proceed'?'Proceed':d.choice==='hold'?'On hold':'Declined',d.choice==='proceed'?'ok':d.choice==='hold'?'mid':'bad')+' <span class="small">'+esc(fmt(d.at))+(d.note?' · '+esc(d.note):'')+'</span></p>';
   h+='<label class="f" for="decn">Note (optional)</label><input type="text" id="decn" data-draft="decn" value="'+esc(S.draft.decn||'')+'">'+
-   '<div class="addrow"><button class="btn pri sm" data-a="dec-proceed"'+(c.profile?'':' disabled')+'>Proceed to deep intake</button><button class="btn sm" data-a="dec-hold">Hold</button><button class="btn sm danger" data-a="dec-decline">Decline</button></div>'+
+   '<div class="addrow">'+(d&&d.choice==='proceed'?'<button class="btn sm" disabled>Proceeding to deep intake</button>'+(fw?'<button class="btn pri sm" data-a="gotask" data-id="'+esc(fw.id)+'">Next: set the working field</button>':''):'<button class="btn pri sm" data-a="dec-proceed"'+(c.profile?'':' disabled')+'>Proceed to deep intake</button>')+'<button class="btn sm" data-a="dec-hold">Hold</button><button class="btn sm danger" data-a="dec-decline">Decline</button></div>'+
    '<p class="small">Proceed opens the working field of endeavor step. Hold or Decline keeps the later steps locked and records why.</p></div>';
   return h;
 }
