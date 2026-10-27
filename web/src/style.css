@@ -736,3 +736,28 @@ code{font-family:var(--mono);font-size:12px}
 .sw-pipe small.dt{opacity:.7}
 .sw-pipe li.sel::after{left:16px;right:20px;bottom:6px;height:3px}
 .sw-pipe{scrollbar-width:thin}
+
+/* ---- simplify: more menu, phone step cards ---- */
+.more{position:relative;display:inline-block}
+.more summary{list-style:none;cursor:pointer}
+.more summary::-webkit-details-marker{display:none}
+.more[open] summary{background:var(--surface2)}
+.more-m{position:absolute;z-index:20;top:calc(100% + 6px);left:0;min-width:190px;display:flex;flex-direction:column;padding:6px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.more-m button{all:unset;box-sizing:border-box;cursor:pointer;padding:9px 12px;border-radius:7px;font-size:14px;color:var(--ink)}
+.more-m button:hover,.more-m button:focus-visible{background:var(--surface2)}
+.more-m .dng{color:var(--bad)}
+@media (max-width:560px){
+  .sw-t thead{display:none}
+  .sw-t,.sw-t tbody{display:block}
+  .sw-t tr{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+  .sw-t tr:last-child{border-bottom:0}
+  .sw-t td{display:block;padding:0;border:0}
+  .sw-t td.n{display:none}
+  .sw-t td.nm{flex-basis:100%;min-width:0}
+  .sw-t td.du{display:block!important}
+  .sw-t td.ac{display:block!important;margin-left:auto}
+  .sw-t tr.det{display:block;padding:0}
+  .sw-t tr.det td{display:block;padding:14px}
+  .sw-t th:nth-child(n+6),.sw-t td:nth-child(n+6){display:revert}
+  .sw-t td.n{display:none!important}
+}
