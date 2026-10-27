@@ -60,7 +60,7 @@ test('candidate pathway guide covers NIW, EB-1A, priority dates and F-1',()=>{
  assert.match(ui,/NIW is a waiver within EB-2/);
  assert.match(ui,/priority date generally is the properly filed I-140 receipt date/);
  assert.match(ui,/An I-140 does not extend F-1 status/);
- assert.match(ui,/h\+=pathwayGuide\(\)/);
+ assert.match(ui,/S\.tab==='guide'\)x=pathwayGuide\(\)/);
 });
 test('strategy is advisor-only and requires a written rationale',()=>{
  assert.match(ui,/function pathwayStrategy\(c\)/);
