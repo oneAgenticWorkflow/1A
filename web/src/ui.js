@@ -416,10 +416,15 @@ function swCandBody(c,t){
 }
 function swRows(c,list,staff){
   if(!list.length)return '<p class="empty">No steps in this stage.</p>';
-  var cols=staff?8:7,h='<div class="sw-tw"><table class="sw-t"><thead><tr><th class="n">#</th><th>Step</th>'+(staff?'<th>Owner</th>':'')+'<th>Status</th><th>Due</th><th class="n">Forms</th><th class="n">Comments</th><th><span class="vh">Action</span></th></tr></thead><tbody>';
+  var nums={};list.forEach(function(t,k){nums[t.id]=k+1});
+  var simple=staff&&S.simple!==false,hid=0,quiet=function(t){return (t.owner==='Analysis'||t.kind==='ai'||t.req===false||t.kind==='review')&&t.kind!=='gate'&&!t.draft&&!S.open[t.id]&&(t.status==='Not started'||isDone(t.status))};
+  var tog='';
+  if(staff){var hn=list.filter(quiet).length;if(hn)tog='<div class="addrow" style="margin:0 0 8px"><button class="btn sm" data-a="simple-tog">'+(simple?'Show all '+list.length+' steps ('+hn+' hidden)':'Show fewer steps')+'</button><span class="small">'+(simple?'Hidden: system, optional and review steps that are locked or done.':'Showing every step.')+'</span></div>'}
+  if(simple){list=list.filter(function(t){return !quiet(t)});if(!list.length)return tog+'<p class="empty">Nothing to do in this stage yet.</p>'}
+  var cols=staff?8:7,h=tog+'<div class="sw-tw"><table class="sw-t"><thead><tr><th class="n">#</th><th>Step</th>'+(staff?'<th>Owner</th>':'')+'<th>Status</th><th>Due</th><th class="n">Forms</th><th class="n">Comments</th><th><span class="vh">Action</span></th></tr></thead><tbody>';
   list.forEach(function(t,i){
     var p=swPill(t),open=!!S.open[t.id],nc=S.log.filter(function(l){return l.cid===c.id&&l.tid===t.id&&l.kind==='note'}).length,nodue=/^speak-/.test(t.key||''),dc=dueCls(t);
-    h+='<tr class="'+(open?'op':'')+'"><td class="n">'+(i+1)+'</td><td class="nm"><b>'+esc(staff?t.title:cxName(t))+'</b>'+(t.req===false?' <small class="o">optional</small>':'')+(t.draft?' <small class="o">draft</small>':'')+'</td>'+(staff?'<td>'+ownerChip(t.owner)+'</td>':'')+
+    h+='<tr class="'+(open?'op':'')+'"><td class="n">'+nums[t.id]+'</td><td class="nm"><b>'+esc(staff?t.title:cxName(t))+'</b>'+(t.req===false?' <small class="o">optional</small>':'')+(t.draft?' <small class="o">draft</small>':'')+'</td>'+(staff?'<td>'+ownerChip(t.owner)+'</td>':'')+
      '<td><span class="chip '+p[1]+'">'+p[0]+'</span></td><td class="du">'+(t.due&&!nodue?'<span class="sw-due '+dc+'">'+esc(dueTxt(t))+'</span>':'<span class="mut">'+(nodue?'Any time':'None')+'</span>')+'</td><td class="n">'+(t.form?'1':'<span class="mut">&ndash;</span>')+'</td><td class="n">'+(nc||'<span class="mut">&ndash;</span>')+'</td>'+
      '<td class="ac"><button class="btn sm" data-a="tog" data-id="'+esc(t.id)+'" aria-expanded="'+open+'">'+(open?'Hide':'View')+'</button></td></tr>';
     if(open)h+='<tr class="det"><td colspan="'+cols+'"><div class="detail">'+(staff?taskDetail(c,t):swCandBody(c,t))+'</div></td></tr>';
@@ -1667,6 +1672,7 @@ document.addEventListener('click',async function(e){
         S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em','cd-dob','cd-co'].forEach(function(k){delete S.draft[k]});
         say('Details saved.','ok');break;
       }
+      case 'simple-tog':S.simple=(S.simple===false);break;
       case 'qa-tog':S.qaOpen=!S.qaOpen;break;
       case 'qa-new':S.qaForm=true;S.qaOpen=true;break;
       case 'qa-cancel':S.qaForm=false;break;
