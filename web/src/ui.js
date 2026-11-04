@@ -1117,7 +1117,7 @@ function taskDetail(c,t){
   var h='',locked=t.status==='Not started';
   if(t.detail)h+='<p>'+esc(t.detail)+'</p>';
   if(t.draft)h+='<div class="addrow"><button class="btn pri sm" data-a="draft-ok" data-id="'+t.id+'">Approve for candidate</button><button class="btn sm danger" data-a="task-del" data-id="'+t.id+'">Delete draft</button></div>';
-  h+='<div class="two ctl"><div><label class="f">Status</label>'+(locked?'<span class="chip">Locked until earlier steps finish</span>':'<select data-tf="status" data-id="'+t.id+'">'+options(PICK,t.status)+'</select>')+'</div>'+
+  h+='<div class="two ctl"><div><label class="f">Status</label>'+(locked?'<span class="chip">Locked until earlier steps finish</span>'+(S.role!=='Candidate'&&S.staff?' <button class="btn sm" data-a="unlock-task" data-id="'+t.id+'">Unlock now (advisor override)</button>':''):'<select data-tf="status" data-id="'+t.id+'">'+options(PICK,t.status)+'</select>')+'</div>'+
    '<div><label class="f">Owner</label><select data-tf="owner" data-id="'+t.id+'">'+options(OWNERS,t.owner)+'</select></div>'+
    '<div><label class="f">Due</label><input type="date" data-tf="due" data-id="'+t.id+'" value="'+esc(t.due||'')+'"></div></div>';
   if(locked){var w=waitingFor(t);if(w.length)h+='<p class="small">Unlocks when done: '+esc(w.map(function(x){return x.title}).join('; '))+'</p>'}
@@ -1981,6 +1981,10 @@ document.addEventListener('click',async function(e){
       case 'newcase':S.cid=null;S.home='new';break;
       case 'create':await createCase();return;
       case 'open':S.cid=id;S.showCandidateLogin=null;S.tab='steps';S.swSel=null;S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';break;
+      case 'unlock-task':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var ut=S.tasks.find(function(x){return x.id===id});if(!ut||ut.status!=='Not started')break;
+        await setStatus(ut,'In progress');await log(ut.cid,'Unlocked by advisor override: '+ut.title,'task',ut.id);say('Step unlocked.','ok');break}
       case 'gotask':{var tk=S.tasks.find(function(x){return x.id===id});if(tk){S.cid=tk.cid;S.tab='steps';S.swSelCid=tk.cid;S.swSel=tk.stage;S.view='list';S.open[tk.id]=true;S.open['st'+tk.cid+tk.stage]=true;S.home='cases'}break}
       case 'cvphase':S.cvp=+id;break;
       case 'ctab':S.ctab=id;break;
