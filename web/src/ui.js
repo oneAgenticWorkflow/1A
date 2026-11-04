@@ -975,10 +975,11 @@ function profileTab(c){
 /* ----- field (FOE and market) tab ----- */
 function mw(c){return S.mktWork||c.market||null}
 function mwEdit(c){if(!S.mktWork&&c.market)S.mktWork=JSON.parse(JSON.stringify(c.market));return S.mktWork}
+function foePub(cid){var l=S.log.filter(function(x){return x.cid===cid&&x.kind==='foe'}).sort(function(a,b){return a.ts<b.ts?-1:1});var x=l[l.length-1];return x&&x.text?x.text:''}
 function fieldTab(c){
   var m=mw(c),foe=(c.foe&&c.foe.locked)||'';
   var h='<div class="panel"><div class="ph"><h3>Field of endeavor and market evidence</h3><div class="chips">'+(m?chip(m.checked?'Checked':'Draft, not checked',m.checked?'ok':'gate'):chip('Not run','gate'))+'</div></div>';
-  h+='<div class="row"><div class="nm">Working field</div><div><p>'+esc((c.foe&&c.foe.working)||'Not set')+'</p></div></div><div class="row"><div class="nm">Final field</div><div><p>'+esc(foe||'Not locked yet')+'</p></div></div>';
+  h+='<div class="row"><div class="nm">Working field</div><div><p>'+esc((c.foe&&c.foe.working)||'Not set')+'</p></div></div><div class="row"><div class="nm">Final field</div><div><p>'+esc(foe||'Not locked yet')+'</p>'+(foe?(foePub(c.id)===foe?'<p class="small">'+chip('Shown to candidate','ok')+' <button class="btn sm" data-a="foe-unshare">Hide from candidate</button></p>':'<p class="small">Not visible to the candidate. <button class="btn pri sm" data-a="foe-share">Show to candidate</button></p>'):'')+'</div></div>';
   h+='<div class="opt"><label class="f" for="foedraft">Update the field of endeavor (advisor or supervisor)</label><textarea id="foedraft" data-draft="foeDraft">'+esc(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||''))+'</textarea><div class="addrow"><button class="btn sm" data-a="foe-draft">Save as draft</button><button class="btn pri sm" data-a="foe-proceed">Set as working field and continue</button>'+(function(){var nx=tasksOf(c.id).filter(function(x){return x.owner==='Advisor'&&!isDone(x.status)&&x.status!=='Skipped'}).sort(function(a,b){return tIdx(a)-tIdx(b)})[0];return nx?'<button class="btn sm" data-a="gotask" data-id="'+esc(nx.id)+'">Next advisor task: '+esc(nx.title)+'</button>':''})()+'</div><p class="small">Save as draft keeps the wording for staff only. Set as working field records it, completes the working field step and opens the forms that wait on it. The candidate never sees the field or the table. The final field is locked later in the FOE lock step.</p></div>';
   if(!m)return h+'<p class="empty">The table is normally drafted after the field is locked. You can also start it by hand.</p><div class="addrow"><button class="btn sm" data-a="mk-start">Start the table by hand</button></div></div>';
   h+='<p class="small">Figures and links come from a web search run when the table was drafted. Open each link, confirm the number and the year, and fix anything that does not match. Links the search did not return were dropped.</p>';
@@ -1548,6 +1549,8 @@ function candidateView(c){
   h+='<div class="cx">';
   var acts='<button class="btn sm pri" data-a="msgread">Message your advisor'+(newReplies(c.id)?' <span class="cx-badge">'+newReplies(c.id)+' new</span>':'')+'</button>';
   var facts='<details class="cx-fd"><summary>Your details</summary><dl class="cx-facts">'+[['Email',c.email],['Employer',c.employer],['Work email',c.workEmail],['University email',c.schoolEmail],['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+'<p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p></details>';
+  var cfoe=foePub(c.id);
+  if(cfoe)facts='<div style="margin-top:12px;padding:10px 14px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px"><div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Your field of endeavor</div><div style="font-size:15px;color:var(--ink);margin-top:4px;line-height:1.4">'+esc(cfoe)+'</div><div class="small" style="margin-top:4px">Set by your advisor. Message us if you have questions.</div></div>'+facts;
   h+=swHead(c,false,acts,facts);
   h+=askPanel(c,true);
   /* fast track to the first article */
@@ -2086,6 +2089,12 @@ document.addEventListener('click',async function(e){
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var fdt=(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||'')).trim();
         await candRef(c.id).update({foe:Object.assign({},c.foe||{},{working:fdt})});S.draft.foeDraft=undefined;say('Working field saved (staff only).','ok');break}
+      case 'foe-share':case 'foe-unshare':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var fsh=a==='foe-share'?((c.foe&&c.foe.locked)||''):'';
+        if(a==='foe-share'&&!fsh){say('Lock the final field first.','err');break}
+        await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:fsh,kind:'foe',by:'Admin',shared:true});
+        say(a==='foe-share'?'The candidate can now see the final field.':'Hidden from the candidate.','ok');break}
       case 'foe-proceed':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var fpt=(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||'')).trim();
