@@ -981,7 +981,9 @@ function wkItems(cid){return S.log.filter(function(x){return x.cid===cid&&x.kind
 function wkCard(x){var w=x.wk||{};return '<div class="opt"><b>'+esc(w.project||'Update')+'</b> <span class="small">'+esc(w.date?fmtDate(w.date):fmt(x.ts))+'</span><p class="small" style="margin:6px 0 0;white-space:pre-line"><b>What I did:</b> '+esc(w.did||'')+'</p>'+(w.impact?'<p class="small" style="margin:6px 0 0;white-space:pre-line"><b>Impact:</b> '+esc(w.impact)+'</p>':'')+(w.who?'<p class="small" style="margin:6px 0 0"><b>Used by:</b> '+esc(w.who)+'</p>':'')+(safeUrl(w.link||'')?'<p class="small" style="margin:6px 0 0"><a href="'+esc(safeUrl(w.link))+'" target="_blank" rel="noopener noreferrer">Link</a></p>':'')+'</div>'}
 function workPanel(c){
   var dv=function(k,d){return esc(S.draft[k]!==undefined?S.draft[k]:(d||''))},today=new Date().toISOString().slice(0,10),items=wkItems(c.id),shown=S.wkAll?items:items.slice(0,3);
-  var h='<section class="panel"><div class="ph"><h3>Your work updates</h3>'+chip(items.length+' saved','')+'</div><p class="small">Once a week, or when something notable happens, add a short update on what you built or changed at work. We use these to strengthen your profile: they become evidence of your original contributions, critical role and impact. Describe the work at a high level. Do not include confidential or restricted agency information, passwords or personal data.</p>'+
+  var op=!!S.wkOpen,h='<section class="panel"><div class="ph"><button class="link" data-a="wk-tog" aria-expanded="'+op+'" style="text-align:left"><h3 style="display:inline">'+(op?'\u25BE ':'\u25B8 ')+'Your work updates</h3></button>'+chip(items.length+' saved','')+'</div>';
+  if(!op)return h+'<p class="small">Add a short note about what you are building at work, for your profile. <button class="link" data-a="wk-tog">Expand</button></p></section>';
+  h+='<p class="small">Once a week, or when something notable happens, add a short update on what you built or changed at work. We use these to strengthen your profile: they become evidence of your original contributions, critical role and impact. Describe the work at a high level. Do not include confidential or restricted agency information, passwords or personal data.</p>'+
    '<div class="two"><div><label class="f" for="wkp">Project or system</label><input type="text" id="wkp" data-draft="wk_proj" maxlength="200" placeholder="For example: shared AI architecture for state departments" value="'+dv('wk_proj')+'"></div><div><label class="f" for="wkd">Date</label><input type="date" id="wkd" data-draft="wk_date" value="'+dv('wk_date',today)+'"></div></div>'+
    '<label class="f" for="wkw">What I did</label><textarea id="wkw" data-draft="wk_did" maxlength="3000" placeholder="What you designed, built, decided or led this week">'+dv('wk_did')+'</textarea>'+
    '<label class="f" for="wki">Impact and results</label><textarea id="wki" data-draft="wk_imp" maxlength="2000" placeholder="Numbers help: time saved, users, cost, accuracy, number of departments adopting">'+dv('wk_imp')+'</textarea>'+
@@ -2119,6 +2121,7 @@ document.addEventListener('click',async function(e){
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var fdt=(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||'')).trim();
         await candRef(c.id).update({foe:Object.assign({},c.foe||{},{working:fdt})});S.draft.foeDraft=undefined;say('Working field saved (staff only).','ok');break}
+      case 'wk-tog':S.wkOpen=!S.wkOpen;break;
       case 'wk-all':S.wkAll=!S.wkAll;break;
       case 'wk-copy':S.copyText=workText(c);break;
       case 'wk-add':{
