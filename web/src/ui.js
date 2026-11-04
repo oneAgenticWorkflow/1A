@@ -510,7 +510,7 @@ function caseView(c){
   var nodes=STAGES.map(function(s,i){return {n:s.n,state:i<st?'done':i===st?'now':'',s:i<st?'Completed':i===st?'In progress':'Not started',dates:swStageDates(ts,i)}});
   h+=swPipe(nodes,sel,'swsel');
   var ws=SW_WS.indexOf(S.tab)>=0;
-  var more=[['Profile','profile'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
+  var more=[['Profile','profile'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
   h+='<div class="nav tabs"><button class="tab'+(ws?' on':'')+'" data-a="tab" data-id="steps">Case workspace</button>'+more.map(function(t){return '<button class="tab'+(S.tab===t[1]?' on':'')+'" data-a="tab" data-id="'+t[1]+'">'+t[0]+'</button>'}).join('')+'</div>';
   var body='';
   if(ws){
@@ -549,6 +549,7 @@ function caseView(c){
     else if(S.tab==='guide')x=pathwayGuide();
     else if(S.tab==='score')x=scoreTab(c);
     else if(S.tab==='field')x=fieldTab(c);
+    else if(S.tab==='work')x=workTab(c);
     else if(S.tab==='plan')x=planTab(c);
     else x=feasTab(c);
     body='<div class="case-tab-content">'+x+'</div>';
@@ -975,6 +976,27 @@ function profileTab(c){
 /* ----- field (FOE and market) tab ----- */
 function mw(c){return S.mktWork||c.market||null}
 function mwEdit(c){if(!S.mktWork&&c.market)S.mktWork=JSON.parse(JSON.stringify(c.market));return S.mktWork}
+/* ----- work updates (candidate diary used to strengthen the profile) ----- */
+function wkItems(cid){return S.log.filter(function(x){return x.cid===cid&&x.kind==='work'&&x.wk}).sort(function(a,b){return a.ts<b.ts?1:-1})}
+function wkCard(x){var w=x.wk||{};return '<div class="opt"><b>'+esc(w.project||'Update')+'</b> <span class="small">'+esc(w.date?fmtDate(w.date):fmt(x.ts))+'</span><p class="small" style="margin:6px 0 0;white-space:pre-line"><b>What I did:</b> '+esc(w.did||'')+'</p>'+(w.impact?'<p class="small" style="margin:6px 0 0;white-space:pre-line"><b>Impact:</b> '+esc(w.impact)+'</p>':'')+(w.who?'<p class="small" style="margin:6px 0 0"><b>Used by:</b> '+esc(w.who)+'</p>':'')+(safeUrl(w.link||'')?'<p class="small" style="margin:6px 0 0"><a href="'+esc(safeUrl(w.link))+'" target="_blank" rel="noopener noreferrer">Link</a></p>':'')+'</div>'}
+function workPanel(c){
+  var dv=function(k,d){return esc(S.draft[k]!==undefined?S.draft[k]:(d||''))},today=new Date().toISOString().slice(0,10),items=wkItems(c.id),shown=S.wkAll?items:items.slice(0,3);
+  var h='<section class="panel"><div class="ph"><h3>Your work updates</h3>'+chip(items.length+' saved','')+'</div><p class="small">Once a week, or when something notable happens, add a short update on what you built or changed at work. We use these to strengthen your profile: they become evidence of your original contributions, critical role and impact. Describe the work at a high level. Do not include confidential or restricted agency information, passwords or personal data.</p>'+
+   '<div class="two"><div><label class="f" for="wkp">Project or system</label><input type="text" id="wkp" data-draft="wk_proj" maxlength="200" placeholder="For example: shared AI architecture for state departments" value="'+dv('wk_proj')+'"></div><div><label class="f" for="wkd">Date</label><input type="date" id="wkd" data-draft="wk_date" value="'+dv('wk_date',today)+'"></div></div>'+
+   '<label class="f" for="wkw">What I did</label><textarea id="wkw" data-draft="wk_did" maxlength="3000" placeholder="What you designed, built, decided or led this week">'+dv('wk_did')+'</textarea>'+
+   '<label class="f" for="wki">Impact and results</label><textarea id="wki" data-draft="wk_imp" maxlength="2000" placeholder="Numbers help: time saved, users, cost, accuracy, number of departments adopting">'+dv('wk_imp')+'</textarea>'+
+   '<div class="two"><div><label class="f" for="wku">Who uses it</label><input type="text" id="wku" data-draft="wk_who" maxlength="500" placeholder="Departments or teams using or planning to use it" value="'+dv('wk_who')+'"></div><div><label class="f" for="wkl">Link (optional)</label><input type="text" id="wkl" data-draft="wk_link" maxlength="500" placeholder="https:// public page or shared document" value="'+dv('wk_link')+'"></div></div>'+
+   '<div class="addrow"><button class="btn pri" data-a="wk-add">Save update</button></div>';
+  if(items.length){h+='<h4>Your recent updates</h4>'+shown.map(wkCard).join('');if(items.length>3)h+='<button class="link" data-a="wk-all">'+(S.wkAll?'Show fewer':'Show all '+items.length)+'</button>'}
+  return h+'</section>';
+}
+function workText(c){return wkItems(c.id).slice().reverse().map(function(x){var w=x.wk||{};return (w.date||String(x.ts).slice(0,10))+' | '+(w.project||'')+'\nDid: '+(w.did||'')+(w.impact?'\nImpact: '+w.impact:'')+(w.who?'\nUsed by: '+w.who:'')+(w.link?'\nLink: '+w.link:'')}).join('\n\n')}
+function workTab(c){
+  var items=wkItems(c.id),h='<div class="panel"><div class="ph"><h3>Work updates from '+esc((c.name||'the candidate').split(' ')[0])+'</h3><div class="chips">'+chip(items.length+' updates','')+'</div></div><p class="small">Short updates the candidate adds about their current work. Use them to build evidence for original contributions, critical role and impact. Check that nothing confidential has been included before using it in a petition.</p>';
+  if(!items.length)return h+'<p class="empty">Nothing yet. They add updates from their own page.</p></div>';
+  h+='<div class="addrow"><button class="btn sm" data-a="wk-copy">Copy all updates</button></div><div class="sw-tw"><table class="sw"><thead><tr><th>Date</th><th>Project</th><th>What they did</th><th>Impact</th><th>Used by</th><th>Link</th></tr></thead><tbody>'+items.map(function(x){var w=x.wk||{},u=safeUrl(w.link||'');return '<tr><td>'+esc(w.date?fmtDate(w.date):fmt(x.ts))+'</td><td>'+esc(w.project||'')+'</td><td style="white-space:pre-line">'+esc(w.did||'')+'</td><td style="white-space:pre-line">'+esc(w.impact||'')+'</td><td>'+esc(w.who||'')+'</td><td>'+(u?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">Open</a>':'')+'</td></tr>'}).join('')+'</tbody></table></div>';
+  return h+'</div>';
+}
 function foeEntry(cid){var l=S.log.filter(function(x){return x.cid===cid&&x.kind==='foe'}).sort(function(a,b){return a.ts<b.ts?-1:1});var x=l[l.length-1];return x&&x.text?x:null}
 function foePub(cid){var x=foeEntry(cid);return x?x.text:''}
 function fieldTab(c){
@@ -1560,6 +1582,7 @@ function candidateView(c){
     facts=fb+'</div>'+facts}
   h+=swHead(c,false,acts,facts);
   h+=askPanel(c,true);
+  h+=workPanel(c);
   /* fast track to the first article */
   var ftf=['f1','f2','f3'].map(function(k){return allc.filter(function(t){return t.form===k})[0]}).filter(Boolean);
   var ftLeft=ftf.filter(function(t){return !isDone(t.status)});
@@ -2096,6 +2119,14 @@ document.addEventListener('click',async function(e){
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var fdt=(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||'')).trim();
         await candRef(c.id).update({foe:Object.assign({},c.foe||{},{working:fdt})});S.draft.foeDraft=undefined;say('Working field saved (staff only).','ok');break}
+      case 'wk-all':S.wkAll=!S.wkAll;break;
+      case 'wk-copy':S.copyText=workText(c);break;
+      case 'wk-add':{
+        var wd=function(k){return String(S.draft[k]||'').trim()},wproj=wd('wk_proj'),wdid=wd('wk_did'),wlink=wd('wk_link');
+        if(!wproj||wdid.length<20){say('Add the project and a short description of what you did.','err');return}
+        if(wlink&&!safeUrl(wlink)){say('The link must start with https://','err');return}
+        await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),kind:'work',by:S.locked?'Candidate':'Admin',role:S.locked?'candidate':(S.staff||'admin'),shared:true,text:'Work update: '+wproj,wk:{date:wd('wk_date')||new Date().toISOString().slice(0,10),project:wproj.slice(0,200),did:wdid.slice(0,3000),impact:wd('wk_imp').slice(0,2000),who:wd('wk_who').slice(0,500),link:wlink.slice(0,500)}});
+        ['wk_date','wk_proj','wk_did','wk_imp','wk_who','wk_link'].forEach(function(k){delete S.draft[k]});say('Update saved. Thank you.','ok');break}
       case 'foe-open':S.foeOpen=!S.foeOpen;break;
       case 'foe-share':case 'foe-unshare':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
