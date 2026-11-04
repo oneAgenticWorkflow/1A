@@ -974,7 +974,7 @@ function fieldTab(c){
   var m=mw(c),foe=(c.foe&&c.foe.locked)||'';
   var h='<div class="panel"><div class="ph"><h3>Field of endeavor and market evidence</h3><div class="chips">'+(m?chip(m.checked?'Checked':'Draft, not checked',m.checked?'ok':'gate'):chip('Not run','gate'))+'</div></div>';
   h+='<div class="row"><div class="nm">Working field</div><div><p>'+esc((c.foe&&c.foe.working)||'Not set')+'</p></div></div><div class="row"><div class="nm">Final field</div><div><p>'+esc(foe||'Not locked yet')+'</p></div></div>';
-  h+='<div class="opt"><label class="f" for="foedraft">Working field (admin draft)</label><textarea id="foedraft" data-draft="foeDraft">'+esc(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||''))+'</textarea><div class="addrow"><button class="btn sm" data-a="foe-draft">Save working field</button></div><p class="small">Saved for staff only. The candidate does not see the field or the table, and no steps are unlocked.</p></div>';
+  h+='<div class="opt"><label class="f" for="foedraft">Update the field of endeavor (advisor or supervisor)</label><textarea id="foedraft" data-draft="foeDraft">'+esc(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||''))+'</textarea><div class="addrow"><button class="btn sm" data-a="foe-draft">Save as draft</button><button class="btn pri sm" data-a="foe-proceed">Set as working field and continue</button>'+(function(){var nx=tasksOf(c.id).filter(function(x){return x.owner==='Advisor'&&!isDone(x.status)&&x.status!=='Skipped'}).sort(function(a,b){return tIdx(a)-tIdx(b)})[0];return nx?'<button class="btn sm" data-a="gotask" data-id="'+esc(nx.id)+'">Next advisor task: '+esc(nx.title)+'</button>':''})()+'</div><p class="small">Save as draft keeps the wording for staff only. Set as working field records it, completes the working field step and opens the forms that wait on it. The candidate never sees the field or the table. The final field is locked later in the FOE lock step.</p></div>';
   if(!m)return h+'<p class="empty">The table is normally drafted after the field is locked. You can also start it by hand.</p><div class="addrow"><button class="btn sm" data-a="mk-start">Start the table by hand</button></div></div>';
   h+='<p class="small">Figures and links come from a web search run when the table was drafted. Open each link, confirm the number and the year, and fix anything that does not match. Links the search did not return were dropped.</p>';
   (m.rows||[]).forEach(function(r,i){
@@ -2077,6 +2077,14 @@ document.addEventListener('click',async function(e){
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var fdt=(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||'')).trim();
         await candRef(c.id).update({foe:Object.assign({},c.foe||{},{working:fdt})});S.draft.foeDraft=undefined;say('Working field saved (staff only).','ok');break}
+      case 'foe-proceed':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var fpt=(S.draft.foeDraft!==undefined?S.draft.foeDraft:((c.foe&&c.foe.working)||'')).trim();
+        if(!fpt){say('Write the field of endeavor first.','err');break}
+        var gp=Object.assign({},c.gates||{});gp.foew={status:'approved',at:nowIso()};
+        await candRef(c.id).update({foe:Object.assign({},c.foe||{},{working:fpt}),gates:gp});
+        await log(c.id,'Working FOE set: '+fpt,'gate');await completeKey(c.id,'foew','Working field set.');S.draft.foeDraft=undefined;S.draft.foeWText=undefined;
+        say((c.decision&&c.decision.choice==='proceed')?'Working field set. The next steps are open.':'Working field saved. Record the Proceed decision on the Profile tab to open the forms.','ok');break}
       case 'mk-start':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         await candRef(c.id).update({market:{rows:[{foe:'',market:'',importance:'',cet:'',fit:'',gaps:'',urls:[]}],checked:false,pages:[],editedAt:nowIso()}});S.mktWork=null;break}
