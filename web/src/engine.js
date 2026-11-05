@@ -193,15 +193,15 @@ async function createCase(){
   var ref=db.collection('candidates').doc(),start=today();
   S.setup='Setting up the workflow for '+nm+'…';S.newOpen=false;schedule();
   try{
-    await ref.set({email:(S.draft.ne||'').trim().toLowerCase(),name:nm,dateOfBirth:dob,age:age,gender:gender,employerName:employer,email:S.draft.ne||'',visa:S.draft.nv||'H-1B',visaExpiry:S.draft.nx||'',goal:S.draft.ng||'12 months',stage:0,intake:{},criteria:{},redFlags:[],gates:{},foe:{},startDate:start,createdAt:nowIso()});
+    await ref.set({email:(S.draft.ne||'').trim().toLowerCase(),name:nm,dateOfBirth:dob,age:age,gender:gender,employerName:employer,employer:employer,jobTitle:(S.draft.nj||'').trim(),companyWebsite:(S.draft.nwb||'').trim(),linkedin:(S.draft.nli||'').trim(),officeAddress:(S.draft.nad||'').trim(),email:S.draft.ne||'',visa:S.draft.nv||'H-1B',visaExpiry:S.draft.nx||'',goal:S.draft.ng||'12 months',stage:0,intake:{},criteria:{},redFlags:[],gates:{},foe:{},startDate:start,createdAt:nowIso()});
     for(var i=0;i<TEMPLATE.length;i+=8){
       await Promise.all(TEMPLATE.slice(i,i+8).map(function(t){
         return db.doc('tasks/'+ref.id+'-'+t.k).set({cid:ref.id,key:t.k,stage:t.s,title:t.t,detail:t.d||'',owner:t.o,kind:t.kind||'task',form:t.form||'',gate:t.gate||'',deps:t.deps||[],req:t.req!==false,status:(t.deps&&t.deps.length)?'Not started':'To do',due:addDays(start,t.off),source:'template',createdAt:nowIso()});
       }));
     }
-    var f1=workResp(ref.id,'f1');f1.data.id={name:nm,dob:dob,age:age,gender:gender,employer:employer,email:S.draft.ne||'',status:S.draft.nv||'H-1B',expiry:S.draft.nx||''};f1.data.goals={timeline:S.draft.ng||'12 months'};await saveResp(ref.id,'f1');
+    var f1=workResp(ref.id,'f1');f1.data.id={name:nm,dob:dob,age:age,gender:gender,employer:employer,jobTitle:(S.draft.nj||'').trim(),linkedin:(S.draft.nli||'').trim(),companyWebsite:(S.draft.nwb||'').trim(),officeAddress:(S.draft.nad||'').trim(),email:S.draft.ne||'',status:S.draft.nv||'H-1B',expiry:S.draft.nx||''};f1.data.goals={timeline:S.draft.ng||'12 months'};await saveResp(ref.id,'f1');
     await log(ref.id,'Case opened. '+TEMPLATE.length+' tasks created across '+STAGES.length+' stages.','case');
-    S.draft.nn=S.draft.ne=S.draft.nx=S.draft.ndob=S.draft.nsex=S.draft.nemp='';S.home='cases';S.cid=ref.id;S.tab='tasks';S.setup=null;schedule();
+    S.draft.nn=S.draft.ne=S.draft.nx=S.draft.ndob=S.draft.nsex=S.draft.nemp=S.draft.nj=S.draft.nwb=S.draft.nli=S.draft.nad='';S.home='cases';S.cid=ref.id;S.tab='tasks';S.setup=null;schedule();
   }catch(e){S.setup=null;fail(e)}
 }
 async function deleteCase(id){
