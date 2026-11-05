@@ -823,3 +823,70 @@ details.cx-fast[open]>summary::after{content:"\2212"}
 .idstrip a:hover{text-decoration:underline}
 .cdp{margin-top:14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface2)}
 .cdp h4{margin:0 0 4px;font-size:15px}
+
+
+/* ---- Look and feel: navy, gold and serif headings (inspired by a clean academic publisher site). Styling only; no data or behavior. ---- */
+:root{
+  --bg:#f4f7fb; --surface:#ffffff; --surface2:#eef3f9; --ink:#173f52; --muted:#4c5a67; --line:#dbe4ee;
+  --accent:#0a4c8a; --accent-ink:#ffffff; --gate:#9a6408; --gate-bg:#fdf1d6;
+  --ok:#0b7a5a; --ok-bg:#e0f3ee; --bad:#b0382e; --bad-bg:#fbe5e2; --mid:#8a6400; --mid-bg:#fbf0cf; --na-bg:#e6edf5;
+  --navy:#09283f; --navy2:#0a4c8a; --gold:#ffd56a; --gold-deep:#c68a12; --teal:#078783;
+  --font:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --serif:'Merriweather',Georgia,'Times New Roman',serif;
+  --shadow:0 8px 22px rgba(24,64,84,.07);
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#08151f; --surface:#0f2535; --surface2:#143049; --ink:#e6eef5; --muted:#9fb4c6; --line:#22405a;
+  --accent:#7db4ee; --accent-ink:#06121c; --gate:#ffd56a; --gate-bg:#33290d;
+  --ok:#5cd0a5; --ok-bg:#103427; --bad:#f29a92; --bad-bg:#3a1b19; --mid:#ffd56a; --mid-bg:#33290d; --na-bg:#1a3550;
+  --shadow:0 8px 22px rgba(0,0,0,.35); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#08151f; --surface:#0f2535; --surface2:#143049; --ink:#e6eef5; --muted:#9fb4c6; --line:#22405a;
+  --accent:#7db4ee; --accent-ink:#06121c; --gate:#ffd56a; --gate-bg:#33290d;
+  --ok:#5cd0a5; --ok-bg:#103427; --bad:#f29a92; --bad-bg:#3a1b19; --mid:#ffd56a; --mid-bg:#33290d; --na-bg:#1a3550;
+  --shadow:0 8px 22px rgba(0,0,0,.35); color-scheme:dark}
+.adm{--accent:#0a4c8a}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .adm{--accent:#7db4ee}}
+:root[data-theme="dark"] .adm{--accent:#7db4ee}
+body{font-size:14.5px;line-height:1.5}
+h1,h2,.sw-tt h2,.panel h2,.cv-hero h2,.cv-next h3{font-family:var(--serif);font-weight:700;letter-spacing:-.005em;color:var(--ink)}
+h2{font-size:21px}
+.cv-hero h2{color:#fff}
+h3{font-family:var(--font);color:var(--muted);letter-spacing:.08em}
+a{color:var(--accent)}
+/* top bar */
+.top{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;border-radius:16px;padding:12px 18px;box-shadow:var(--shadow);border-bottom:3px solid var(--gold)}
+.top h1,.top .priv,.top b,.top small,.top span{color:#fff}
+.top .btn{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.35);color:#fff}
+.top .btn:hover{border-color:var(--gold);background:rgba(255,255,255,.18)}
+.top .btn.pri{background:var(--gold);border-color:var(--gold);color:var(--navy)}
+.top .tab{color:rgba(255,255,255,.78)}
+.top .tab:hover{color:#fff}
+.top .tab.on{color:#fff;border-bottom-color:var(--gold)}
+/* cards and panels */
+.panel,.stat,.sw-head,.cv-next,.cdp{border-radius:16px;box-shadow:var(--shadow)}
+.col{border-radius:14px;background:var(--surface2)}
+.cardc{border-radius:12px;box-shadow:0 2px 8px rgba(24,64,84,.05)}
+.cardc:hover{border-color:var(--accent);box-shadow:var(--shadow)}
+.sw-head{border-top:4px solid var(--gold-deep)}
+.stat b{font-family:var(--serif);color:var(--navy2)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .stat b{color:var(--gold)}}
+:root[data-theme="dark"] .stat b{color:var(--gold)}
+/* buttons */
+.btn{border-radius:10px;font-weight:600}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn:hover{border-color:var(--accent)}
+.btn.sm{border-radius:8px}
+/* tabs and chips */
+.tabs{border-bottom:1px solid var(--line)}
+.tab.on{border-bottom:3px solid var(--gold-deep);color:var(--ink)}
+.chip{font-family:var(--font);border-radius:99px;font-weight:600}
+.idstrip em{color:var(--muted)}
+/* candidate hero */
+.cv-hero{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);box-shadow:var(--shadow)}
+.cv-eyebrow{font-family:var(--font)}
+.cv-hero .cv-eyebrow{color:var(--gold);opacity:1}
+.cv-next{border-left-color:var(--gold-deep)}
+.cv-meta span{font-family:var(--font)}
+.bar i{background:var(--teal)}
+input,select,textarea{border-radius:10px}
