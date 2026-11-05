@@ -604,7 +604,7 @@ function ebTrackerPanel(c,readonly){
 var EV_STAGE=['Idea','In progress','Collected'];
 var EV_SECT=[
  {k:'articles',n:'Scholarly articles',d:'Published or accepted articles in journals, conferences and trade publications',min:10,max:10,f:[['venue','Journal or conference','t'],['citations','Citations so far','t']]},
- {k:'judging',n:'Judging and peer review',d:'Reviewer requests you sent and reviews you completed. Only completed reviews with proof count toward the target.',min:10,max:10,st:['Request sent','Replied','Accepted','Review assigned','Review completed','Declined or no reply'],f:[['venue','Journal, conference or event','t'],['role','Role','s',['Technical reviewer','Peer reviewer','Program committee','Panel judge','Editorial board','Other']],['contact','Contact email','t']]},
+ {k:'judging',n:'Judging and peer review',d:'Reviewer requests you sent and reviews you completed. Only completed reviews with proof count toward the target.',min:10,max:10,st:['Request sent','Replied','Accepted','Review assigned','Review completed','Declined or no reply'],f:[['category','Category','s',['Paper Judging','Award Judging','Conference Judging']],['venue','Journal, conference or event','t'],['role','Role','s',['Technical reviewer','Peer reviewer','Program committee','Panel judge','Editorial board','Other']],['contact','Contact email','t']]},
  {k:'memberships',n:'Memberships',d:'Associations that admit members only for outstanding achievement',min:3,max:5,f:[['org','Association','t'],['req','Admission requirement','a']]},
  {k:'awards',n:'Awards',d:'Nationally or internationally recognized prizes for excellence',min:2,max:4,f:[['org','Awarded by','t'],['req','Selection criteria','a'],['scope','Reach','s',['Local','Regional','National','International']]]},
  {k:'media',n:'Published media',d:'Independent coverage about you and your work',min:2,max:4,f:[['outlet','Publication or outlet','t'],['about','Coverage is','s',['About me or my work','Mentions me only']]]},
@@ -624,7 +624,7 @@ function evField(f,val){var id='evf-'+f[0],lb='<label class="f" for="'+id+'">'+e
   if(f[2]==='s')return lb+'<select id="'+id+'">'+options(f[3],val||f[3][0])+'</select>';
   return lb+'<input id="'+id+'" type="text" value="'+esc(val||'')+'">'}
 function evForm(c,s,ro){
-  var f=S.evForm,old=f.id?S.resp.find(function(r){return r.id===f.id}):null,v=old||{},locked=ro&&old&&old.status==='Verified',list=evStages(s);
+  var f=S.evForm,old=f.id?S.resp.find(function(r){return r.id===f.id}):null,v=old||(f.cat?{category:f.cat}:{}),locked=ro&&old&&old.status==='Verified',list=evStages(s);
   var h='<div class="entry ev-form"><h4>'+(old?'Edit item':'Add to '+esc(s.n.toLowerCase()))+'</h4>'+
    '<label class="f" for="evf-title">Title</label><input id="evf-title" type="text" value="'+esc(v.title||'')+'" placeholder="Short name you will recognize">'+
    s.f.map(function(x){return evField(x,v[x[0]])}).join('')+
@@ -649,11 +649,23 @@ function evSection(c,s,ro){
     h+='<div class="ev-b">';
     if(plan)h+='<p class="ev-plan"><b>Team plan:</b> '+esc(plan)+'</p>';
     if(s.k==='judging'){var jv=evItems(c,'judging'),jc=function(n){return jv.filter(function(r){return r.stage===n}).length};if(jv.length)h+='<p class="small ev-pipe"><b>Outreach:</b> '+jv.length+' tracked · '+jc('Request sent')+' sent, '+jc('Replied')+' replied, '+jc('Accepted')+' accepted, '+jc('Review assigned')+' assigned, '+jc('Review completed')+' completed, '+jc('Declined or no reply')+' declined or no reply</p>'}
-    var it=evItems(c,s.k);
-    if(!it.length&&!(S.evForm&&S.evForm.k===s.k))h+='<p class="small">Nothing added yet.</p>';
-    it.forEach(function(r){h+=(S.evForm&&S.evForm.k===s.k&&S.evForm.id===r.id)?evForm(c,s,ro):evRow(c,s,r)});
-    if(S.evForm&&S.evForm.k===s.k&&!S.evForm.id)h+=evForm(c,s,ro);
-    else if(!S.evForm||S.evForm.k!==s.k)h+='<div class="addrow"><button class="btn pri sm" data-a="evx-add" data-id="'+s.k+'">Add item</button>'+(!ro&&S.staff?'<button class="btn sm" data-a="evx-tedit" data-id="'+s.k+'">Target and plan</button>':'')+'</div>';
+    var it=evItems(c,s.k),fo=S.evForm&&S.evForm.k===s.k;
+    if(s.k==='judging'){
+      ['Award Judging','Conference Judging','Paper Judging'].forEach(function(cat){
+        var g=it.filter(function(r){return (r.category||'Paper Judging')===cat});
+        h+='<div class="ev-cat" style="margin-top:14px"><h4 style="margin:0 0 6px;font-size:14px">'+cat+' <span class="small">('+g.length+')</span></h4>';
+        if(!g.length&&!(fo&&!S.evForm.id&&S.evForm.cat===cat))h+='<p class="small">Nothing added yet.</p>';
+        g.forEach(function(r){h+=(fo&&S.evForm.id===r.id)?evForm(c,s,ro):evRow(c,s,r)});
+        if(fo&&!S.evForm.id&&S.evForm.cat===cat)h+=evForm(c,s,ro);
+        else if(!fo)h+='<div class="addrow"><button class="btn pri sm" data-a="evx-add" data-id="judging" data-cat="'+cat+'">Add to '+cat.toLowerCase()+'</button></div>';
+        h+='</div>'});
+      if(!fo&&!ro&&S.staff)h+='<div class="addrow"><button class="btn sm" data-a="evx-tedit" data-id="'+s.k+'">Target and plan</button></div>';
+    }else{
+    if(!it.length&&!fo)h+='<p class="small">Nothing added yet.</p>';
+    it.forEach(function(r){h+=(fo&&S.evForm.id===r.id)?evForm(c,s,ro):evRow(c,s,r)});
+    if(fo&&!S.evForm.id)h+=evForm(c,s,ro);
+    else if(!fo)h+='<div class="addrow"><button class="btn pri sm" data-a="evx-add" data-id="'+s.k+'">Add item</button>'+(!ro&&S.staff?'<button class="btn sm" data-a="evx-tedit" data-id="'+s.k+'">Target and plan</button>':'')+'</div>';
+    }
     if(!ro&&S.staff&&S.evTgt===s.k)h+='<div class="entry"><h4>Target and plan</h4><div class="two"><div><label class="f" for="evt-min">Minimum verified</label><input id="evt-min" type="number" min="0" max="99" value="'+t[0]+'"></div><div><label class="f" for="evt-max">Goal (maximum)</label><input id="evt-max" type="number" min="0" max="99" value="'+t[1]+'"></div></div><label class="f" for="evt-plan">Team plan and next actions (the candidate can read this)</label><textarea id="evt-plan">'+esc(plan||'')+'</textarea><div class="addrow"><button class="btn pri sm" data-a="evx-tsave" data-id="'+s.k+'">Save</button><button class="btn sm" data-a="evx-tcancel">Cancel</button></div></div>';
     h+='</div>';
   }
@@ -1751,7 +1763,7 @@ document.addEventListener('click',async function(e){
         await db.doc('responses/'+id).set(qc3);S.qaDel=null;say('Removed.','ok');break;
       }
       case 'evx-tog':S.evOpen=S.evOpen||{};S.evOpen[id]=!S.evOpen[id];break;
-      case 'evx-add':S.evOpen=S.evOpen||{};S.evOpen[id]=true;S.evForm={k:id,id:null};S.evTgt=null;S.evDel=null;break;
+      case 'evx-add':S.evOpen=S.evOpen||{};S.evOpen[id]=true;S.evForm={k:id,id:null,cat:el.dataset.cat||''};S.evTgt=null;S.evDel=null;break;
       case 'evx-ask':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var eap=id.split('|'),eas=evSec(eap[0]),ear=S.resp.find(function(r){return r.id===eap[1]});
