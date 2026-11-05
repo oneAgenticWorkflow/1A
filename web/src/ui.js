@@ -518,7 +518,7 @@ function caseView(c){
   var nodes=STAGES.map(function(s,i){var evn=i===5&&i>st&&s.n==='Evidence build'&&evStageProg(c).on;return {n:s.n,state:i<st?'done':(i===st||evn)?'now':'',s:i<st?'Completed':(i===st||evn)?'In progress':'Not started',dates:swStageDates(ts,i)}});
   h+=swPipe(nodes,sel,'swsel');
   var ws=SW_WS.indexOf(S.tab)>=0;
-  var more=[['Profile','profile'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
+  var more=[['Profile','profile'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Upcoming','up'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
   h+='<div class="nav tabs"><button class="tab'+(ws?' on':'')+'" data-a="tab" data-id="steps">Case workspace</button>'+more.map(function(t){return '<button class="tab'+(S.tab===t[1]?' on':'')+'" data-a="tab" data-id="'+t[1]+'">'+t[0]+'</button>'}).join('')+'</div>';
   var body='';
   if(ws){
@@ -559,6 +559,7 @@ function caseView(c){
     else if(S.tab==='score')x=scoreTab(c);
     else if(S.tab==='field')x=fieldTab(c);
     else if(S.tab==='work')x=workTab(c);
+    else if(S.tab==='up')x=upTab(c);
     else if(S.tab==='plan')x=planTab(c);
     else x=feasTab(c);
     body='<div class="case-tab-content">'+x+'</div>';
@@ -998,6 +999,33 @@ function profileTab(c){
 /* ----- field (FOE and market) tab ----- */
 function mw(c){return S.mktWork||c.market||null}
 function mwEdit(c){if(!S.mktWork&&c.market)S.mktWork=JSON.parse(JSON.stringify(c.market));return S.mktWork}
+/* ----- upcoming dates (conferences, judging, memberships) shown to the candidate ----- */
+var UP_TYPES=['Conference','Judging','Membership','Other'];
+function upItems(cid){var m={};S.log.filter(function(x){return x.cid===cid&&x.kind==='up'&&x.up}).sort(function(a,b){return a.ts<b.ts?-1:1}).forEach(function(x){m[x.up.id]=x});return Object.keys(m).map(function(k){return m[k]}).filter(function(x){return x.up.status!=='removed'}).sort(function(a,b){var da=a.up.date||'9999',db2=b.up.date||'9999';return da<db2?-1:da>db2?1:0})}
+function upWhen(u){var d=u.date?daysUntil(u.date):null,txt=u.date?fmtDate(u.date)+(d<0?' · '+(-d)+(d===-1?' day ago':' days ago'):d===0?' · today':' · in '+d+(d===1?' day':' days')):(u.note||'Date to be confirmed');return {d:d,txt:txt}}
+function upPanel(c){
+  var it=upItems(c.id).filter(function(x){return x.up.status!=='done'});if(!it.length)return '';
+  var h='<section class="panel"><div class="ph"><h3>Coming up for you</h3>'+chip(it.length+(it.length===1?' item':' items'),'')+'</div><p class="small">Dates to keep in mind. Your advisor will remind you about 7 days and 3 days before each dated item.</p>';
+  it.forEach(function(x){var u=x.up,w=upWhen(u),soon=u.date&&w.d!==null&&w.d>=0&&w.d<=7;h+='<div class="opt"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+chip(u.type||'Other','')+'<b>'+esc(u.title)+'</b>'+(soon?chip('Soon','gate'):'')+'</div><p class="small" style="margin:6px 0 0">'+esc(w.txt)+(u.date&&u.note?' · '+esc(u.note):'')+'</p></div>'});
+  return h+'</section>';
+}
+function upTab(c){
+  var dv=function(k,d){return esc(S.draft[k]!==undefined?S.draft[k]:(d||''))},it=upItems(c.id);
+  var h='<div class="panel"><div class="ph"><h3>Upcoming for '+esc((c.name||'the candidate').split(' ')[0])+'</h3>'+chip(it.length+(it.length===1?' item':' items'),'')+'</div><p class="small">These show on the candidate portal under "Coming up for you". For a dated item, a reminder is due 7 days and 3 days before: copy the email, send it, then mark it sent.</p>'+
+   '<div class="two"><div><label class="f" for="upt">Type</label><select id="upt" data-draft="up_type">'+UP_TYPES.map(function(t){return '<option'+((S.draft.up_type||'Conference')===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select></div><div><label class="f" for="upd">Date (optional)</label><input id="upd" type="date" data-draft="up_date" value="'+dv('up_date')+'"></div></div>'+
+   '<label class="f" for="upn">What</label><input id="upn" type="text" data-draft="up_title" maxlength="200" placeholder="Conference name, award to judge, or membership" value="'+dv('up_title')+'">'+
+   '<label class="f" for="upo">Note or timing (optional)</label><input id="upo" type="text" data-draft="up_note" maxlength="300" placeholder="For example: December, date to be confirmed" value="'+dv('up_note')+'">'+
+   '<div class="addrow"><button class="btn pri" data-a="up-add">Add to upcoming</button></div>';
+  if(!it.length)return h+'</div>';
+  h+='<div class="tablewrap"><table><thead><tr><th>Item</th><th>When</th><th>Reminders</th><th></th></tr></thead><tbody>';
+  it.forEach(function(x){
+    var u=x.up,w=upWhen(u),done=u.status==='done',d=u.date?w.d:null,r7=!done&&d!==null&&d<=7&&d>3&&!u.r7,r3=!done&&d!==null&&d<=3&&d>=0&&!u.r3,due=r7?'r7':r3?'r3':'';
+    h+='<tr'+(done?' style="opacity:.55"':'')+'><td>'+chip(u.type||'Other','')+' <b>'+esc(u.title)+'</b>'+(done?' '+chip('Done','ok'):'')+'</td><td>'+esc(w.txt)+(u.date&&u.note?'<br><small>'+esc(u.note)+'</small>':'')+'</td><td>'+(u.r7?chip('7-day sent','ok')+' ':'')+(u.r3?chip('3-day sent','ok')+' ':'')+(r7?chip('7-day due','gate'):'')+(r3?chip('3-day due','gate'):'')+(!u.date?'<small>needs a date</small>':'')+'</td><td>'+
+     (due?'<button class="btn sm" data-a="up-copy" data-id="'+esc(u.id)+'">Copy reminder</button> <button class="btn sm" data-a="up-set" data-id="'+esc(u.id)+'" data-st="'+due+'">Mark sent</button> ':'')+
+     '<button class="btn sm ghost" data-a="up-set" data-id="'+esc(u.id)+'" data-st="'+(done?'open':'done')+'">'+(done?'Reopen':'Done')+'</button> <button class="btn sm ghost danger" data-a="up-set" data-id="'+esc(u.id)+'" data-st="removed">Remove</button></td></tr>';
+  });
+  return h+'</tbody></table></div></div>';
+}
 /* ----- work updates (candidate diary used to strengthen the profile) ----- */
 function wkItems(cid){return S.log.filter(function(x){return x.cid===cid&&x.kind==='work'&&x.wk}).sort(function(a,b){return a.ts<b.ts?1:-1})}
 function wkCard(x){var w=x.wk||{};return '<div class="opt"><b>'+esc(w.project||'Update')+'</b> <span class="small">'+esc(w.date?fmtDate(w.date):fmt(x.ts))+'</span><p class="small" style="margin:6px 0 0;white-space:pre-line"><b>What I did:</b> '+esc(w.did||'')+'</p>'+(w.impact?'<p class="small" style="margin:6px 0 0;white-space:pre-line"><b>Impact:</b> '+esc(w.impact)+'</p>':'')+(w.who?'<p class="small" style="margin:6px 0 0"><b>Used by:</b> '+esc(w.who)+'</p>':'')+(safeUrl(w.link||'')?'<p class="small" style="margin:6px 0 0"><a href="'+esc(safeUrl(w.link))+'" target="_blank" rel="noopener noreferrer">Link</a></p>':'')+'</div>'}
@@ -1606,7 +1634,7 @@ function candidateView(c){
     facts=fb+'</div>'+facts}
   h+=swHead(c,false,acts,facts);
   h+=askPanel(c,true);
-  h+=workPanel(c);
+  h+=upPanel(c);h+=workPanel(c);
   /* fast track to the first article */
   var ftf=['f1','f2','f3'].map(function(k){return allc.filter(function(t){return t.form===k})[0]}).filter(Boolean);
   var ftLeft=ftf.filter(function(t){return !isDone(t.status)});
@@ -2152,6 +2180,24 @@ document.addEventListener('click',async function(e){
         if(wlink&&!safeUrl(wlink)){say('The link must start with https://','err');return}
         await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),kind:'work',by:S.locked?'Candidate':'Admin',role:S.locked?'candidate':(S.staff||'admin'),shared:true,text:'Work update: '+wproj,wk:{date:wd('wk_date')||new Date().toISOString().slice(0,10),project:wproj.slice(0,200),did:wdid.slice(0,3000),impact:wd('wk_imp').slice(0,2000),who:wd('wk_who').slice(0,500),link:wlink.slice(0,500)}});
         ['wk_date','wk_proj','wk_did','wk_imp','wk_who','wk_link'].forEach(function(k){delete S.draft[k]});say('Update saved. Thank you.','ok');break}
+      case 'up-add':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var ut2=String(S.draft.up_title||'').trim(),ud=String(S.draft.up_date||'').trim();
+        if(!ut2){say('Say what the item is.','err');break}
+        if(ud&&!/^\d{4}-\d{2}-\d{2}$/.test(ud)){say('Enter a valid date.','err');break}
+        await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),kind:'up',by:'Admin',role:S.staff||'admin',shared:true,text:'Upcoming: '+ut2,up:{id:'u'+Date.now().toString(36),type:S.draft.up_type||'Conference',title:ut2.slice(0,200),date:ud,note:String(S.draft.up_note||'').trim().slice(0,300),status:'open'}});
+        ['up_type','up_date','up_title','up_note'].forEach(function(k){delete S.draft[k]});say('Added to the upcoming list.','ok');break}
+      case 'up-set':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var ux=upItems(c.id).find(function(x){return x.up.id===id});if(!ux)break;
+        var nu=Object.assign({},ux.up),ust=el.dataset.st;
+        if(ust==='r7')nu.r7=nowIso();else if(ust==='r3')nu.r3=nowIso();else nu.status=ust;
+        await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),kind:'up',by:'Admin',role:S.staff||'admin',shared:true,text:'Upcoming updated: '+nu.title,up:nu});
+        say('Saved.','ok');break}
+      case 'up-copy':{
+        var uc=upItems(c.id).find(function(x){return x.up.id===id});
+        if(uc){var u3=uc.up,d3=daysUntil(u3.date);S.copyText='Hello '+(c.name||'').split(' ')[0]+',\n\nA quick reminder: "'+u3.title+'" ('+String(u3.type||'item').toLowerCase()+') is '+(d3===0?'today':'on '+fmtDate(u3.date)+', '+d3+(d3===1?' day':' days')+' from now')+'.\n\nIf you need anything from us before then, just reply.\n\nThank you'}
+        break}
       case 'foe-open':S.foeOpen=!S.foeOpen;break;
       case 'foe-share':case 'foe-unshare':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
