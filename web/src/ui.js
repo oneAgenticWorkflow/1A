@@ -254,7 +254,7 @@ function newCaseView(){
    '<div class="two"><div><label class="f" for="ndob">Date of birth</label><input id="ndob" type="date" data-draft="ndob" max="'+today()+'" value="'+esc(S.draft.ndob||'')+'"></div>'+
    '<div><label class="f" for="nsex">Gender</label><select id="nsex" data-draft="nsex"><option value="">Select gender</option><option value="Male"'+(S.draft.nsex==='Male'?' selected':'')+'>Male</option><option value="Female"'+(S.draft.nsex==='Female'?' selected':'')+'>Female</option></select></div></div>'+
    '<label class="f" for="nemp">Employer name</label><input id="nemp" type="text" data-draft="nemp" value="'+esc(S.draft.nemp||'')+'" placeholder="Current employer">'+
-   '<div class="two"><div><label class="f" for="nj">Job title</label><input id="nj" type="text" data-draft="nj" value="'+esc(S.draft.nj||'')+'" placeholder="Current job title"></div><div><label class="f" for="nwb">Company website</label><input id="nwb" type="text" data-draft="nwb" value="'+esc(S.draft.nwb||'')+'" placeholder="https://"></div></div>'+
+   '<div class="two"><div><label class="f" for="nj">Job title / role</label><input id="nj" type="text" data-draft="nj" value="'+esc(S.draft.nj||'')+'" placeholder="Current job title"></div><div><label class="f" for="nwb">Company website</label><input id="nwb" type="text" data-draft="nwb" value="'+esc(S.draft.nwb||'')+'" placeholder="https://"></div></div>'+
    '<label class="f" for="nli">LinkedIn URL</label><input id="nli" type="text" data-draft="nli" value="'+esc(S.draft.nli||'')+'" placeholder="https://www.linkedin.com/in/...">'+
    '<label class="f" for="nad">Office address</label><input id="nad" type="text" data-draft="nad" value="'+esc(S.draft.nad||'')+'" placeholder="Street, city, state, ZIP">'+
    '<div class="two"><div><label class="f" for="ne">Email</label><input id="ne" type="text" data-draft="ne" value="'+esc(S.draft.ne||'')+'"></div>'+
@@ -376,7 +376,7 @@ function swPill(t){var s=t.status;
 var CD_EMAIL=/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
 function cdLink(v){return CD_EMAIL.test(v||'')?'<a href="mailto:'+esc(v)+'">'+esc(v)+'</a>':esc(v||'')}
 function idStrip(c){
-  var it=[['Date of birth',c.dateOfBirth?esc(fmtDate(c.dateOfBirth)):''],['Country',c.country?esc(c.country):''],['Job title',c.jobTitle?esc(c.jobTitle):''],['Employer',c.employer?esc(c.employer):''],['Company website',c.companyWebsite?cdUrl(c.companyWebsite):''],['Office address',c.officeAddress?esc(c.officeAddress):''],['LinkedIn',c.linkedin?cdUrl(c.linkedin):''],['Work email',c.workEmail?cdLink(c.workEmail):''],['University email',c.schoolEmail?cdLink(c.schoolEmail):''],['Primary email',c.email?cdLink(c.email):'']].filter(function(x){return x[1]});
+  var it=[['Date of birth',c.dateOfBirth?esc(fmtDate(c.dateOfBirth)):''],['Country',c.country?esc(c.country):''],['Job title / role',c.jobTitle?esc(c.jobTitle):''],['Employer',c.employer?esc(c.employer):''],['Company website',c.companyWebsite?cdUrl(c.companyWebsite):''],['Office address',c.officeAddress?esc(c.officeAddress):''],['LinkedIn',c.linkedin?cdUrl(c.linkedin):''],['Work email',c.workEmail?cdLink(c.workEmail):''],['University email',c.schoolEmail?cdLink(c.schoolEmail):''],['Primary email',c.email?cdLink(c.email):'']].filter(function(x){return x[1]});
   if(!it.length)return '';
   return '<div class="idstrip">'+it.map(function(x){return '<span><em>'+x[0]+'</em><b>'+x[1]+'</b></span>'}).join('')+'</div>';
 }
@@ -385,7 +385,7 @@ function cdVal(k,cur){return esc(S.draft[k]!==undefined?S.draft[k]:(cur||''))}
 function cdPanel(c){
   return '<div class="cdp"><h4>Edit case details</h4><p class="small">These show in the case header. Email alerts to the candidate go to the primary email, so change that one only if the candidate asks.</p>'+
     '<label class="f" for="cd-emp">Employer</label><input id="cd-emp" type="text" data-draft="cd-emp" maxlength="200" value="'+cdVal('cd-emp',c.employer)+'">'+
-    '<div class="two"><div><label class="f" for="cd-jt">Job title</label><input id="cd-jt" type="text" data-draft="cd-jt" maxlength="200" value="'+cdVal('cd-jt',c.jobTitle)+'"></div>'+
+    '<div class="two"><div><label class="f" for="cd-jt">Job title / role</label><input id="cd-jt" type="text" data-draft="cd-jt" maxlength="200" value="'+cdVal('cd-jt',c.jobTitle)+'"></div>'+
     '<div><label class="f" for="cd-wb">Company website</label><input id="cd-wb" type="text" data-draft="cd-wb" maxlength="300" value="'+cdVal('cd-wb',c.companyWebsite)+'"></div></div>'+
     '<label class="f" for="cd-li">LinkedIn URL</label><input id="cd-li" type="text" data-draft="cd-li" maxlength="300" value="'+cdVal('cd-li',c.linkedin)+'">'+
     '<label class="f" for="cd-ad">Office address</label><input id="cd-ad" type="text" data-draft="cd-ad" maxlength="300" value="'+cdVal('cd-ad',c.officeAddress)+'">'+
