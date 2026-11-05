@@ -254,6 +254,9 @@ function newCaseView(){
    '<div class="two"><div><label class="f" for="ndob">Date of birth</label><input id="ndob" type="date" data-draft="ndob" max="'+today()+'" value="'+esc(S.draft.ndob||'')+'"></div>'+
    '<div><label class="f" for="nsex">Gender</label><select id="nsex" data-draft="nsex"><option value="">Select gender</option><option value="Male"'+(S.draft.nsex==='Male'?' selected':'')+'>Male</option><option value="Female"'+(S.draft.nsex==='Female'?' selected':'')+'>Female</option></select></div></div>'+
    '<label class="f" for="nemp">Employer name</label><input id="nemp" type="text" data-draft="nemp" value="'+esc(S.draft.nemp||'')+'" placeholder="Current employer">'+
+   '<div class="two"><div><label class="f" for="nj">Job title</label><input id="nj" type="text" data-draft="nj" value="'+esc(S.draft.nj||'')+'" placeholder="Current job title"></div><div><label class="f" for="nwb">Company website</label><input id="nwb" type="text" data-draft="nwb" value="'+esc(S.draft.nwb||'')+'" placeholder="https://"></div></div>'+
+   '<label class="f" for="nli">LinkedIn URL</label><input id="nli" type="text" data-draft="nli" value="'+esc(S.draft.nli||'')+'" placeholder="https://www.linkedin.com/in/...">'+
+   '<label class="f" for="nad">Office address</label><input id="nad" type="text" data-draft="nad" value="'+esc(S.draft.nad||'')+'" placeholder="Street, city, state, ZIP">'+
    '<div class="two"><div><label class="f" for="ne">Email</label><input id="ne" type="text" data-draft="ne" value="'+esc(S.draft.ne||'')+'"></div>'+
    '<div><label class="f" for="nv">Current status</label><select id="nv" data-draft="nv">'+options(VISAS,S.draft.nv||'H-1B')+'</select></div>'+
    '<div><label class="f" for="nx">Status expiry</label><input id="nx" type="date" data-draft="nx" value="'+esc(S.draft.nx||'')+'"></div>'+
@@ -373,14 +376,19 @@ function swPill(t){var s=t.status;
 var CD_EMAIL=/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/;
 function cdLink(v){return CD_EMAIL.test(v||'')?'<a href="mailto:'+esc(v)+'">'+esc(v)+'</a>':esc(v||'')}
 function idStrip(c){
-  var it=[['Date of birth',c.dateOfBirth?esc(fmtDate(c.dateOfBirth)):''],['Country',c.country?esc(c.country):''],['Employer',c.employer?esc(c.employer):''],['Work email',c.workEmail?cdLink(c.workEmail):''],['University email',c.schoolEmail?cdLink(c.schoolEmail):''],['Primary email',c.email?cdLink(c.email):'']].filter(function(x){return x[1]});
+  var it=[['Date of birth',c.dateOfBirth?esc(fmtDate(c.dateOfBirth)):''],['Country',c.country?esc(c.country):''],['Job title',c.jobTitle?esc(c.jobTitle):''],['Employer',c.employer?esc(c.employer):''],['Company website',c.companyWebsite?cdUrl(c.companyWebsite):''],['Office address',c.officeAddress?esc(c.officeAddress):''],['LinkedIn',c.linkedin?cdUrl(c.linkedin):''],['Work email',c.workEmail?cdLink(c.workEmail):''],['University email',c.schoolEmail?cdLink(c.schoolEmail):''],['Primary email',c.email?cdLink(c.email):'']].filter(function(x){return x[1]});
   if(!it.length)return '';
   return '<div class="idstrip">'+it.map(function(x){return '<span><em>'+x[0]+'</em><b>'+x[1]+'</b></span>'}).join('')+'</div>';
 }
+function cdUrl(v){v=(v||'').trim();var u=safeUrl(/^https?:\/\//i.test(v)?v:'https://'+v);return u?'<a href="'+esc(u)+'" target="_blank" rel="noopener noreferrer">'+esc(v.replace(/^https?:\/\/(www\.)?/i,'').replace(/\/$/,''))+'</a>':esc(v)}
 function cdVal(k,cur){return esc(S.draft[k]!==undefined?S.draft[k]:(cur||''))}
 function cdPanel(c){
   return '<div class="cdp"><h4>Edit case details</h4><p class="small">These show in the case header. Email alerts to the candidate go to the primary email, so change that one only if the candidate asks.</p>'+
     '<label class="f" for="cd-emp">Employer</label><input id="cd-emp" type="text" data-draft="cd-emp" maxlength="200" value="'+cdVal('cd-emp',c.employer)+'">'+
+    '<div class="two"><div><label class="f" for="cd-jt">Job title</label><input id="cd-jt" type="text" data-draft="cd-jt" maxlength="200" value="'+cdVal('cd-jt',c.jobTitle)+'"></div>'+
+    '<div><label class="f" for="cd-wb">Company website</label><input id="cd-wb" type="text" data-draft="cd-wb" maxlength="300" value="'+cdVal('cd-wb',c.companyWebsite)+'"></div></div>'+
+    '<label class="f" for="cd-li">LinkedIn URL</label><input id="cd-li" type="text" data-draft="cd-li" maxlength="300" value="'+cdVal('cd-li',c.linkedin)+'">'+
+    '<label class="f" for="cd-ad">Office address</label><input id="cd-ad" type="text" data-draft="cd-ad" maxlength="300" value="'+cdVal('cd-ad',c.officeAddress)+'">'+
     '<div class="two"><div><label class="f" for="cd-we">Work email</label><input id="cd-we" type="text" data-draft="cd-we" maxlength="200" value="'+cdVal('cd-we',c.workEmail)+'"></div>'+
     '<div><label class="f" for="cd-se">University email</label><input id="cd-se" type="text" data-draft="cd-se" maxlength="200" value="'+cdVal('cd-se',c.schoolEmail)+'"></div></div>'+
     '<label class="f" for="cd-em">Primary email</label><input id="cd-em" type="text" data-draft="cd-em" maxlength="200" value="'+cdVal('cd-em',c.email)+'">'+
@@ -1711,19 +1719,19 @@ document.addEventListener('click',async function(e){
     if(S.staff==='supervisor'&&['feas-release','plan-approve','att-ok','delete-yes','newcase','create'].indexOf(a)>=0){say('An admin has to do this step.','err');return}
     switch(a){
       case 'dismiss':S.msg=null;S.msgGo=null;break;
-      case 'cd-edit':{if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});S.cdOpen=c.id;delete S.draft['cd-dob'];delete S.draft['cd-co'];break}
-      case 'cd-cancel':{S.cdOpen=null;delete S.draft['cd-dob'];delete S.draft['cd-co'];['cd-emp','cd-we','cd-se','cd-em'].forEach(function(k){delete S.draft[k]});break}
+      case 'cd-edit':{if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}['cd-emp','cd-we','cd-se','cd-em','cd-jt','cd-wb','cd-li','cd-ad'].forEach(function(k){delete S.draft[k]});S.cdOpen=c.id;delete S.draft['cd-dob'];delete S.draft['cd-co'];break}
+      case 'cd-cancel':{S.cdOpen=null;delete S.draft['cd-dob'];delete S.draft['cd-co'];['cd-emp','cd-we','cd-se','cd-em','cd-jt','cd-wb','cd-li','cd-ad'].forEach(function(k){delete S.draft[k]});break}
       case 'cd-save':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var g=function(k,cur){return (S.draft[k]!==undefined?S.draft[k]:(cur||'')).trim()};
-        var cp={employer:g('cd-emp',c.employer),workEmail:g('cd-we',c.workEmail),schoolEmail:g('cd-se',c.schoolEmail),email:g('cd-em',c.email),dateOfBirth:g('cd-dob',c.dateOfBirth),country:g('cd-co',c.country)};
+        var cp={employer:g('cd-emp',c.employer),workEmail:g('cd-we',c.workEmail),schoolEmail:g('cd-se',c.schoolEmail),email:g('cd-em',c.email),dateOfBirth:g('cd-dob',c.dateOfBirth),country:g('cd-co',c.country),jobTitle:g('cd-jt',c.jobTitle),companyWebsite:g('cd-wb',c.companyWebsite),linkedin:g('cd-li',c.linkedin),officeAddress:g('cd-ad',c.officeAddress)};
         if(cp.dateOfBirth&&(!/^\d{4}-\d{2}-\d{2}$/.test(cp.dateOfBirth)||cp.dateOfBirth>new Date().toISOString().slice(0,10))){say('Enter a valid date of birth.','err');break}
         if(cp.dateOfBirth){var bd=new Date(cp.dateOfBirth+'T12:00:00Z'),nw=new Date();cp.age=nw.getUTCFullYear()-bd.getUTCFullYear()-((nw.getUTCMonth()<bd.getUTCMonth()||(nw.getUTCMonth()===bd.getUTCMonth()&&nw.getUTCDate()<bd.getUTCDate()))?1:0)}
         var bad=['workEmail','schoolEmail','email'].filter(function(k){return cp[k]&&!CD_EMAIL.test(cp[k])})[0];
         if(bad){say('That email address does not look right. Please check it.','err');break}
         if(!cp.email){say('Keep a primary email, it is used for alerts.','err');break}
         await candRef(c.id).update(cp);
-        S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em','cd-dob','cd-co'].forEach(function(k){delete S.draft[k]});
+        S.cdOpen=null;['cd-emp','cd-we','cd-se','cd-em','cd-dob','cd-co','cd-jt','cd-wb','cd-li','cd-ad'].forEach(function(k){delete S.draft[k]});
         say('Details saved.','ok');break;
       }
       case 'simple-tog':S.simple=(S.simple===false);break;
