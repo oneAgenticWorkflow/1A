@@ -507,16 +507,17 @@ function caseView(c){
   if(S.showCandidateLogin===c.id)h+=loginPanel(c);
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Summary (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   var awc=awaitingReply(c.id);if(awc&&S.tab!=='activity')h+='<div class="panel msgalert"><div><b>'+esc((c.name||'Candidate').split(' ')[0])+' sent '+(awc.n===1?'a message':awc.n+' messages')+'</b><div class="small">"'+esc(awc.last.text.length>110?awc.last.text.slice(0,110)+'...':awc.last.text)+'" · '+esc(agoStr(awc.last.ts))+'</div></div><button class="btn pri sm" data-a="openmsg" data-id="'+esc(c.id)+'">Reply</button></div>';
-  var nodes=STAGES.map(function(s,i){return {n:s.n,state:i<st?'done':i===st?'now':'',s:i<st?'Completed':i===st?'In progress':'Not started',dates:swStageDates(ts,i)}});
+  var nodes=STAGES.map(function(s,i){var evn=i===5&&i>st&&s.n==='Evidence build'&&evStageProg(c).on;return {n:s.n,state:i<st?'done':(i===st||evn)?'now':'',s:i<st?'Completed':(i===st||evn)?'In progress':'Not started',dates:swStageDates(ts,i)}});
   h+=swPipe(nodes,sel,'swsel');
   var ws=SW_WS.indexOf(S.tab)>=0;
   var more=[['Profile','profile'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
   h+='<div class="nav tabs"><button class="tab'+(ws?' on':'')+'" data-a="tab" data-id="steps">Case workspace</button>'+more.map(function(t){return '<button class="tab'+(S.tab===t[1]?' on':'')+'" data-a="tab" data-id="'+t[1]+'">'+t[0]+'</button>'}).join('')+'</div>';
   var body='';
   if(ws){
+    var evp=(sel===5&&STAGES[5].n==='Evidence build')?evStageProg(c):{pct:0,on:false};
     var grp=ts.filter(function(t){return t.stage===sel}).sort(function(a,b){var x=tIdx(a),y=tIdx(b);if(x!==y)return x-y;return (a.due||'9')<(b.due||'9')?-1:1});
     var all=grp.filter(function(t){return t.req!==false}),dn=all.filter(function(t){return isDone(t.status)}).length,pct=all.length?Math.round(dn/all.length*100):(sel<st?100:0),aw=awaitingReply(c.id);
-    var side=swSide({title:(sel+1)+'. '+STAGES[sel].n,desc:STAGES[sel].d,pct:pct,lbl:sel<st?'Completed':sel===st?'In progress':'Not started',sub:dn+' of '+all.length+' steps done',act:'tab',active:S.tab,
+    var side=swSide({title:(sel+1)+'. '+STAGES[sel].n,desc:STAGES[sel].d,pct:(evp.pct>pct?evp.pct:pct),lbl:sel<st?'Completed':(sel===st||evp.on)?'In progress':'Not started',sub:dn+' of '+all.length+' steps done'+(evp.on?' · evidence collection started':''),act:'tab',active:S.tab,
       nav:[['steps','Steps',grp.length],['details','Stage details'],['forms','Forms'],['docs','Documents'],['activity','Comments',aw?aw.n:''],['history','History']]});
     var main='';
     if(S.tab==='steps'){
@@ -619,6 +620,7 @@ function evItems(c,k){return S.resp.filter(function(r){return r.cid===c.id&&r.fo
 function evTarget(c,s){var t=(c.evTargets||{})[s.k];return (t&&t.length===2)?[+t[0]||0,+t[1]||0]:[s.min,s.max]}
 function evCount(c,s){var it=evItems(c,s.k);return {all:it.length,done:it.filter(function(r){return r.status==='Verified'}).length}}
 function evRoll(c){var need=0,done=0;EV_SECT.forEach(function(s){var t=evTarget(c,s),n=evCount(c,s);need+=t[0];done+=Math.min(n.done,t[0])});return {need:need,done:done}}
+function evStageProg(c){var need=0,have=0;EV_SECT.forEach(function(s){var t=evTarget(c,s),it=evItems(c,s.k),w=it.reduce(function(a,r){return a+(r.status==='Verified'?1:0.5)},0);need+=t[0];have+=Math.min(w,t[0])});return {pct:need?Math.round(have/need*100):0,on:have>0}}
 function evField(f,val){var id='evf-'+f[0],lb='<label class="f" for="'+id+'">'+esc(f[1])+'</label>';
   if(f[2]==='a')return lb+'<textarea id="'+id+'">'+esc(val||'')+'</textarea>';
   if(f[2]==='s')return lb+'<select id="'+id+'">'+options(f[3],val||f[3][0])+'</select>';
