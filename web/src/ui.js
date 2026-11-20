@@ -49,6 +49,8 @@ function render(){
     if(tabRow){var top=tabRow.getBoundingClientRect().top+window.scrollY-16;window.scrollTo({top:Math.max(0,top),behavior:'instant'});}
   }else if(typeof y==='number')window.scrollTo(0,y);
   if(S.focusMsg){S.focusMsg=false;var fme=document.getElementById('adm-msg');if(fme){fme.scrollIntoView({block:'start'});var fta=fme.querySelector('textarea');if(fta){try{fta.focus({preventScroll:true})}catch(e){}}}}
+  if(!window.__msl){window.__msl=1;document.addEventListener('scroll',function(ev){var t=ev.target;if(t&&t.classList&&t.classList.contains('msgs')){window.__ms={n:t.children.length,top:t.scrollTop,bottom:t.scrollTop+t.clientHeight>=t.scrollHeight-8}}},true)}
+  (function(){var mm=document.querySelector('.msgs');if(!mm)return;var n=mm.children.length,st=window.__ms;if(!st||st.n!==n||st.bottom){mm.scrollTop=mm.scrollHeight}else{mm.scrollTop=st.top}})();
   if(S.focusSw){S.focusSw=false;var fw=document.getElementById('sw-ws');if(fw)fw.scrollIntoView({block:'start'});if(S.focusBox){S.focusBox=false;var mb=document.getElementById('msgbox');if(mb){try{mb.focus({preventScroll:true})}catch(e){}}}}
   reconcile();
 }
@@ -1507,7 +1509,7 @@ function docsPanel(c,admin){
   var ds=S.docs.filter(function(d){return d.cid===c.id}).sort(function(a,b){return (a.ts||'')<(b.ts||'')?-1:1});
   var reqs=ds.filter(function(d){return d.kind==='request'}),files=ds.filter(function(d){return d.kind==='file'});
   var h='<div class="panel"><div class="ph"><h3>Documents</h3></div><p class="small">Files are stored privately. Only you and your advisor can open them. Do not upload passports or tax returns unless your advisor asked for them.</p>';
-  function fileList(list){return list.map(function(f){return '<div class="formrow"><div><b>'+esc(f.name)+'</b><div class="small">'+esc(fmt(f.ts))+' · '+esc(f.by||'')+'</div></div><div class="chips"><button class="btn sm" data-a="getfile" data-path="'+esc(f.path)+'">Open</button>'+(admin?'<button class="btn sm danger" data-a="file-del" data-id="'+f.id+'">Delete</button>':'')+'</div></div>'}).join('')}
+  function fileList(list){return list.map(function(f){var ren=admin&&S.renId===f.id,del=admin&&S.delId===f.id;return '<div class="formrow"><div>'+(ren?'<input type="text" data-draft="ren" value="'+esc(S.draft.ren||'')+'" style="min-width:220px">':'<b>'+esc(f.name)+'</b>')+'<div class="small">'+esc(fmt(f.ts))+' · '+esc(f.by||'')+'</div></div><div class="chips">'+(ren?'<button class="btn sm pri" data-a="file-ren-save" data-id="'+f.id+'">Save name</button><button class="btn sm" data-a="file-ren-no">Cancel</button>':'<button class="btn sm" data-a="getfile" data-path="'+esc(f.path)+'">Open</button>'+(admin?(del?'<button class="btn sm danger" data-a="file-del-yes" data-id="'+f.id+'">Confirm delete</button><button class="btn sm" data-a="file-del-no">Cancel</button>':'<button class="btn sm" data-a="file-ren" data-id="'+f.id+'">Rename</button><button class="btn sm danger" data-a="file-del" data-id="'+f.id+'">Delete</button>'):''))+'</div></div>'}).join('')}
   reqs.forEach(function(r){
     var mine=files.filter(function(f){return f.reqId===r.id});
     h+='<div class="entry"><div class="ph"><b>'+esc(r.label)+'</b><div class="chips">'+chip(mine.length?mine.length+' uploaded':'Waiting',mine.length?'ok':'gate')+(admin?'<button class="link" data-a="req-del" data-id="'+r.id+'">Remove request</button>':'')+'</div></div>'+(r.note?'<p class="small">'+esc(r.note)+'</p>':'')+fileList(mine)+'<label class="btn sm up">Upload file<input type="file" hidden data-up="'+r.id+'"></label></div>';
@@ -2061,13 +2063,18 @@ document.addEventListener('click',async function(e){
         await candRef(c.id).update({evidenceFindings:current});say('Finding updated.','ok');break;
       }
       case 'getfile':{var url=await db.signedUrl(el.dataset.path);window.open(url,'_blank','noopener');return}
-      case 'file-del':{var fd0=S.docs.find(function(x){return x.id===id});if(fd0){await db.doc('docs/'+id).delete();if(fd0.path)await db.removeFiles([fd0.path])}break}
+      case 'file-del':S.delId=id;S.renId=null;break;
+      case 'file-del-no':S.delId=null;break;
+      case 'file-del-yes':{var fd0=S.docs.find(function(x){return x.id===id});S.delId=null;if(fd0){await db.doc('docs/'+id).delete();if(fd0.path)await db.removeFiles([fd0.path]);say('Document deleted.','ok')}break}
+      case 'file-ren':{var fr0=S.docs.find(function(x){return x.id===id});if(fr0){S.renId=id;S.delId=null;S.draft.ren=fr0.name||''}break}
+      case 'file-ren-no':S.renId=null;break;
+      case 'file-ren-save':{var fr1=S.docs.find(function(x){return x.id===id}),nn=(S.draft.ren||'').trim();if(!fr1)break;if(!nn){say('Type a name for the document.','err');return}var m1=/\.[A-Za-z0-9]{1,6}$/.exec(fr1.name||'');if(m1&&!/\.[A-Za-z0-9]{1,6}$/.test(nn))nn+=m1[0];await db.doc('docs/'+id).update({name:nn});S.renId=null;say('Document renamed.','ok');break}
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
       case 'req-del':{await db.doc('docs/'+id).delete();break}
       case 'msg':{var mt=(S.draft.msg||'').trim();if(!mt){say('Write your message first.','err');return}var adm=!S.locked,pv=adm&&!!S.draft.msgPriv;await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:mt,kind:'note',by:adm?'Admin':'Candidate',role:adm?(S.staff||'admin'):'candidate',from:adm?((S.me&&(S.me.name||S.me.username))||''):'',shared:adm?!pv:true});S.draft.msg='';S.draft.msgPriv=false;if(!adm)msgMarkSeen(c.id);S.focusMsg=adm;break}
       case 'ev-save':{var el=(S.draft.evl!==undefined?S.draft.evl:evidenceOf(c).link||'').trim(),ee=(S.draft.eve!==undefined?S.draft.eve:evidenceOf(c).email||'').trim();if(!safeUrl(el)){say('Paste the full folder link. It must start with https://','err');return}await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:'Evidence folder shared: '+el+(ee?' · Evidence email: '+ee:''),kind:'note',by:'Candidate',role:'candidate',from:'',shared:true,evidenceLink:el,evidenceEmail:ee});delete S.draft.evl;delete S.draft.eve;say('Saved. Your advisor can see it in your messages.','ok');break}
-      case 'openmsg':{S.cid=id;S.showCandidateLogin=null;S.tab='activity';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';S.focusMsg=true;break}
-      case 'msgread':{msgMarkSeen(c.id);S.ctab='comments';S.focusSw=true;S.focusBox=true;break}
+      case 'openmsg':{S.cid=id;S.showCandidateLogin=null;S.tab='activity';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';S.focusMsg=true;window.__ms=null;break}
+      case 'msgread':{msgMarkSeen(c.id);S.ctab='comments';S.focusSw=true;S.focusBox=true;window.__ms=null;break}
       case 'cancel':if(ctl)ctl.abort();break;
       case 'home':S.cid=null;S.home='cases';S.openForm=false;S.role='Advisor';break;
       case 'alltasks':S.cid=null;S.home='tasks';break;
