@@ -520,7 +520,7 @@ function caseView(c){
   var nodes=STAGES.map(function(s,i){var evn=i===5&&i>st&&s.n==='Evidence build'&&evStageProg(c).on;return {n:s.n,state:i<st?'done':(i===st||evn)?'now':'',s:i<st?'Completed':(i===st||evn)?'In progress':'Not started',dates:swStageDates(ts,i)}});
   h+=swPipe(nodes,sel,'swsel');
   var ws=SW_WS.indexOf(S.tab)>=0;
-  var more=[['Profile','profile'],['Documents','docs'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Upcoming','up'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
+  var more=[['Profile','profile'],['Documents','docs'],['Education','education'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Upcoming','up'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
   h+='<div class="nav tabs"><button class="tab'+(ws&&S.tab!=='docs'?' on':'')+'" data-a="tab" data-id="steps">Case workspace</button>'+more.map(function(t){return '<button class="tab'+(S.tab===t[1]?' on':'')+'" data-a="tab" data-id="'+t[1]+'">'+t[0]+'</button>'}).join('')+'</div>';
   var body='';
   if(ws){
@@ -552,6 +552,7 @@ function caseView(c){
     var x='';
     if(S.tab==='tasks')x=tasksTab(c,ts);
     else if(S.tab==='profile')x=profileTab(c);
+    else if(S.tab==='education')x=eduTab(c);
     else if(S.tab==='pathway')x=pathwayScreening(c);
     else if(S.tab==='development')x=pathwayDevelopment(c);
     else if(S.tab==='criteria-tracker')x=ebTrackerPanel(c,false);
@@ -1012,6 +1013,31 @@ function upPanel(c){
   h+='<p class="small">Dates to keep in mind. Your advisor will remind you about 7 days and 3 days before each dated item.</p>';
   it.forEach(function(x){var u=x.up,w=upWhen(u),soon=u.date&&w.d!==null&&w.d>=0&&w.d<=7;h+='<div class="opt"><div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">'+chip(u.type||'Other','')+'<b>'+esc(u.title)+'</b>'+(soon?chip('Soon','gate'):'')+'</div><p class="small" style="margin:6px 0 0">'+esc(w.txt)+(u.date&&u.note?' · '+esc(u.note):'')+'</p></div>'});
   return h+'</section>';
+}
+/* ----- education records (admin) ----- */
+var EDU_LEVELS=['Doctorate','Master','Bachelor','Other'],EDU_STATUS=['Completed','In progress','Expected'],EDU_EV=['Not requested','Requested','Received','Verified'];
+function eduItems(cid){var m={};S.log.filter(function(x){return x.cid===cid&&x.kind==='edu'&&x.edu}).sort(function(a,b){return a.ts<b.ts?-1:1}).forEach(function(x){m[x.edu.id]=x});return Object.keys(m).map(function(k){return m[k]}).filter(function(x){return !x.edu.removed}).sort(function(a,b){return (a.edu.ord||99)-(b.edu.ord||99)})}
+function eduTab(c){
+  var dv=function(k,d){return esc(S.draft[k]!==undefined?S.draft[k]:(d||''))},it=eduItems(c.id),ed=S.eduEdit;
+  var sel=function(k,opts,def){var cur=S.draft[k]!==undefined?S.draft[k]:def;return '<select data-draft="'+k+'">'+opts.map(function(o){return '<option'+(cur===o?' selected':'')+'>'+esc(o)+'</option>'}).join('')+'</select>'};
+  var h='<div class="panel"><div class="ph"><h3>Education for '+esc((c.name||'the candidate').split(' ')[0])+'</h3>'+chip(it.length+(it.length===1?' record':' records'),'')+'</div><p class="small">Degrees on record and the evidence we hold for each. Admin only. Confirm every record against a transcript or degree certificate before it is used in any filing.</p>';
+  if(it.length){
+    h+='<div class="tablewrap"><table><thead><tr><th>Degree</th><th>Institution</th><th>Dates</th><th>Evidence</th><th></th></tr></thead><tbody>';
+    it.forEach(function(x){var e=x.edu,dates=[e.start,e.end].filter(Boolean).join(' to ');
+      h+='<tr><td><b>'+esc(e.degree)+'</b>'+(e.field?'<br><small>'+esc(e.field)+'</small>':'')+'<br>'+chip(e.level||'Other','')+'</td><td>'+esc(e.inst)+'</td><td>'+esc(dates||'To confirm')+'<br>'+chip(e.status||'Completed',e.status==='Completed'?'ok':'mid')+'</td><td>'+chip(e.ev||'Not requested',e.ev==='Verified'?'ok':e.ev==='Received'?'mid':'gate')+(e.note?'<br><small>'+esc(e.note)+'</small>':'')+'</td><td><button class="btn sm ghost" data-a="edu-edit" data-id="'+esc(e.id)+'">Edit</button> <button class="btn sm ghost danger" data-a="edu-rm" data-id="'+esc(e.id)+'">Remove</button></td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }else h+='<p class="empty">No education records yet.</p>';
+  h+='<h4 style="margin-top:14px">'+(ed?'Edit record':'Add a record')+'</h4>'+
+   '<div class="two"><div><label class="f">Level</label>'+sel('edu_level',EDU_LEVELS,'Master')+'</div><div><label class="f">Status</label>'+sel('edu_status',EDU_STATUS,'Completed')+'</div></div>'+
+   '<label class="f">Degree</label><input type="text" data-draft="edu_degree" maxlength="200" placeholder="For example: Master of Science" value="'+dv('edu_degree')+'">'+
+   '<label class="f">Field or specialization</label><input type="text" data-draft="edu_field" maxlength="200" value="'+dv('edu_field')+'">'+
+   '<label class="f">Institution and country</label><input type="text" data-draft="edu_inst" maxlength="200" value="'+dv('edu_inst')+'">'+
+   '<div class="two"><div><label class="f">Start</label><input type="text" data-draft="edu_start" maxlength="40" placeholder="For example: Aug 2026" value="'+dv('edu_start')+'"></div><div><label class="f">End or expected end</label><input type="text" data-draft="edu_end" maxlength="40" placeholder="For example: Nov 2030 (expected)" value="'+dv('edu_end')+'"></div></div>'+
+   '<label class="f">Evidence status</label>'+sel('edu_ev',EDU_EV,'Not requested')+
+   '<label class="f">Notes</label><input type="text" data-draft="edu_note" maxlength="500" placeholder="Source, open questions, what is still needed" value="'+dv('edu_note')+'">'+
+   '<div class="addrow"><button class="btn pri" data-a="edu-save">'+(ed?'Save changes':'Add record')+'</button>'+(ed?'<button class="btn" data-a="edu-no">Cancel</button>':'')+'</div></div>';
+  return h;
 }
 function upTab(c){
   var dv=function(k,d){return esc(S.draft[k]!==undefined?S.draft[k]:(d||''))},it=upItems(c.id);
@@ -2191,6 +2217,21 @@ document.addEventListener('click',async function(e){
         if(wlink&&!safeUrl(wlink)){say('The link must start with https://','err');return}
         await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),kind:'work',by:S.locked?'Candidate':'Admin',role:S.locked?'candidate':(S.staff||'admin'),shared:true,text:'Work update: '+wproj,wk:{date:wd('wk_date')||new Date().toISOString().slice(0,10),project:wproj.slice(0,200),did:wdid.slice(0,3000),impact:wd('wk_imp').slice(0,2000),who:wd('wk_who').slice(0,500),link:wlink.slice(0,500)}});
         ['wk_date','wk_proj','wk_did','wk_imp','wk_who','wk_link'].forEach(function(k){delete S.draft[k]});say('Update saved. Thank you.','ok');break}
+      case 'edu-save':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var edg=String(S.draft.edu_degree||'').trim(),ein=String(S.draft.edu_inst||'').trim();
+        if(!edg||!ein){say('Enter the degree and the institution.','err');break}
+        var eold=eduItems(c.id),eid=S.eduEdit||('e'+Date.now().toString(36)),eo=eold.find(function(x){return x.edu.id===eid});
+        await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),kind:'edu',by:'Admin',role:S.staff||'admin',shared:false,text:'Education: '+edg.slice(0,120),edu:{id:eid,ord:eo?eo.edu.ord:eold.length+1,level:S.draft.edu_level||'Master',degree:edg.slice(0,200),field:String(S.draft.edu_field||'').trim().slice(0,200),inst:ein.slice(0,200),start:String(S.draft.edu_start||'').trim().slice(0,40),end:String(S.draft.edu_end||'').trim().slice(0,40),status:S.draft.edu_status||'Completed',ev:S.draft.edu_ev||'Not requested',note:String(S.draft.edu_note||'').trim().slice(0,500)}});
+        ['edu_level','edu_status','edu_degree','edu_field','edu_inst','edu_start','edu_end','edu_ev','edu_note'].forEach(function(k){delete S.draft[k]});S.eduEdit=null;say('Education saved.','ok');break}
+      case 'edu-edit':{
+        var ex=c&&eduItems(c.id).find(function(x){return x.edu.id===id});if(!ex)break;var e1=ex.edu;
+        S.eduEdit=id;S.draft.edu_level=e1.level;S.draft.edu_status=e1.status;S.draft.edu_degree=e1.degree;S.draft.edu_field=e1.field||'';S.draft.edu_inst=e1.inst;S.draft.edu_start=e1.start||'';S.draft.edu_end=e1.end||'';S.draft.edu_ev=e1.ev;S.draft.edu_note=e1.note||'';break}
+      case 'edu-no':{S.eduEdit=null;['edu_level','edu_status','edu_degree','edu_field','edu_inst','edu_start','edu_end','edu_ev','edu_note'].forEach(function(k){delete S.draft[k]});break}
+      case 'edu-rm':{
+        if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
+        var er=eduItems(c.id).find(function(x){return x.edu.id===id});if(!er)break;
+        await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),kind:'edu',by:'Admin',role:S.staff||'admin',shared:false,text:'Education removed: '+String(er.edu.degree).slice(0,120),edu:Object.assign({},er.edu,{removed:true})});say('Record removed.','ok');break}
       case 'up-add':{
         if(!c||S.role==='Candidate'||!S.staff){say('Staff access required.','err');break}
         var ut2=String(S.draft.up_title||'').trim(),ud=String(S.draft.up_date||'').trim();
