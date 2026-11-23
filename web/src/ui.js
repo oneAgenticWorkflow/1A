@@ -48,6 +48,7 @@ function render(){
     if(activeTab){try{activeTab.focus({preventScroll:true})}catch(e){}}
     if(tabRow){var top=tabRow.getBoundingClientRect().top+window.scrollY-16;window.scrollTo({top:Math.max(0,top),behavior:'instant'});}
   }else if(typeof y==='number')window.scrollTo(0,y);
+  if(S.focusRpl){S.focusRpl=false;var rp=document.getElementById('rpl');if(rp){try{rp.focus()}catch(e){}}}
   if(S.focusMsg){S.focusMsg=false;var fme=document.getElementById('adm-msg');if(fme){fme.scrollIntoView({block:'start'});var fta=fme.querySelector('textarea');if(fta){try{fta.focus({preventScroll:true})}catch(e){}}}}
   if(!window.__msl){window.__msl=1;document.addEventListener('scroll',function(ev){var t=ev.target;if(t&&t.classList&&t.classList.contains('msgs')){window.__ms={n:t.children.length,top:t.scrollTop,bottom:t.scrollTop+t.clientHeight>=t.scrollHeight-8}}},true)}
   (function(){var mm=document.querySelector('.msgs');if(!mm)return;var n=mm.children.length,st=window.__ms;if(!st||st.n!==n||st.bottom){mm.scrollTop=mm.scrollHeight}else{mm.scrollTop=st.top}})();
@@ -462,7 +463,7 @@ function repairPanel(c,ts){
 }
 function commentsTab(c){return '<div id="adm-msg">'+messagesPanel(c,true)+'</div>'+(S.staff==='admin'?costPanel(c):'')}
 function historyTab(c){
-  var l=S.log.filter(function(x){return x.cid===c.id&&!(x.kind==='note'&&!x.tid)}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
+  var l=S.log.filter(function(x){return x.cid===c.id&&x.kind!=='rd'&&!(x.kind==='note'&&!x.tid)}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
   return '<div class="panel"><h3>History</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
 }
 var SW_WS=['steps','details','forms','docs','activity','history'];
@@ -1526,7 +1527,7 @@ function scoreTab(c){
   return h;
 }
 function activityTab(c){
-  var l=S.log.filter(function(x){return x.cid===c.id&&!(x.kind==='note'&&!x.tid)}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
+  var l=S.log.filter(function(x){return x.cid===c.id&&x.kind!=='rd'&&!(x.kind==='note'&&!x.tid)}).sort(function(a,b){return a.ts<b.ts?1:-1}).slice(0,200);
   return '<div id="adm-msg">'+messagesPanel(c,true)+'</div>'+(S.staff==='admin'?costPanel(c):'')+'<div class="panel"><h3>Activity</h3><div class="log">'+(l.length?l.map(function(x){return '<div><time>'+esc(fmt(x.ts))+'</time><span>'+esc(x.text)+'</span></div>'}).join(''):'<p class="empty">Nothing yet.</p>')+'</div></div>';
 }
 
@@ -1568,18 +1569,41 @@ function msgWho(m,admin){var r=m.role==='supervisor'?'supervisor':'advisor',n=(m
 function awaitingReply(cid){var ms=msgThread(cid,false),n=0;for(var i=ms.length-1;i>=0;i--){if(ms[i].by!=='Candidate')break;n++}return n?{n:n,last:ms[ms.length-1]}:null}
 function msgSeen(cid){try{return localStorage.getItem('pw-seen-'+cid)||''}catch(e){return ''}}
 function msgMarkSeen(cid){try{localStorage.setItem('pw-seen-'+cid,nowIso())}catch(e){}}
-function newReplies(cid){var s=msgSeen(cid);return msgThread(cid,false).filter(function(l){return l.by!=='Candidate'&&l.ts>s}).length}
+function readUpto(cid,side){var u='';S.log.forEach(function(l){if(l.cid===cid&&l.kind==='rd'&&l.by===side&&l.upto&&l.upto>u)u=l.upto});return u}
+function seenAt(cid,side,ts){var at='';S.log.forEach(function(l){if(l.cid===cid&&l.kind==='rd'&&l.by===side&&l.upto&&l.upto>=ts&&(!at||l.ts<at))at=l.ts});return at}
+function newReplies(cid){var s=candSeen(cid);return msgThread(cid,false).filter(function(l){return l.by!=='Candidate'&&l.ts>s}).length}
 function agoStr(iso){var m=Math.max(0,Math.round((Date.now()-new Date(iso).getTime())/60000));if(m<2)return 'just now';if(m<60)return m+' min ago';var h=Math.round(m/60);if(h<24)return h+(h===1?' hour ago':' hours ago');var d=Math.round(h/24);return d+(d===1?' day ago':' days ago')}
+function candSeen(cid){var a=readUpto(cid,'Candidate'),b=msgSeen(cid);return a>b?a:b}
+function msgLabel(m,admin,c){return m.by==='Candidate'?(admin?esc((c.name||'Candidate').split(' ')[0]):'You'):msgWho(m,admin)}
+function msgAutoRead(cid,admin,ms){
+  var side=admin?'Admin':'Candidate',last='';
+  ms.forEach(function(m){if((m.by==='Candidate')===admin&&m.ts>last)last=m.ts});
+  var have=admin?readUpto(cid,side):candSeen(cid);
+  if(!last||last<=have)return;
+  S.rdSent=S.rdSent||{};if((S.rdSent[cid+side]||'')>=last)return;S.rdSent[cid+side]=last;
+  setTimeout(function(){
+    Promise.resolve(db.collection('log').add({cid:cid,tid:'',ts:nowIso(),text:'',kind:'rd',by:side,role:admin?(S.staff||'admin'):'candidate',from:'',shared:false,upto:last})).then(function(){if(!admin)msgMarkSeen(cid)}).catch(function(){S.rdSent[cid+side]=''});
+  },900);
+}
 function messagesPanel(c,admin){
-  var ms=msgThread(c.id,admin),aw=awaitingReply(c.id),seen=admin?'':msgSeen(c.id);
+  var ms=msgThread(c.id,admin),aw=awaitingReply(c.id),side=admin?'Admin':'Candidate',other=admin?'Candidate':'Admin';
+  S.rdBase=S.rdBase||{};var bk=c.id+side;if(S.rdBase[bk]===undefined)S.rdBase[bk]=admin?readUpto(c.id,side):candSeen(c.id);
+  var base=S.rdBase[bk];
   var h='<div class="panel msgp"><div class="ph"><h3>'+(admin?'Messages with '+esc((c.name||'candidate').split(' ')[0]):'Message your advisor')+'</h3>'+(admin&&aw?'<span class="chip bad">Awaiting your reply</span>':'')+'</div>';
-  h+=admin?'<p class="small">Replies go to the candidate by default. Tick "Internal note" to keep a note for staff only.</p>':'<p class="small">Ask a question or send an update. Your advisor reads this thread and replies here. Please do not put passport or Social Security numbers in messages.'+supportLine()+'</p>';
+  h+=admin?'<p class="small">Replies go to the candidate by default. Tick "Internal note" to keep a note for staff only. Use Reply under any message to answer that message directly.</p>':'<p class="small">Ask a question or send an update. Your advisor reads this thread and replies here. Use Reply under any message to answer that message directly. Please do not put passport or Social Security numbers in messages.'+supportLine()+'</p>';
+  h+='<div class="mlegend"><span><i style="background:var(--gate)"></i>New to you</span><span><i style="background:var(--line)"></i>Already read</span><span><i style="background:var(--ok)"></i>Seen by '+(admin?'the candidate':'your advisor')+'</span><span><i style="background:var(--mid)"></i>Not seen yet</span></div>';
   h+='<div class="msgs" aria-live="polite">'+(ms.length?ms.map(function(m){
-    var mine=admin?m.by!=='Candidate':m.by==='Candidate',who=m.by==='Candidate'?(admin?esc((c.name||'Candidate').split(' ')[0]):'You'):msgWho(m,admin);
-    var priv=admin&&m.by!=='Candidate'&&!m.shared,isNew=!admin&&!mine&&m.ts>seen;
-    return '<div class="mb'+(mine?' me':'')+(priv?' priv':'')+'"><div class="mh"><b>'+who+'</b><span>'+esc(agoStr(m.ts))+' · '+esc(fmt(m.ts))+'</span>'+(priv?'<em>Internal note</em>':'')+(isNew?'<em class="new">New</em>':'')+'</div><div class="mt">'+esc(m.text)+'</div></div>'}).join(''):'<p class="empty">'+(admin?'No messages yet.':'No messages yet. Write to your advisor below.')+'</p>')+'</div>';
+    var mine=admin?m.by!=='Candidate':m.by==='Candidate',who=msgLabel(m,admin,c);
+    var priv=admin&&m.by!=='Candidate'&&!m.shared,isNew=!mine&&m.ts>base;
+    var rs='';
+    if(mine&&!priv){var sa=seenAt(c.id,other,m.ts);rs=sa?'<div class="rs seen">&#10003;&#10003; Seen '+esc(agoStr(sa))+'</div>':'<div class="rs wait">&#10003; Not seen yet</div>'}
+    var q=m.rq?'<div class="mq"><b>'+msgLabel(m.rq,admin,c)+'</b> '+esc(m.rq.text||'')+'</div>':'';
+    var act='<div class="mact"><button type="button" class="lnk" data-a="msg-reply" data-id="'+esc(m.id)+'">Reply</button></div>';
+    if(S.replyId===m.id)act='<div class="rbox"><label class="f" for="rpl">Reply to this message'+(priv?' (internal note)':'')+'</label><textarea id="rpl" rows="2" data-draft="rpl" placeholder="Write your reply">'+esc(S.draft.rpl||'')+'</textarea><div class="addrow"><button class="btn pri sm" data-a="msg-rsend" data-id="'+esc(m.id)+'">Send reply</button><button class="btn sm" data-a="msg-rcancel">Cancel</button></div></div>';
+    return '<div class="mb'+(mine?' me':'')+(priv?' priv':'')+(isNew?' unread':(!mine?' read':''))+'" id="m-'+esc(m.id)+'"><div class="mh"><b>'+who+'</b><span>'+esc(agoStr(m.ts))+' · '+esc(fmt(m.ts))+'</span>'+(priv?'<em>Internal note</em>':'')+(isNew?'<em class="new">New</em>':'')+'</div>'+q+'<div class="mt">'+esc(m.text)+'</div>'+rs+act+'</div>'}).join(''):'<p class="empty">'+(admin?'No messages yet.':'No messages yet. Write to your advisor below.')+'</p>')+'</div>';
   h+='<div class="msgin"><label class="f" for="msgbox">'+(admin?'Write a reply':'Your message')+'</label><textarea id="msgbox" rows="3" data-draft="msg" placeholder="'+(admin?'Write a reply to the candidate':'Type your question or update here')+'">'+esc(S.draft.msg||'')+'</textarea>'+
     '<div class="addrow">'+(admin?'<label class="chk-l"><input type="checkbox" data-draft-chk="msgPriv"'+(S.draft.msgPriv?' checked':'')+'> Internal note (candidate will not see it)</label>':'')+'<button class="btn pri" data-a="msg">'+(admin?(S.draft.msgPriv?'Save note':'Send reply'):'Send message')+'</button></div></div></div>';
+  msgAutoRead(c.id,admin,ms);
   return h;
 }
 
@@ -2098,11 +2122,14 @@ document.addEventListener('click',async function(e){
       case 'req-add':{var lb=(S.draft.rq||'').trim();if(!lb){say('Name the document you need.','err');return}await db.collection('docs').add({cid:c.id,kind:'request',label:lb,note:(S.draft.rqn||'').trim(),by:'Admin',ts:nowIso()});S.draft.rq='';S.draft.rqn='';break}
       case 'req-del':{await db.doc('docs/'+id).delete();break}
       case 'msg':{var mt=(S.draft.msg||'').trim();if(!mt){say('Write your message first.','err');return}var adm=!S.locked,pv=adm&&!!S.draft.msgPriv;await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:mt,kind:'note',by:adm?'Admin':'Candidate',role:adm?(S.staff||'admin'):'candidate',from:adm?((S.me&&(S.me.name||S.me.username))||''):'',shared:adm?!pv:true});S.draft.msg='';S.draft.msgPriv=false;if(!adm)msgMarkSeen(c.id);S.focusMsg=adm;break}
+      case 'msg-reply':{S.replyId=id;S.draft.rpl='';S.focusRpl=true;break}
+      case 'msg-rcancel':{S.replyId=null;S.draft.rpl='';break}
+      case 'msg-rsend':{var rt=(S.draft.rpl||'').trim();if(!rt){say('Write your reply first.','err');return}var par=S.log.find(function(x){return x.id===id});if(!par){say('That message is no longer available.','err');return}var ad2=!S.locked,pv2=ad2&&par.by!=='Candidate'&&!par.shared;await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:rt,kind:'note',by:ad2?'Admin':'Candidate',role:ad2?(S.staff||'admin'):'candidate',from:ad2?((S.me&&(S.me.name||S.me.username))||''):'',shared:ad2?!pv2:true,rq:{id:par.id,by:par.by,from:par.from||'',role:par.role||'',text:String(par.text||'').replace(/\s+/g,' ').slice(0,140)}});S.draft.rpl='';S.replyId=null;if(!ad2)msgMarkSeen(c.id);window.__ms=null;break}
       case 'ev-save':{var el=(S.draft.evl!==undefined?S.draft.evl:evidenceOf(c).link||'').trim(),ee=(S.draft.eve!==undefined?S.draft.eve:evidenceOf(c).email||'').trim();if(!safeUrl(el)){say('Paste the full folder link. It must start with https://','err');return}await db.collection('log').add({cid:c.id,tid:'',ts:nowIso(),text:'Evidence folder shared: '+el+(ee?' · Evidence email: '+ee:''),kind:'note',by:'Candidate',role:'candidate',from:'',shared:true,evidenceLink:el,evidenceEmail:ee});delete S.draft.evl;delete S.draft.eve;say('Saved. Your advisor can see it in your messages.','ok');break}
-      case 'openmsg':{S.cid=id;S.showCandidateLogin=null;S.tab='activity';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';S.focusMsg=true;window.__ms=null;break}
-      case 'msgread':{msgMarkSeen(c.id);S.ctab='comments';S.focusSw=true;S.focusBox=true;window.__ms=null;break}
+      case 'openmsg':{S.rdBase=null;S.replyId=null;S.cid=id;S.showCandidateLogin=null;S.tab='activity';S.openForm=false;S.confirmDel=false;S.copyText=null;S.view=S.view||'list';S.focusMsg=true;window.__ms=null;break}
+      case 'msgread':{if(!S.rdBase)S.rdBase={};if(S.rdBase[c.id+'Candidate']===undefined)S.rdBase[c.id+'Candidate']=candSeen(c.id);msgMarkSeen(c.id);S.ctab='comments';S.focusSw=true;S.focusBox=true;window.__ms=null;break}
       case 'cancel':if(ctl)ctl.abort();break;
-      case 'home':S.cid=null;S.home='cases';S.openForm=false;S.role='Advisor';break;
+      case 'home':S.rdBase=null;S.replyId=null;S.cid=null;S.home='cases';S.openForm=false;S.role='Advisor';break;
       case 'alltasks':S.cid=null;S.home='tasks';break;
       case 'newcase':S.cid=null;S.home='new';break;
       case 'create':await createCase();return;
