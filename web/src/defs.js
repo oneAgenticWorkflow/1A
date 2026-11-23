@@ -78,7 +78,7 @@ var TEMPLATE=[
  {k:'speak-proof',s:5,t:'Keep proof for every talk',o:'Candidate',deps:['speak-submit'],off:150,req:false,d:'Optional. For each talk keep: the program page with your name and your role (keynote or invited), the invitation email, an organizer letter, and the slides or recording.'},
  {k:'verify',s:6,t:'Evidence verification: every claim has proof',o:'Advisor',deps:['judging-proof','contrib','role','comp'],off:135},
  {k:'rescore',s:6,t:'Re-score the case',o:'Analysis',kind:'ai',deps:['verify'],off:137},
- {k:'decide',s:6,t:'Filing-ready decision, or fall back to NIW or O-1',o:'Advisor',deps:['rescore'],off:140,d:'Internal rule of thumb: at least 4 criteria High and no open red flags.'},
+ {k:'decide',s:6,t:'Filing-ready decision, or fall back to the impact pathway or O-1',o:'Advisor',deps:['rescore'],off:140,d:'Internal rule of thumb: at least 4 criteria High and no open red flags.'},
  {k:'indep',s:6,t:'Verify recommender independence',o:'Advisor',deps:['r9','decide'],off:143},
  {k:'letters-out',s:6,t:'Send recommender briefs and requests',o:'Advisor',deps:['indep'],off:148},
  {k:'letters-in',s:6,t:'Collect 6 to 8 signed letters',o:'Candidate',deps:['letters-out'],off:170},
@@ -109,7 +109,7 @@ var FORMS=[
   fd('birth','Country of birth','text',{req:1}),fd('citizen','Country of citizenship','text',{req:1}),
   fd('location','Current location (country, state)','text',{req:1}),
   fd('status','Current US status','select',{o:VISAS,req:1}),fd('expiry','Status expiry date','date',{req:1}),
-  fd('petitions','Pending or approved petitions (I-140, O-1, NIW, PERM): type, date, outcome','area'),
+  fd('petitions','Pending or approved petitions (I-140, O-1, impact pathway, PERM): type, date, outcome','area'),
   fd('rfe','Any prior RFE, NOID or denial? What happened','area')]},
  {id:'evid',title:'Your evidence email and folder',fields:[
   fd('ev_email','Email to use for journals, reviewing, talks and press (a new Gmail just for this program is best)','text',{h:'Not your work or school email, which can be switched off when you leave. If you have not made it yet, enter it after you finish the setup step.'}),
@@ -134,7 +134,7 @@ var FORMS=[
   fd('bio','Short bio for articles and conference pages (80 to 150 words)','area',{tall:1})]},
  {id:'goals',title:'Goals',fields:[
   fd('timeline','Target filing timeline','select',{o:GOALS,req:1}),
-  fd('fallback','Open to NIW or O-1 as a fallback?','select',{o:YNU,req:1}),
+  fd('fallback','Open to the impact pathway or O-1 as a fallback?','select',{o:YNU,req:1}),
   fd('hours','Hours per week you can give to tasks','select',{o:['1 to 3','4 to 6','7 to 10','10+'],req:1}),
   fd('employer','Would your employer support a letter or an org chart?','select',{o:YNU}),
   fd('intent','What will you keep doing in the US in this field? Employer, venture or independent work, and in which state','area',{h:'The petition must show you will continue work in your field of expertise. A plain description is enough.'}),
