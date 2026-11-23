@@ -57,7 +57,7 @@ test('dual pathway development keeps distinct tracks and deduplicates requests',
 
 test('candidate pathway guide covers NIW, EB-1A, priority dates and F-1',()=>{
  assert.match(ui,/function pathwayGuide\(\)/);
- assert.match(ui,/NIW is a waiver within EB-2/);
+ assert.match(ui,/This pathway sits within the second-preference category/);
  assert.match(ui,/priority date generally is the properly filed I-140 receipt date/);
  assert.match(ui,/An I-140 does not extend F-1 status/);
  assert.match(ui,/S\.tab==='guide'\)x=pathwayGuide\(\)/);
@@ -72,7 +72,7 @@ test('strategy is advisor-only and requires a written rationale',()=>{
 test('pathway guide compares EB-1A and NIW and explains post-I-140 steps',()=>{
  assert.match(ui,/Compare the two green-card pathways/);
  assert.match(ui,/After an I-140 is approved/);
- assert.match(ui,/NIW I-140 filed November 2026 and approved May 2027/);
+ assert.match(ui,/Impact I-140 filed November 2026 and approved May 2027/);
  assert.match(ui,/I-140 approval grants work authorization\?/);
  assert.match(ui,/h\+=comparison/);
 });
@@ -80,7 +80,7 @@ test('pathway guide compares EB-1A and NIW and explains post-I-140 steps',()=>{
 test('NIW evidence review supports independent source-linked prongs',()=>{
  assert.match(ui,/evidenceSourceReview\(c,tracks\)/);
  assert.match(ui,/PATHWAY_REQUIREMENTS\.niw\.forEach/);
- assert.match(ui,/NIW — /);
+ assert.match(ui,/Impact — /);
  assert.match(ui,/\['niw','both'\]\.indexOf/);
 });
 
@@ -129,7 +129,7 @@ test('NIW filing readiness includes evidence and attorney review gates',()=>{
 });
 
 test('candidate NIW journey displays outstanding document requests and RFE guidance',()=>{
- assert.match(ui,/Your NIW document requests/);
+ assert.match(ui,/Your Impact document requests/);
  assert.match(ui,/USCIS additional evidence request/);
  assert.match(ui,/niwCaseFlow\(c,true\)/);
 });
