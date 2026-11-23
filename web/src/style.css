@@ -890,3 +890,21 @@ a{color:var(--accent)}
 .cv-meta span{font-family:var(--font)}
 .bar i{background:var(--teal)}
 input,select,textarea{border-radius:10px}
+
+/* Messages: read state, seen receipts, inline replies */
+.mlegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted);margin:6px 0}
+.mlegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.mb.read{border-left:4px solid var(--line)}
+.mb.unread{border-color:var(--gate);border-left:4px solid var(--gate);background:color-mix(in srgb,var(--gate-bg) 75%,var(--surface))}
+.mb.unread .mh em.new{background:var(--gate);color:#fff}
+.mb .rs{display:flex;gap:6px;align-items:center;font-size:11px;font-weight:700;margin-top:5px}
+.mb .rs.seen{color:var(--ok)}
+.mb .rs.wait{color:var(--mid)}
+.mq{border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface));border-radius:6px;padding:4px 8px;font-size:12px;color:var(--muted);margin:5px 0 2px;overflow-wrap:anywhere}
+.mq b{color:var(--ink);margin-right:4px}
+.mact{margin-top:4px}
+.mact .lnk{background:none;border:0;padding:2px 0;color:var(--accent);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.mact .lnk:hover{text-decoration:underline}
+.rbox{margin-top:8px;border-top:1px dashed var(--line);padding-top:8px}
+.rbox textarea{width:100%;min-height:56px;resize:vertical}
+.rbox .addrow{margin-top:6px;gap:8px}
