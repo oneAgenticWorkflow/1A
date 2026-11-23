@@ -400,7 +400,7 @@ function cdPanel(c){
 }
 function swHead(c,staff,actions,extra){
   var st=c.stage||0,pct=caseProgress(c),total=staff?STAGES.length:7,sn=staff?STAGES[Math.min(st,STAGES.length-1)].n:CV_STAGES[Math.min(st,6)].n,done=pct>=100;
-  return '<section class="sw-head"><div class="sw-ht"><div class="sw-tt">'+(staff?'<button class="link" data-a="home">&larr; All cases</button>':'')+'<h2>'+(staff?'Extraordinary Ability Candidate Case':'Your Extraordinary Ability case')+'</h2>'+chip(done?'Complete':'Active',done?'ok':'gate')+'</div><div class="chips">'+(actions||'')+'</div></div>'+
+  return '<section class="sw-head"><div class="sw-ht"><div class="sw-tt">'+(staff?'<button class="link" data-a="home">&larr; All cases</button>':'')+'<h2>'+(staff?'Candidate Case':'Your case')+'</h2>'+chip(done?'Complete':'Active',done?'ok':'gate')+'</div><div class="chips">'+(actions||'')+'</div></div>'+
    '<dl class="sw-meta"><div><dt>Case ID</dt><dd>'+esc(swId(c))+'</dd></div><div><dt>Candidate</dt><dd>'+esc(c.name||'Candidate')+'</dd></div><div><dt>Case type</dt><dd>Profile Enhancement</dd></div><div><dt>Current stage</dt><dd>Stage '+(Math.min(st,total-1)+1)+' of '+total+'<small>'+esc(sn)+'</small></dd></div><div class="pr"><dt>Overall progress</dt><dd><span class="sw-pct">'+pct+'%</span>'+bar(pct)+'</dd></div></dl>'+idStrip(c)+(staff&&S.cdOpen===c.id?cdPanel(c):'')+(extra||'')+'</section>';
 }
 function swPipe(nodes,sel,act){
@@ -520,7 +520,7 @@ function caseView(c){
   var nodes=STAGES.map(function(s,i){var evn=i===5&&i>st&&s.n==='Evidence build'&&evStageProg(c).on;return {n:s.n,state:i<st?'done':(i===st||evn)?'now':'',s:i<st?'Completed':(i===st||evn)?'In progress':'Not started',dates:swStageDates(ts,i)}});
   h+=swPipe(nodes,sel,'swsel');
   var ws=SW_WS.indexOf(S.tab)>=0;
-  var more=[['Profile','profile'],['Documents','docs'],['Education','education'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['NIW case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Upcoming','up'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
+  var more=[['Profile','profile'],['Documents','docs'],['Education','education'],['Pathway screening','pathway'],['Evidence tracks','development'],['Criteria & Articles','criteria-tracker'],['Impact case','niwcase'],['Strategy','strategy'],['Pathway guide','guide'],['Scorecard','score'],['Work updates','work'],['Upcoming','up'],['Field','field'],['Plan','plan'],['Feasibility','feas'],['All tasks','tasks']];
   h+='<div class="nav tabs"><button class="tab'+(ws&&S.tab!=='docs'?' on':'')+'" data-a="tab" data-id="steps">Case workspace</button>'+more.map(function(t){return '<button class="tab'+(S.tab===t[1]?' on':'')+'" data-a="tab" data-id="'+t[1]+'">'+t[0]+'</button>'}).join('')+'</div>';
   var body='';
   if(ws){
@@ -605,7 +605,7 @@ function ebArticlePanel(c,readonly){
 }
 function ebTrackerPanel(c,readonly){
  var records=ebRecords(c),complete=EB_CRITERIA.filter(function(x){return (records[x[0]]||{}).status==='Evidence ready'}).length,active=EB_CRITERIA.filter(function(x){return ['Planning','In progress','Waiting on candidate','Under review'].indexOf((records[x[0]]||{}).status)>=0}).length;
- var h='<div class="panel eb-tracker"><div class="ph"><h3>'+(readonly?'My profile development':'Extraordinary Ability Criteria & Evidence')+'</h3>'+chip(complete+' evidence ready','ok')+'</div><p class="small">'+(readonly?'Track candidate-visible development work and publications.':'Plan, assign and track criteria independently from the nine-stage case lifecycle.')+' Progress measures documented work, not immigration eligibility or approval likelihood.</p><div class="eb-stats"><div><b>8</b><small>Criteria categories</small></div><div><b>'+active+'</b><small>In progress</small></div><div><b>'+complete+'</b><small>Evidence ready</small></div></div>';
+ var h='<div class="panel eb-tracker"><div class="ph"><h3>'+(readonly?'My profile development':'Achievement Criteria & Evidence')+'</h3>'+chip(complete+' evidence ready','ok')+'</div><p class="small">'+(readonly?'Track candidate-visible development work and publications.':'Plan, assign and track criteria independently from the nine-stage case lifecycle.')+' Progress measures documented work, not immigration eligibility or approval likelihood.</p><div class="eb-stats"><div><b>8</b><small>Criteria categories</small></div><div><b>'+active+'</b><small>In progress</small></div><div><b>'+complete+'</b><small>Evidence ready</small></div></div>';
  EB_CRITERIA.forEach(function(x){
  var v=ebCriterion(c,x[0]);if(readonly&&v.candidateVisible===false)return;
  var step=Math.max(0,Math.min(5,+v.step||0));
@@ -725,15 +725,15 @@ function askPanel(c,ro){
 function visaWarn(c){if(!c.visaExpiry)return null;var d=daysUntil(c.visaExpiry);if(isNaN(d)||d>180)return null;return {d:d,cls:d<=30?'bad':d<=90?'gate':'mid',txt:d<0?'Status expired '+(-d)+(d===-1?' day':' days')+' ago':d===0?'Status expires today':'Status expires in '+d+(d===1?' day':' days')}}
 var PATHWAY_REQUIREMENTS={
  niw:[
- ['eb2_degree','EB-2 threshold','Qualifying completed degree and transcripts, or exceptional-ability evidence'],
+ ['eb2_degree','Baseline threshold','Qualifying completed degree and transcripts, or exceptional-ability evidence'],
  ['niw_endeavor','Proposed endeavor','Specific U.S. endeavor statement, objectives, and implementation plan'],
- ['niw_importance','NIW prong 1','Independent evidence of substantial merit and national importance'],
- ['niw_position','NIW prong 2','Evidence of expertise, past results, progress, support, and ability to advance the endeavor'],
- ['niw_balance','NIW prong 3','Evidence addressing why a waiver of job offer and labor certification is beneficial on balance']
+ ['niw_importance','Impact prong 1','Independent evidence of substantial merit and national importance'],
+ ['niw_position','Impact prong 2','Evidence of expertise, past results, progress, support, and ability to advance the endeavor'],
+ ['niw_balance','Impact prong 3','Evidence addressing why a waiver of job offer and labor certification is beneficial on balance']
  ],
  eb1a:[
- ['eb1_recognition','Extraordinary ability','Evidence of sustained national or international acclaim'],
- ['eb1_criteria','Regulatory evidence','Evidence for applicable Extraordinary Ability regulatory criteria or qualifying major award'],
+ ['eb1_recognition','Achievement','Evidence of sustained national or international acclaim'],
+ ['eb1_criteria','Regulatory evidence','Evidence for applicable Achievement regulatory criteria or qualifying major award'],
  ['eb1_contribution','Independent impact','Corroboration of original contributions, recognition, and field impact'],
  ['eb1_merits','Final merits','Evidence supporting overall sustained acclaim and position among the small percentage at the top of the field']
  ]
@@ -742,9 +742,9 @@ function pathwayDevelopment(c){
  var ps=c.pathwayScreening||{},decision=(ps.review||{}).decision||'',tracks=decision==='both'?['niw','eb1a']:decision==='niw'||decision==='eb1a'?[decision]:[];
  if(!tracks.length)return '<div class="panel"><h3>Pathway evidence development</h3><p class="small">Record an advisor pathway decision in Pathway screening before generating pathway-specific evidence requests.</p></div>';
  var reqs=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='request'}),files=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'});
- var h='<div class="panel"><div class="ph"><h3>Pathway evidence development</h3>'+chip(tracks.length===2?'Dual track':tracks[0]==='niw'?'EB-2 NIW':'Extraordinary Ability','ok')+'</div><p class="small">Separate legal tracks share the same private document vault. Requests are created only when an advisor confirms; existing requests are reused rather than duplicated. This checklist is not an eligibility finding.</p>';
+ var h='<div class="panel"><div class="ph"><h3>Pathway evidence development</h3>'+chip(tracks.length===2?'Dual track':tracks[0]==='niw'?'Impact Pathway':'Achievement','ok')+'</div><p class="small">Separate legal tracks share the same private document vault. Requests are created only when an advisor confirms; existing requests are reused rather than duplicated. This checklist is not an eligibility finding.</p>';
  tracks.forEach(function(track){
- h+='<div class="entry"><div class="ph"><h4>'+(track==='niw'?'EB-2 NIW — threshold and three prongs':'Extraordinary ability and final merits')+'</h4></div>';
+ h+='<div class="entry"><div class="ph"><h4>'+(track==='niw'?'Impact Pathway — threshold and three prongs':'Achievement and final merits')+'</h4></div>';
  PATHWAY_REQUIREMENTS[track].forEach(function(item){
  var key='pathway:'+track+':'+item[0],r=reqs.find(function(x){return x.pathwayKey===key}),uploaded=r?files.filter(function(f){return f.reqId===r.id}).length:0;
  h+='<div class="formrow"><div><b>'+esc(item[1])+'</b><p class="small">'+esc(item[2])+'</p></div><div class="chips">'+chip(r?(uploaded?uploaded+' uploaded':'Requested'):'Not requested',uploaded?'ok':r?'mid':'gate')+'</div></div>';
@@ -756,14 +756,14 @@ function pathwayDevelopment(c){
  return h;
 }
 var NIW_PHASES=[
- ['agreement','Candidate agreement','Candidate acknowledges NIW pathway and authorizes case preparation'],
- ['intake','NIW intake','Education, work history, status, chargeability, and proposed endeavor'],
- ['evidence','Evidence collection','EB-2 threshold, proposed endeavor and each Dhanasar prong'],
+ ['agreement','Candidate agreement','Candidate acknowledges Impact pathway and authorizes case preparation'],
+ ['intake','Impact intake','Education, work history, status, chargeability, and proposed endeavor'],
+ ['evidence','Evidence collection','Baseline threshold, proposed endeavor and each impact prong'],
  ['draft','Petition drafting','Endeavor statement, supporting exhibits, letters, and petition narrative'],
  ['legal','Attorney review','Counsel validates petition, evidence, and filing strategy'],
  ['filing','I-140 filing','Record actual USCIS receipt and priority date'],
  ['uscis','USCIS adjudication','Track receipt, RFE, response, approval or denial'],
- ['visa','Visa availability','Monitor EB-2 chargeability, bulletin and adjustment eligibility'],
+ ['visa','Visa availability','Monitor second-preference chargeability, bulletin and adjustment eligibility'],
  ['residence','Green-card process','Separate I-485 or consular processing and final decision']
 ];
 function niwReadiness(c){
@@ -780,14 +780,14 @@ function niwReadiness(c){
 }
 function niwReadinessPanel(c){
  var r=niwReadiness(c),p=c.niwCase||{},sign=p.legalSignoff||{};
- var h='<div class="entry"><div class="ph"><h4>NIW petition preparation checklist</h4>'+chip(r.ready?'Evidence checks satisfied':'Evidence review incomplete',r.ready?'ok':'mid')+'</div>'+
+ var h='<div class="entry"><div class="ph"><h4>Impact petition preparation checklist</h4>'+chip(r.ready?'Evidence checks satisfied':'Evidence review incomplete',r.ready?'ok':'mid')+'</div>'+
  '<p class="small">Each requirement needs a document request, a linked upload and at least one advisor-reviewed, source-cited finding. These checks support preparation only; they do not establish legal sufficiency.</p>';
  r.checks.forEach(function(x){h+='<div class="formrow"><div><b>'+esc(x.label)+'</b><p class="small">Request: '+(x.requested?'Created':'Missing')+' · Linked files: '+x.uploaded+' · Reviewed findings: '+x.reviewed+'</p></div>'+chip(x.requested&&x.uploaded&&x.reviewed?'Documented':'Needs work',x.requested&&x.uploaded&&x.reviewed?'ok':'mid')+'</div>'});
  h+='<div class="entry"><h4>Attorney sign-off</h4><p class="small">Record the reviewing attorney and confirmation after independent review. This field is an advisor-entered record, not an authenticated attorney signature.</p>';
  if(sign.signedAt)h+='<p class="small">Recorded: '+esc(sign.reviewer)+' · '+esc(fmt(sign.signedAt))+'</p>';
  h+='<label class="f" for="niwreviewer">Reviewing attorney name</label><input id="niwreviewer" data-draft="niwreviewer" value="'+esc(S.draft.niwreviewer!==undefined?S.draft.niwreviewer:sign.reviewer||'')+'">'+
  '<label class="f" for="niwreviewnote">Review decision and filing instructions</label><textarea id="niwreviewnote" data-draft="niwreviewnote">'+esc(S.draft.niwreviewnote!==undefined?S.draft.niwreviewnote:sign.note||'')+'</textarea>'+
- '<label class="chk-l"><input type="checkbox" data-draft-chk="niwreviewconfirm"'+(S.draft.niwreviewconfirm?' checked':'')+'> I confirm an attorney has independently reviewed the NIW petition and authorized preparation for filing.</label>'+
+ '<label class="chk-l"><input type="checkbox" data-draft-chk="niwreviewconfirm"'+(S.draft.niwreviewconfirm?' checked':'')+'> I confirm an attorney has independently reviewed the Impact petition and authorized preparation for filing.</label>'+
  '<button class="btn sm pri" data-a="niw-signoff"'+(!r.ready?' disabled':'')+'>Record attorney review</button>'+
  (!r.ready?'<p class="small">Complete evidence review before recording sign-off.</p>':'')+'</div></div>';
  return h;
@@ -795,7 +795,7 @@ function niwReadinessPanel(c){
 var NIW_PACKAGE_ITEMS=[
  ['i140','Form I-140 and applicable filing documents'],
  ['endeavor','Proposed endeavor statement'],
- ['eb2','EB-2 qualifying degree or exceptional ability'],
+ ['eb2','Qualifying degree or exceptional ability'],
  ['prong1','National importance evidence and analysis'],
  ['prong2','Well-positioned evidence and analysis'],
  ['prong3','On-balance waiver argument'],
@@ -829,25 +829,25 @@ function niwAdvancedWorkspace(c){
 }
 function niwCaseFlow(c,candidate){
  var p=c.niwCase||{},decision=(((c.pathwayScreening||{}).review||{}).decision||'');
- if(decision!=='niw'&&decision!=='both')return candidate?'':'<div class="panel"><h3>NIW case</h3><p class="small">An advisor must select NIW or both pathways in screening before starting this case.</p></div>';
+ if(decision!=='niw'&&decision!=='both')return candidate?'':'<div class="panel"><h3>Impact case</h3><p class="small">An advisor must select Impact or both pathways in screening before starting this case.</p></div>';
  var agreed=!!(p.agreement&&p.agreement.acceptedAt),active=!!p.activatedAt;
- var h='<section class="panel"><div class="ph"><h3>EB-2 NIW case journey</h3>'+chip(active?'Active NIW case':agreed?'Awaiting advisor activation':'Agreement required',active?'ok':'mid')+'</div>'+
- '<p class="small">This is a separate NIW petition workflow. It does not establish legal eligibility or replace attorney advice. NIW I-140 approval is not a green card or employment authorization.</p>';
+ var h='<section class="panel"><div class="ph"><h3>Impact Pathway case journey</h3>'+chip(active?'Active Impact case':agreed?'Awaiting advisor activation':'Agreement required',active?'ok':'mid')+'</div>'+
+ '<p class="small">This is a separate Impact petition workflow. It does not establish legal eligibility or replace attorney advice. Impact I-140 approval is not a green card or employment authorization.</p>';
  if(!agreed){
- h+='<div class="entry"><h4>Pathway confirmation</h4><p>The NIW path requires EB-2 qualification and evidence addressing the proposed endeavor, national importance, your ability to advance it, and why waiving a job offer and labor certification benefits the United States.</p><p class="small">Your acknowledgement confirms your chosen preparation pathway only. It is not a legal eligibility finding, attorney engagement, or agreement to pay fees.</p>'+
- (S.locked?'<label><input type="checkbox" data-draft-chk="niw_agree" '+(S.draft.niw_agree?'checked':'')+'> I understand and agree to proceed with NIW case preparation.</label><div class="addrow"><button class="btn pri sm" data-a="niw-agree">Confirm NIW pathway</button></div>':'<p class="small">Candidate must sign in to record their own agreement.</p>')+'</div>';
+ h+='<div class="entry"><h4>Pathway confirmation</h4><p>The Impact path requires baseline qualification and evidence addressing the proposed endeavor, national importance, your ability to advance it, and why waiving a job offer and labor certification benefits the United States.</p><p class="small">Your acknowledgement confirms your chosen preparation pathway only. It is not a legal eligibility finding, attorney engagement, or agreement to pay fees.</p>'+
+ (S.locked?'<label><input type="checkbox" data-draft-chk="niw_agree" '+(S.draft.niw_agree?'checked':'')+'> I understand and agree to proceed with Impact case preparation.</label><div class="addrow"><button class="btn pri sm" data-a="niw-agree">Confirm Impact pathway</button></div>':'<p class="small">Candidate must sign in to record their own agreement.</p>')+'</div>';
  }else{
  h+='<div class="entry"><b>Candidate agreement recorded</b><p class="small">'+esc(fmt(p.agreement.acceptedAt))+' · '+esc(p.agreement.actor||'Candidate')+'</p></div>';
- if(!active&&!candidate)h+='<button class="btn pri sm" data-a="niw-activate">Activate NIW case</button>';
- if(!active&&candidate)h+='<p class="small">Your advisor will activate the NIW preparation workflow.</p>';
+ if(!active&&!candidate)h+='<button class="btn pri sm" data-a="niw-activate">Activate Impact case</button>';
+ if(!active&&candidate)h+='<p class="small">Your advisor will activate the Impact preparation workflow.</p>';
  }
  if(active&&candidate){
  var requestDocs=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='request'&&String(d.pathwayKey||'').indexOf('pathway:niw:')===0});
  var uploaded=S.docs.filter(function(d){return d.cid===c.id&&d.kind==='file'});
  var pending=requestDocs.filter(function(d){return !uploaded.some(function(f){return f.reqId===d.id})});
- h+='<div class="entry"><div class="ph"><h4>Your NIW document requests</h4>'+chip(pending.length+' awaiting uploads',pending.length?'mid':'ok')+'</div>'+
+ h+='<div class="entry"><div class="ph"><h4>Your Impact document requests</h4>'+chip(pending.length+' awaiting uploads',pending.length?'mid':'ok')+'</div>'+
  '<p class="small">Your advisor reviews all evidence. An upload does not mean the evidence has been accepted.</p>';
- if(!requestDocs.length)h+='<p class="small">Your advisor has not issued NIW-specific document requests yet.</p>';
+ if(!requestDocs.length)h+='<p class="small">Your advisor has not issued Impact-specific document requests yet.</p>';
  pending.forEach(function(d){h+='<div class="formrow"><div><b>'+esc(d.label)+'</b><p class="small">'+esc(d.note||'')+'</p></div><button class="btn sm" data-a="cvscroll" data-id="cvdocs">Go to documents</button></div>'});
  if(!pending.length&&requestDocs.length)h+='<p class="small">All requested categories have at least one uploaded document; advisor review may still be pending.</p>';
  h+='</div>';
@@ -877,40 +877,40 @@ function niwCaseFlow(c,candidate){
 }
 function pathwayGuide(){
  var sections=[
- ['Extraordinary Ability','This is a first-preference immigrant category for people who can demonstrate extraordinary ability and sustained national or international acclaim. A degree, job title, or years of experience alone is not enough. The petition requires qualifying evidence and a final-merits evaluation.'],
- ['EB-2 NIW — National Interest Waiver','NIW is a waiver within EB-2, not a separate visa queue. First, the person must qualify for EB-2 through an advanced degree or exceptional ability. Then the proposed U.S. endeavor must have substantial merit and national importance, the person must be well positioned to advance it, and on balance the waiver must benefit the United States.'],
- ['Master\'s degree and ongoing PhD','A qualifying completed master\'s degree may satisfy the EB-2 advanced-degree threshold even while a PhD is in progress. Neither degree automatically establishes NIW or Extraordinary Ability eligibility. H-1B is not required to file either I-140.'],
+ ['Achievement','This is a first-preference immigrant category for people who can demonstrate achievement and sustained national or international acclaim. A degree, job title, or years of experience alone is not enough. The petition requires qualifying evidence and a final-merits evaluation.'],
+ ['Impact Pathway','This pathway sits within the second-preference category, not a separate visa queue. First, the person must meet the baseline qualification through an advanced degree or exceptional ability. Then the proposed U.S. endeavor must have substantial merit and national importance, the person must be well positioned to advance it, and on balance the waiver must benefit the United States.'],
+ ['Master\'s degree and ongoing PhD','A qualifying completed master\'s degree may satisfy the advanced-degree threshold even while a PhD is in progress. Neither degree automatically establishes Impact or Achievement eligibility. H-1B is not required to file either I-140.'],
  ['I-140 approval versus a green card','An approved I-140 establishes an approved immigrant petition, not a green card, lawful status, or employment authorization by itself. Visa availability and eligibility for adjustment of status or consular processing are separate requirements.'],
- ['Priority dates and India backlogs','For a self-petitioned NIW without labor certification, the priority date generally is the properly filed I-140 receipt date, not its approval date. An India-chargeable NIW case is in the EB-2 India queue, not a special NIW queue. The Visa Bulletin changes monthly; no fixed waiting-time prediction is reliable.'],
- ['NIW first, Extraordinary Ability later?','A qualifying priority date from an approved EB-2 I-140 can generally be retained for a later Extraordinary Ability I-140, subject to regulatory exceptions. This is priority-date retention, not automatic green-card eligibility. Extraordinary Ability must independently be approved.'],
+ ['Priority dates and India backlogs','For a self-petitioned Impact without labor certification, the priority date generally is the properly filed I-140 receipt date, not its approval date. An India-chargeable Impact case is in the second-preference India queue, not a special Impact queue. The Visa Bulletin changes monthly; no fixed waiting-time prediction is reliable.'],
+ ['Impact first, Achievement later?','A qualifying priority date from an approved second-preference I-140 can generally be retained for a later Achievement I-140, subject to regulatory exceptions. This is priority-date retention, not automatic green-card eligibility. Achievement must independently be approved.'],
  ['F-1, CPT, OPT and STEM OPT','An I-140 does not extend F-1 status or grant work authorization. Filing decisions can raise immigrant-intent, travel, visa renewal, and status questions; consult qualified immigration counsel.']
  ];
- var comparison='<div class="entry"><h4>Compare the two green-card pathways</h4><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th scope="col" style="padding:10px">Question</th><th scope="col" style="padding:10px">Extraordinary Ability</th><th scope="col" style="padding:10px">EB-2 NIW</th></tr></thead><tbody>'+
+ var comparison='<div class="entry"><h4>Compare the two green-card pathways</h4><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th scope="col" style="padding:10px">Question</th><th scope="col" style="padding:10px">Achievement</th><th scope="col" style="padding:10px">Impact Pathway</th></tr></thead><tbody>'+
  [
- ['Main test','Extraordinary ability and sustained acclaim','EB-2 qualification plus national-interest waiver'],
- ['Completed master\'s required?','No','No, if another EB-2 qualification route applies'],
- ['Proposed U.S. endeavor','Not assessed under the NIW three-prong test','Central to the NIW three-prong test'],
+ ['Main test','Achievement and sustained acclaim','Baseline qualification plus an impact-based waiver'],
+ ['Completed master\'s required?','No','No, if another baseline qualification route applies'],
+ ['Proposed U.S. endeavor','Not assessed under the Impact three-prong test','Central to the Impact three-prong test'],
  ['Employer sponsorship','Self-petition permitted','Self-petition permitted'],
- ['Visa queue','EB-1 by chargeability','EB-2 by chargeability; no separate NIW queue'],
+ ['Visa queue','First-preference by chargeability','Second-preference by chargeability; no separate Impact queue'],
  ['I-140 approval grants work authorization?','No','No']
- ].map(function(x){return '<tr><th scope="row" style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[0])+'</th><td style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[1])+'</td><td style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[2])+'</td></tr>'}).join('')+'</tbody></table></div><p class="small">Both require evidence and independent legal assessment. A long EB-2 backlog does not itself make a person eligible for Extraordinary Ability.</p></div>'+
+ ].map(function(x){return '<tr><th scope="row" style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[0])+'</th><td style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[1])+'</td><td style="padding:10px;border-top:1px solid #d8ded6">'+esc(x[2])+'</td></tr>'}).join('')+'</tbody></table></div><p class="small">Both require evidence and independent legal assessment. A long second-preference backlog does not itself make a person eligible for Achievement.</p></div>'+
  '<div class="entry"><h4>After an I-140 is approved</h4><div class="cols3">'+
  '<div><b>1. Petition approved</b><p class="small">USCIS approved an immigrant classification. This is not a green card or work permit.</p></div>'+
  '<div><b>2. Check visa availability</b><p class="small">Compare the priority date against the correct category and country in the monthly Visa Bulletin and USCIS filing chart.</p></div>'+
  '<div><b>3. Apply when eligible</b><p class="small">Adjustment of status (I-485) or consular processing may follow when the applicable requirements are met. Final approval requires visa availability.</p></div></div>'+
- '<p class="small"><b>Example:</b> NIW I-140 filed November 2026 and approved May 2027 generally has a November 2026 priority date. An India-chargeable applicant remains in the EB-2 India queue; approval does not make the priority date current.</p></div>';
+ '<p class="small"><b>Example:</b> Impact I-140 filed November 2026 and approved May 2027 generally has a November 2026 priority date. An India-chargeable applicant remains in the second-preference India queue; approval does not make the priority date current.</p></div>';
  var h='<section class="panel"><div class="ph"><h3>Immigration Pathway Guide</h3>'+chip('Educational reference','gate')+'</div><p class="small">Understand the options before choosing a petition track. This guide is general information, not legal advice or a determination of eligibility.</p>';
  h+=comparison;
  sections.forEach(function(s){h+='<details class="entry"><summary><b>'+esc(s[0])+'</b></summary><p>'+esc(s[1])+'</p></details>'});
- h+='<div class="entry"><h4>Official resources</h4><p><a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-first-preference-eb-1" target="_blank" rel="noopener noreferrer">USCIS: EB-1</a> · <a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-second-preference-eb-2" target="_blank" rel="noopener noreferrer">USCIS: EB-2</a> · <a href="https://www.uscis.gov/policy-manual/volume-6-part-f-chapter-5" target="_blank" rel="noopener noreferrer">USCIS: National Interest Waiver</a> · <a href="https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html" target="_blank" rel="noopener noreferrer">State Department: Visa Bulletin</a></p><p class="small">Check the latest Visa Bulletin and USCIS adjustment filing chart each month. Eligibility, filing, and final approval are distinct decisions.</p></div></section>';
+ h+='<div class="entry"><h4>Official resources</h4><p><a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-first-preference-eb-1" target="_blank" rel="noopener noreferrer">USCIS: First preference</a> · <a href="https://www.uscis.gov/working-in-the-united-states/permanent-workers/employment-based-immigration-second-preference-eb-2" target="_blank" rel="noopener noreferrer">USCIS: Second preference</a> · <a href="https://www.uscis.gov/policy-manual/volume-6-part-f-chapter-5" target="_blank" rel="noopener noreferrer">USCIS: Impact-based waiver policy</a> · <a href="https://travel.state.gov/content/travel/en/legal/visa-law0/visa-bulletin.html" target="_blank" rel="noopener noreferrer">State Department: Visa Bulletin</a></p><p class="small">Check the latest Visa Bulletin and USCIS adjustment filing chart each month. Eligibility, filing, and final approval are distinct decisions.</p></div></section>';
  return h;
 }
 function pathwayStrategy(c){
  var ps=c.pathwayScreening||{},d=ps.data||{},r=ps.review||{},s=ps.strategy||{};
- var fields=[['chargeability','Country of chargeability (usually country of birth)','text'],['prior','Existing approved I-140 priority date (if any)','date'],['niwFiled','NIW I-140 filing / receipt date (if any)','date'],['statusEnd','Current status or work authorization expiration (if known)','date'],['rationale','Advisor analysis of evidence strength, visa backlog, status risks and next steps','textarea']];
- var h='<section class="panel"><div class="ph"><h3>Pathway strategy</h3>'+chip(s.reviewedAt?'Strategy recorded':'Advisor review needed',s.reviewedAt?'ok':'mid')+'</div><p class="small">Assess Extraordinary Ability and EB-2 NIW independently. Visa Bulletin cutoffs are not calculated here; verify the current official charts. A priority date does not itself authorize I-485 filing.</p>';
+ var fields=[['chargeability','Country of chargeability (usually country of birth)','text'],['prior','Existing approved I-140 priority date (if any)','date'],['niwFiled','Impact I-140 filing / receipt date (if any)','date'],['statusEnd','Current status or work authorization expiration (if known)','date'],['rationale','Advisor analysis of evidence strength, visa backlog, status risks and next steps','textarea']];
+ var h='<section class="panel"><div class="ph"><h3>Pathway strategy</h3>'+chip(s.reviewedAt?'Strategy recorded':'Advisor review needed',s.reviewedAt?'ok':'mid')+'</div><p class="small">Assess Achievement and Impact Pathway independently. Visa Bulletin cutoffs are not calculated here; verify the current official charts. A priority date does not itself authorize I-485 filing.</p>';
  fields.forEach(function(f){var val=S.draft['strategy_'+f[0]]!==undefined?S.draft['strategy_'+f[0]]:s[f[0]]||'';h+='<label class="f" for="strategy_'+f[0]+'">'+esc(f[1])+'</label>'+(f[2]==='textarea'?'<textarea id="strategy_'+f[0]+'" data-draft="strategy_'+f[0]+'">'+esc(val)+'</textarea>':'<input id="strategy_'+f[0]+'" type="'+f[2]+'" data-draft="strategy_'+f[0]+'" value="'+esc(val)+'">')});
- h+='<div class="entry"><h4>Review prompts</h4><p><b>Current screening:</b> '+esc(r.decision||'Not decided')+'. <b>Education:</b> '+esc(d.degree||'Not recorded')+'. <b>Current status:</b> '+esc(d.status||'Not recorded')+'.</p><p class="small">For India chargeability, compare EB-1 and EB-2 Dates for Filing and Final Action Dates independently. Do not infer that Extraordinary Ability is viable from backlog length. Confirm priority-date retention and any prior I-140 revocation exceptions with counsel.</p></div><button class="btn pri sm" data-a="strategy-save">Save advisor strategy</button></section>';
+ h+='<div class="entry"><h4>Review prompts</h4><p><b>Current screening:</b> '+esc(r.decision||'Not decided')+'. <b>Education:</b> '+esc(d.degree||'Not recorded')+'. <b>Current status:</b> '+esc(d.status||'Not recorded')+'.</p><p class="small">For India chargeability, compare first- and second-preference Dates for Filing and Final Action Dates independently. Do not infer that Achievement is viable from backlog length. Confirm priority-date retention and any prior I-140 revocation exceptions with counsel.</p></div><button class="btn pri sm" data-a="strategy-save">Save advisor strategy</button></section>';
  return h;
 }
 function pathwayAudit(c){
@@ -926,13 +926,13 @@ function pathwayAuditPanel(c){
  var a=pathwayAudit(c),e=c.eligibilityReview||{},f=c.criteriaFinalization||{};
  var h='<section class="panel"><div class="ph"><h3>Case preparation checkpoints</h3>'+chip(a.intakeReady&&a.screened&&a.eligible&&a.foeReady&&a.criteriaReady?'All decisions recorded':'Review in progress','mid')+'</div>'+
  '<p class="small">Advisor decisions are preparation records, not USCIS eligibility findings. Previously completed cases may require review to establish these checkpoints.</p>';
- [['Candidate intake and form review',a.intakeReady],['Pathway screening',a.screened],['Eligibility assessment',a.eligible],['Final field of endeavor',a.foeReady],['Extraordinary Ability criteria finalization',a.criteriaReady]].forEach(function(x){h+='<div class="formrow"><b>'+esc(x[0])+'</b>'+chip(x[1]?'Recorded':'Pending',x[1]?'ok':'mid')+'</div>'});
+ [['Candidate intake and form review',a.intakeReady],['Pathway screening',a.screened],['Eligibility assessment',a.eligible],['Final field of endeavor',a.foeReady],['Achievement criteria finalization',a.criteriaReady]].forEach(function(x){h+='<div class="formrow"><b>'+esc(x[0])+'</b>'+chip(x[1]?'Recorded':'Pending',x[1]?'ok':'mid')+'</div>'});
  h+='<p class="small">Required intake forms: '+a.forms+' · Advisor review tasks: '+a.reviewTasks+'. Screening details missing: '+esc(a.missing.join(', ')||'None')+'.</p>';
- h+='<div class="entry"><h4>Advisor eligibility assessment</h4><p class="small">Evaluate the Extraordinary Ability criteria and final merits independently from the EB-2 threshold and NIW three prongs. Do not mark legal eligibility as confirmed by software.</p>'+
+ h+='<div class="entry"><h4>Advisor eligibility assessment</h4><p class="small">Evaluate the Achievement criteria and final merits independently from the baseline threshold and Impact three prongs. Do not mark legal eligibility as confirmed by software.</p>'+
  '<label class="f">Assessment outcome</label><select data-draft="elig_decision">'+[['','Select'],['develop','Evidence development recommended'],['attorney','Ready for independent attorney eligibility review'],['hold','Insufficient evidence / on hold'],['other','Alternative pathway review']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.elig_decision||e.decision||'')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
- '<label class="f">Extraordinary Ability assessment, EB-2 threshold, NIW prongs, gaps and reasoning</label><textarea data-draft="elig_note">'+esc(S.draft.elig_note!==undefined?S.draft.elig_note:e.note||'')+'</textarea>'+
+ '<label class="f">Achievement assessment, Baseline threshold, Impact prongs, gaps and reasoning</label><textarea data-draft="elig_note">'+esc(S.draft.elig_note!==undefined?S.draft.elig_note:e.note||'')+'</textarea>'+
  '<button class="btn sm pri" data-a="elig-save">Record assessment</button></div>';
- h+='<div class="entry"><h4>Criteria approval record</h4><p class="small">Finalization requires the approved FOE and a written reason for each selected Extraordinary Ability criterion. NIW evidence requirements are tracked separately.</p>'+
+ h+='<div class="entry"><h4>Criteria approval record</h4><p class="small">Finalization requires the approved FOE and a written reason for each selected Achievement criterion. Impact evidence requirements are tracked separately.</p>'+
  '<label class="f">Final criteria rationale and evidence gaps</label><textarea data-draft="criteria_note">'+esc(S.draft.criteria_note!==undefined?S.draft.criteria_note:f.note||'')+'</textarea>'+
  '<p class="small">'+(f.approvedAt?'Approved '+esc(fmt(f.approvedAt))+' · '+esc((f.criteria||[]).join(', ')):'No approved criteria record')+'</p></div></section>';
  return h;
@@ -950,7 +950,7 @@ function pathwayScreening(c){
  ['recognition','Independent recognition, publications, judging, awards, original contributions','textarea'],
  ['statusNotes','Status expiration and employment authorization questions','textarea']
  ];
- var h='<section class="panel"><div class="ph"><h3>Candidate pathway screening</h3>'+chip(review.decision?'Advisor decision recorded':'Screening needed',review.decision?'ok':'mid')+'</div><p class="small">Separate Extraordinary Ability and EB-2 NIW intake. Preliminary screening only: no automated eligibility finding, approval prediction, or immigration-status advice.</p>';
+ var h='<section class="panel"><div class="ph"><h3>Candidate pathway screening</h3>'+chip(review.decision?'Advisor decision recorded':'Screening needed',review.decision?'ok':'mid')+'</div><p class="small">Separate Achievement and Impact Pathway intake. Preliminary screening only: no automated eligibility finding, approval prediction, or immigration-status advice.</p>';
  fields.forEach(function(f){
  var val=S.draft['ps_'+f[0]]!==undefined?S.draft['ps_'+f[0]]:(d[f[0]]||'');
  h+='<label class="f" for="ps_'+f[0]+'">'+esc(f[1])+'</label>';
@@ -960,14 +960,14 @@ function pathwayScreening(c){
  });
  h+='<div class="addrow"><button class="btn pri sm" data-a="ps-save">Save screening intake</button></div>';
  if(p.updatedAt){
- var degree=d.degree||'',threshold=degree==='Master'||degree==='PhD'?'Completed advanced degree reported; verify credentials.':degree==='Bachelor'?'Review qualifying progressive post-degree experience or exceptional ability.':'EB-2 threshold requires additional information.';
- h+='<div class="entry"><h4>Independent pathway reviews</h4><p><b>EB-2 threshold:</b> '+esc(threshold)+'</p>'+
- '<p><b>NIW:</b> Evaluate the specific proposed endeavor for substantial merit and national importance, whether the candidate is well positioned, and whether the waiver is beneficial on balance. '+(!d.endeavor?'Proposed endeavor is missing.':'Proposed endeavor recorded; supporting evidence still requires review.')+'</p>'+
- '<p><b>Extraordinary Ability:</b> Evaluate qualifying criteria and sustained recognition, followed by final merits. '+(!d.recognition?'Independent recognition details are missing.':'Reported recognition is unverified.')+'</p>'+
+ var degree=d.degree||'',threshold=degree==='Master'||degree==='PhD'?'Completed advanced degree reported; verify credentials.':degree==='Bachelor'?'Review qualifying progressive post-degree experience or exceptional ability.':'Baseline threshold requires additional information.';
+ h+='<div class="entry"><h4>Independent pathway reviews</h4><p><b>Baseline threshold:</b> '+esc(threshold)+'</p>'+
+ '<p><b>Impact:</b> Evaluate the specific proposed endeavor for substantial merit and national importance, whether the candidate is well positioned, and whether the waiver is beneficial on balance. '+(!d.endeavor?'Proposed endeavor is missing.':'Proposed endeavor recorded; supporting evidence still requires review.')+'</p>'+
+ '<p><b>Achievement:</b> Evaluate qualifying criteria and sustained recognition, followed by final merits. '+(!d.recognition?'Independent recognition details are missing.':'Reported recognition is unverified.')+'</p>'+
  '<p><b>F-1 / timing:</b> '+(/F-1/.test(d.status||'')?'Attorney must separately review status maintenance, authorized employment, immigrant intent, travel, and filing timing.':'Confirm current status and filing implications with counsel.')+'</p></div>';
  }
  h+='<div class="entry"><h4>Advisor pathway decision</h4><label class="f" for="psdecision">Recommended development track</label><select id="psdecision" data-draft="ps_decision">'+
- [['','Not decided'],['eb1a','Extraordinary Ability'],['niw','EB-2 NIW'],['both','Both independently'],['evidence','More evidence needed'],['other','Other options / attorney referral']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.ps_decision||review.decision||'')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
+ [['','Not decided'],['eb1a','Achievement'],['niw','Impact Pathway'],['both','Both independently'],['evidence','More evidence needed'],['other','Other options / attorney referral']].map(function(x){return '<option value="'+x[0]+'"'+((S.draft.ps_decision||review.decision||'')===x[0]?' selected':'')+'>'+x[1]+'</option>'}).join('')+'</select>'+
  '<label class="f" for="psnote">Reason and next evidence actions</label><textarea id="psnote" data-draft="ps_note">'+esc(S.draft.ps_note!==undefined?S.draft.ps_note:review.note||'')+'</textarea>'+
  '<div class="addrow"><button class="btn sm" data-a="ps-review">Record advisor decision</button></div>'+
  '<p class="small">An attorney must validate legal conclusions. This screening does not automatically unlock petition steps or change existing case decisions.</p></div></section>';
@@ -1466,7 +1466,7 @@ function evidenceIntelligencePanel(c){
     h+='<div class="pathway-evidence-item"><div class="ph"><b>'+esc(x.name)+'</b><div class="chips">'+chip(x.priority==='Review'?'Verify':x.priority+' priority',x.priority==='High'?'bad':x.priority==='Medium'?'mid':'')+(x.targeted?chip('Selected target','ok'):'')+'</div></div>'+
       '<p class="small">'+esc(x.reason)+' · Current assessment: '+esc(x.rating)+'</p><p><b>Next action:</b> '+esc(x.action)+'</p></div>';
   });
-  return h+'</div><p class="small">Extraordinary Ability criteria and NIW considerations require separate legal analysis. These case records do not establish either classification, and an attorney must evaluate the complete petition and final merits.</p></section>';
+  return h+'</div><p class="small">Achievement criteria and Impact considerations require separate legal analysis. These case records do not establish either classification, and an attorney must evaluate the complete petition and final merits.</p></section>';
 }
 /* Source-linked advisor findings: no automatic document extraction or legal determination. */
 function evidenceSourceReview(c,tracks){
@@ -1479,8 +1479,8 @@ function evidenceSourceReview(c,tracks){
     h+='<label class="f" for="evfile">Source document</label><select id="evfile" data-draft="evfile"><option value="">Select an uploaded file</option>';
     files.forEach(function(f){h+='<option value="'+esc(f.id)+'"'+(S.draft.evfile===f.id?' selected':'')+'>'+esc(f.name)+'</option>'});
     h+='</select><label class="f" for="evcriterion">Criterion to examine</label><select id="evcriterion" data-draft="evcriterion"><option value="">Choose a criterion</option>';
-    if(tracks.indexOf('eb1a')>=0)CRIT.forEach(function(k){if(!k.na)h+='<option value="'+esc(k.id)+'"'+(S.draft.evcriterion===k.id?' selected':'')+'>'+esc('Extraordinary Ability — '+k.n)+'</option>'});
-    if(tracks.indexOf('niw')>=0)PATHWAY_REQUIREMENTS.niw.forEach(function(k){h+='<option value="'+esc(k[0])+'"'+(S.draft.evcriterion===k[0]?' selected':'')+'>'+esc('NIW — '+k[1])+'</option>'});
+    if(tracks.indexOf('eb1a')>=0)CRIT.forEach(function(k){if(!k.na)h+='<option value="'+esc(k.id)+'"'+(S.draft.evcriterion===k.id?' selected':'')+'>'+esc('Achievement — '+k.n)+'</option>'});
+    if(tracks.indexOf('niw')>=0)PATHWAY_REQUIREMENTS.niw.forEach(function(k){h+='<option value="'+esc(k[0])+'"'+(S.draft.evcriterion===k[0]?' selected':'')+'>'+esc('Impact — '+k[1])+'</option>'});
     h+='</select><label class="f" for="evlocator">Page / section / location in source</label><input id="evlocator" data-draft="evlocator" maxlength="180" value="'+esc(S.draft.evlocator||'')+'" placeholder="Page 2, paragraph 3">'+
       '<label class="f" for="evexcerpt">Exact source excerpt or factual description</label><textarea id="evexcerpt" data-draft="evexcerpt" maxlength="1600">'+esc(S.draft.evexcerpt||'')+'</textarea>'+
       '<label class="f" for="evnote">Advisor interpretation (separate from source)</label><textarea id="evnote" data-draft="evnote" maxlength="1600">'+esc(S.draft.evnote||'')+'</textarea>'+
@@ -1491,7 +1491,7 @@ function evidenceSourceReview(c,tracks){
     var file=files.find(function(x){return x.id===f.fileId});
     var criterion=CRIT.find(function(x){return x.id===f.criterionId});
     var niwItem=PATHWAY_REQUIREMENTS.niw.find(function(x){return x[0]===f.criterionId});
-    h+='<div class="entry"><div class="ph"><b>'+esc(criterion?criterion.n:niwItem?'NIW — '+niwItem[1]:'Criterion unavailable')+'</b>'+chip(f.status==='accepted'?'Reviewed':f.status==='rejected'?'Rejected':'Pending review',f.status==='accepted'?'ok':f.status==='rejected'?'bad':'mid')+'</div>'+
+    h+='<div class="entry"><div class="ph"><b>'+esc(criterion?criterion.n:niwItem?'Impact — '+niwItem[1]:'Criterion unavailable')+'</b>'+chip(f.status==='accepted'?'Reviewed':f.status==='rejected'?'Rejected':'Pending review',f.status==='accepted'?'ok':f.status==='rejected'?'bad':'mid')+'</div>'+
       '<p class="small">Source: '+esc(file?file.name:'File unavailable or deleted')+' · '+esc(f.locator||'Location unspecified')+'</p>'+
       '<p><b>Source excerpt:</b> '+esc(f.excerpt||'')+'</p>'+(f.note?'<p class="small"><b>Advisor interpretation:</b> '+esc(f.note)+'</p>':'')+
       (file?'<button class="btn sm" data-a="getfile" data-path="'+esc(file.path)+'">Open source</button> ':'')+
@@ -1656,7 +1656,7 @@ function candidateView(c){
   var facts='<details class="cx-fd"><summary>Your details</summary><dl class="cx-facts">'+[['Immigration status',c.visa?c.visa+(c.visaExpiry?' (valid to '+fmtDate(c.visaExpiry)+')':''):''],['Timeline goal',c.goal]].map(function(x){return '<div><dt>'+x[0]+'</dt><dd>'+(x[1]?esc(x[1]):'<span class="cx-na">Not provided</span>')+'</dd></div>'}).join('')+'</dl>'+(evEnd?'<p class="cx-sub cx-ev">Anticipated evidence collection end: <b>'+esc(fmtDate(evEnd.d))+'</b>'+(slip>3?' <small>('+slip+' days later than the original plan)</small>':slip<-3?' <small>('+(-slip)+' days ahead of plan)</small>':' <small>(on track)</small>')+'</p>':'')+'<p class="cx-fn">Recorded case information, not verified legal dates. To correct anything, send us a message.</p></details>';
   var fe=foeEntry(c.id);
   if(fe){var fop=!!S.foeOpen,fb='<div style="margin-top:12px;padding:10px 14px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:10px"><button class="link" data-a="foe-open" style="display:block;text-align:left;width:100%"><span style="display:block;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Your field of endeavor</span><span style="display:block;font-size:15px;color:var(--ink);margin-top:4px;line-height:1.4">'+esc(fe.text)+'</span><span class="small" style="display:block;margin-top:4px">'+(fop?'Hide full details':'Click for full details')+'</span></button>';
-    if(fop){var sn=fe.snap;fb+='<div style="margin-top:10px;display:grid;gap:10px"><p class="small">Set by your advisor. Message us if you have questions.</p>'+"<div class=\"opt\"><b>What is a field of endeavor (FOE), and why does it matter?</b><p class=\"small\" style=\"margin:6px 0 0\">Your FOE is the specific area of work where you ask USCIS to recognize you as extraordinary. It is the yardstick for your whole Extraordinary Ability case.</p><div style=\"overflow-x:auto\"><table style=\"width:100%;border-collapse:collapse;margin-top:6px\"><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">Who you are compared with</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">USCIS judges you against the people working in this same field, not against all engineers. You must show you are among the small percentage at the top of it.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">What your evidence must match</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Your articles, peer reviews, memberships, press, awards, letters and job role should connect to this field. Evidence outside it counts for less.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">Why not broader or narrower</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Too broad (for example, software engineer) makes it hard to show you are at the top. Too narrow leaves no peers or data to compare against. We aim for a broad area with a clear focus.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">Importance to the US</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Showing the field matters to the US (growth, government use, national priorities) supports your case. The table below collects that evidence.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">What you do now</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Choose articles, journals, reviewing roles and talks in this field. Tell us if your work does not fit this wording.</td></tr></table></div><p class=\"small\">Your advisor can refine the wording before filing, and an attorney confirms it. This is a planning guide, not legal advice.</p></div>"+'<b style="font-size:14px">Market and evidence for your field</b>';
+    if(fop){var sn=fe.snap;fb+='<div style="margin-top:10px;display:grid;gap:10px"><p class="small">Set by your advisor. Message us if you have questions.</p>'+"<div class=\"opt\"><b>What is a field of endeavor (FOE), and why does it matter?</b><p class=\"small\" style=\"margin:6px 0 0\">Your FOE is the specific area of work where you ask USCIS to recognize you as a distinguished achiever. It is the yardstick for your whole case.</p><div style=\"overflow-x:auto\"><table style=\"width:100%;border-collapse:collapse;margin-top:6px\"><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">Who you are compared with</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">USCIS judges you against the people working in this same field, not against all engineers. You must show you are among the small percentage at the top of it.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">What your evidence must match</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Your articles, peer reviews, memberships, press, awards, letters and job role should connect to this field. Evidence outside it counts for less.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">Why not broader or narrower</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Too broad (for example, software engineer) makes it hard to show you are at the top. Too narrow leaves no peers or data to compare against. We aim for a broad area with a clear focus.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">Importance to the US</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Showing the field matters to the US (growth, government use, national priorities) supports your case. The table below collects that evidence.</td></tr><tr><th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">What you do now</th><td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">Choose articles, journals, reviewing roles and talks in this field. Tell us if your work does not fit this wording.</td></tr></table></div><p class=\"small\">Your advisor can refine the wording before filing, and an attorney confirms it. This is a planning guide, not legal advice.</p></div>"+'<b style="font-size:14px">Market and evidence for your field</b>';
       if(sn&&sn.rows&&sn.rows.length){if(!sn.checked)fb+='<p class="small">These figures come from public sources and your advisor is still verifying them. Treat them as a working draft.</p>';
         sn.rows.forEach(function(r,i){fb+='<div class="opt"><b>'+esc(r.foe||('Field '+(i+1)))+'</b><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;margin-top:6px">'+[['Market size and growth',r.market],['Why it matters to the US',r.importance],['Critical and emerging technologies',r.cet],['Where you fit',r.fit]].filter(function(x){return x[1]}).map(function(x){return '<tr>'+"<th scope=\"row\" style=\"text-align:left;vertical-align:top;padding:8px 10px;border-top:1px solid var(--line);width:30%;font-size:13px\">"+x[0]+'</th>'+"<td style=\"padding:8px 10px;border-top:1px solid var(--line);font-size:13px;white-space:pre-line\">"+esc(x[1])+'</td></tr>'}).join('')+'</table></div>'+((r.urls&&r.urls.length)?'<p class="small">Sources: '+r.urls.map(function(u,k){var s=safeUrl(u);return s?'<a href="'+esc(s)+'" target="_blank" rel="noopener noreferrer">'+(k+1)+'</a>':''}).filter(Boolean).join(' · ')+'</p>':'')+'</div>'})}
       else fb+='<p class="small">Market figures have not been shared yet.</p>';
@@ -1940,27 +1940,27 @@ document.addEventListener('click',async function(e){
       }
       case 'niw-agree':{
         var decision=(((c.pathwayScreening||{}).review||{}).decision||'');
-        if(decision!=='niw'&&decision!=='both'){say('NIW must be selected by the advisor first.','err');return}
+        if(decision!=='niw'&&decision!=='both'){say('Impact must be selected by the advisor first.','err');return}
         if(!S.locked){say('Agreement must be submitted from the candidate’s authenticated account, not advisor preview.','err');return}
         if(!S.draft.niw_agree){say('Please check the agreement acknowledgement.','err');return}
         var p=c.niwCase||{};if(p.agreement&&p.agreement.acceptedAt)return;
         await candRef(c.id).update({niwCase:Object.assign({},p,{agreement:{acceptedAt:nowIso(),actor:'Candidate',version:'niw-v1'}})});
-        delete S.draft.niw_agree;say('NIW pathway acknowledgement recorded.','ok');break;
+        delete S.draft.niw_agree;say('Impact pathway acknowledgement recorded.','ok');break;
       }
       case 'niw-activate':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var p=c.niwCase||{};if(!p.agreement||!p.agreement.acceptedAt){say('Candidate agreement required.','err');return}
         await candRef(c.id).update({niwCase:Object.assign({},p,{activatedAt:p.activatedAt||nowIso(),phases:Object.assign({agreement:{status:'completed',note:'Candidate acknowledgement recorded',updatedAt:nowIso()}},p.phases||{})})});
-        say('NIW case activated.','ok');break;
+        say('Impact case activated.','ok');break;
       }
       case 'niw-phase':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var p=c.niwCase||{},key=id,phase=NIW_PHASES.find(function(x){return x[0]===key});
-        if(!p.activatedAt||!phase){say('Activate a valid NIW case first.','err');return}
+        if(!p.activatedAt||!phase){say('Activate a valid Impact case first.','err');return}
         var status=S.draft['niwstatus_'+key]||((p.phases||{})[key]||{}).status||'not_started';
         if(!['not_started','in_progress','blocked','completed'].includes(status)){say('Invalid phase status.','err');return}
         if(status==='completed'&&key==='draft'&&!NIW_PACKAGE_ITEMS.every(function(x){return (p.package||{})[x[0]]&&(p.package||{})[x[0]].ready})){say('Complete all petition package items first.','err');return}
-        if(status==='completed'&&['draft','legal','filing'].includes(key)&&!niwReadiness(c).ready){say('Complete NIW evidence review before closing this phase.','err');return}
+        if(status==='completed'&&['draft','legal','filing'].includes(key)&&!niwReadiness(c).ready){say('Complete Impact evidence review before closing this phase.','err');return}
         if(status==='completed'&&['legal','filing'].includes(key)&&!(p.legalSignoff&&p.legalSignoff.signedAt)){say('Attorney review record required.','err');return}
         if(status==='completed'&&key==='uscis'&&!['approved','denied','withdrawn'].includes(String((p.filing||{}).decision||'').toLowerCase())){say('Record a USCIS I-140 decision before completing adjudication.','err');return}
         if(status==='completed'&&key==='visa'&&!(p.visaTracking&&p.visaTracking.reviewedAt)){say('Record a reviewed Visa Bulletin and USCIS chart before completing visa tracking.','err');return}
@@ -1970,12 +1970,12 @@ document.addEventListener('click',async function(e){
         var note=String(S.draft['niwnote_'+key]!==undefined?S.draft['niwnote_'+key]:((p.phases||{})[key]||{}).note||'').trim().slice(0,3000);
         var phases=Object.assign({},p.phases||{});phases[key]={status:status,note:note,updatedAt:nowIso()};
         await candRef(c.id).update({niwCase:Object.assign({},p,{phases:phases})});
-        delete S.draft['niwstatus_'+key];delete S.draft['niwnote_'+key];say('NIW phase saved.','ok');break;
+        delete S.draft['niwstatus_'+key];delete S.draft['niwnote_'+key];say('Impact phase saved.','ok');break;
       }
       case 'niw-package':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var p=c.niwCase||{},item=NIW_PACKAGE_ITEMS.find(function(x){return x[0]===id});
-        if(!p.activatedAt||!item){say('Active NIW case required.','err');return}
+        if(!p.activatedAt||!item){say('Active Impact case required.','err');return}
         var pack=Object.assign({},p.package||{}),old=pack[id]||{},note=String(S.draft['niwpkg_'+id]!==undefined?S.draft['niwpkg_'+id]:old.note||'').trim().slice(0,2000);
         if(!old.ready&&!note){say('Add a document reference or preparation note first.','err');return}
         pack[id]={ready:!old.ready,note:note,updatedAt:nowIso()};
@@ -1984,7 +1984,7 @@ document.addEventListener('click',async function(e){
       }
       case 'niw-rfe':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
-        var p=c.niwCase||{};if(!p.activatedAt){say('Active NIW case required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Active Impact case required.','err');return}
         var old=p.rfe||{},v={};
         ['notice','deadline','issues','response','status'].forEach(function(k){v[k]=String(S.draft['niwrfe_'+k]!==undefined?S.draft['niwrfe_'+k]:old[k]||'').trim().slice(0,3000)});
         v.status=v.status||'none';if(!['none','received','preparing','review','sent','closed'].includes(v.status)){say('Select a valid RFE status.','err');return}
@@ -1995,7 +1995,7 @@ document.addEventListener('click',async function(e){
       }
       case 'niw-visa':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
-        var p=c.niwCase||{};if(!p.activatedAt){say('Active NIW case required.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Active Impact case required.','err');return}
         var old=p.visaTracking||{},v={};
         ['chargeability','bulletin','category','filingCutoff','finalCutoff','chart','notes'].forEach(function(k){v[k]=String(S.draft['niwvisa_'+k]!==undefined?S.draft['niwvisa_'+k]:old[k]||'').trim().slice(0,3000)});
         if(!v.chargeability||!v.bulletin||!v.category||!v.chart){say('Record chargeability, bulletin month, category and USCIS chart.','err');return}
@@ -2005,7 +2005,7 @@ document.addEventListener('click',async function(e){
       case 'niw-signoff':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
         var p=c.niwCase||{},r=niwReadiness(c);
-        if(!p.activatedAt||!r.ready){say('NIW evidence requirements must be reviewed first.','err');return}
+        if(!p.activatedAt||!r.ready){say('Impact evidence requirements must be reviewed first.','err');return}
         var reviewer=String(S.draft.niwreviewer||'').trim().slice(0,160),note=String(S.draft.niwreviewnote||'').trim().slice(0,3000);
         if(!reviewer||!note||!S.draft.niwreviewconfirm){say('Enter reviewer, decision, and explicit confirmation.','err');return}
         await candRef(c.id).update({niwCase:Object.assign({},p,{legalSignoff:{reviewer:reviewer,note:note,signedAt:nowIso(),recordedBy:'Advisor'}})});
@@ -2013,7 +2013,7 @@ document.addEventListener('click',async function(e){
       }
       case 'niw-filing':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
-        var p=c.niwCase||{};if(!p.activatedAt){say('Activate NIW case first.','err');return}
+        var p=c.niwCase||{};if(!p.activatedAt){say('Activate Impact case first.','err');return}
         if(!p.legalSignoff||!p.legalSignoff.signedAt){say('Record attorney review before filing details.','err');return}
         var f={},old=p.filing||{};
         ['receipt','filed','priority','decision'].forEach(function(k){f[k]=String(S.draft['niw_'+k]!==undefined?S.draft['niw_'+k]:old[k]||'').trim().slice(0,160)});
@@ -2021,7 +2021,7 @@ document.addEventListener('click',async function(e){
         if(f.decision&&!['pending','approved','denied','withdrawn'].includes(f.decision.toLowerCase())){say('Use pending, approved, denied or withdrawn.','err');return}
         await candRef(c.id).update({niwCase:Object.assign({},p,{filing:f})});
         ['receipt','filed','priority','decision'].forEach(function(k){delete S.draft['niw_'+k]});
-        say('NIW filing details saved.','ok');break;
+        say('Impact filing details saved.','ok');break;
       }
       case 'ps-generate':{
         if(S.locked||S.role==='Candidate'){say('Advisor access required.','err');return}
@@ -2033,7 +2033,7 @@ document.addEventListener('click',async function(e){
           for(var item of PATHWAY_REQUIREMENTS[track]){
             var key='pathway:'+track+':'+item[0];
             if(existing.some(function(d){return d.pathwayKey===key}))continue;
-            var doc={cid:c.id,kind:'request',label:(track==='niw'?'NIW':'Extraordinary Ability')+' — '+item[1],note:item[2],pathwayKey:key,by:'Admin',ts:nowIso()};
+            var doc={cid:c.id,kind:'request',label:(track==='niw'?'Impact':'Achievement')+' — '+item[1],note:item[2],pathwayKey:key,by:'Admin',ts:nowIso()};
             await db.collection('docs').add(doc);existing.push(doc);created++;
           }
         }
