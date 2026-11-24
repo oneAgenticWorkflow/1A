@@ -172,8 +172,9 @@ function casesView(){
   if(!items.length)h+='<p class="small" style="margin:4px 2px 0">No replies, overdue steps or reminders waiting.</p>';
   items.slice(0,6).forEach(function(x){h+='<button class="pathway-alert" data-a="'+x.a+'" data-id="'+esc(x.id)+'"><span><b>'+esc(x.t)+'</b><small>'+esc(x.s)+'</small></span><span class="pathway-alert-due">'+esc(x.r)+' &rarr;</span></button>'});
   if(items.length>6)h+='<p class="small" style="margin:8px 2px 0">+'+(items.length-6)+' more. Open <b>All tasks</b> to see everything.</p>';
-  if(items.some(function(x){return x.a==='nudge'}))h+='<p class="small" style="margin:8px 2px 0">Nothing is sent automatically. Remind gives you a message to copy.</p>';
+  if(items.some(function(x){return x.a==='nudge'}))h+='<p class="small" style="margin:8px 2px 0">Nothing is sent automatically. Remind opens a message for you to check, then sends it to the candidate in messages when you press Send.</p>';
   h+='</section>';
+  h+=remindPanel();
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Reminder (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   h+='<div class="pathway-section-title"><h3>Cases</h3><span>'+sorted.length+'</span></div><div class="pathway-cases">';
   sorted.forEach(function(c){
@@ -232,8 +233,9 @@ function casesViewOld(){
   if(rem.length){
     h+='<section class="pathway-attention"><div class="pathway-section-title"><h3>Reminders to send</h3><span>'+rem.length+' due soon or overdue</span></div>';
     rem.slice(0,8).forEach(function(x){h+='<button class="pathway-alert" data-a="nudge" data-id="'+esc(x.t.id)+'"><span><b>'+esc(x.c.name)+'</b><small>'+esc(cxName(x.t))+'</small></span><span class="pathway-alert-due">'+(x.d<0?'Overdue by '+(-x.d)+(x.d===-1?' day':' days'):x.d===0?'Due today':'Due in '+x.d+(x.d===1?' day':' days'))+' · Write message &rarr;</span></button>'});
-    h+='<p class="small" style="margin:8px 2px 0">The app does not send anything on its own. Tap a row to get a ready message you can copy into email or chat.</p></section>';
+    h+='<p class="small" style="margin:8px 2px 0">The app does not send anything on its own. Tap a row to open a ready message, check it, and send it to the candidate in messages.</p></section>';
   }
+  h+=remindPanel();
   if(S.copyText!==null)h+='<div class="panel"><div class="ph"><h3>Reminder (select and copy)</h3><button class="link" data-a="copy-close">Close</button></div><textarea class="tall" readonly>'+esc(S.copyText)+'</textarea></div>';
   h+='<div class="pathway-section-title"><h3>Candidate portfolio</h3><span>'+sorted.length+' cases</span></div><div class="pathway-cases">';
   sorted.forEach(function(c){
@@ -1042,7 +1044,7 @@ function eduTab(c){
 }
 function upTab(c){
   var dv=function(k,d){return esc(S.draft[k]!==undefined?S.draft[k]:(d||''))},it=upItems(c.id);
-  var h='<div class="panel"><div class="ph"><h3>Upcoming for '+esc((c.name||'the candidate').split(' ')[0])+'</h3>'+chip(it.length+(it.length===1?' item':' items'),'')+'</div><p class="small">These show on the candidate portal under "Coming up for you". For a dated item, a reminder is due 7 days and 3 days before: copy the email, send it, then mark it sent.</p>'+
+  var h=remindPanel()+'<div class="panel"><div class="ph"><h3>Upcoming for '+esc((c.name||'the candidate').split(' ')[0])+'</h3>'+chip(it.length+(it.length===1?' item':' items'),'')+'</div><p class="small">These show on the candidate portal under "Coming up for you". For a dated item, a reminder is due 7 days and 3 days before: tap Send reminder, check the message, and send it to the candidate. It is then marked as sent.</p>'+
    '<div class="two"><div><label class="f" for="upt">Type</label><select id="upt" data-draft="up_type">'+UP_TYPES.map(function(t){return '<option'+((S.draft.up_type||'Conference')===t?' selected':'')+'>'+t+'</option>'}).join('')+'</select></div><div><label class="f" for="upd">Date (optional)</label><input id="upd" type="date" data-draft="up_date" value="'+dv('up_date')+'"></div></div>'+
    '<label class="f" for="upn">What</label><input id="upn" type="text" data-draft="up_title" maxlength="200" placeholder="Conference name, award to judge, or membership" value="'+dv('up_title')+'">'+
    '<label class="f" for="upo">Note or timing (optional)</label><input id="upo" type="text" data-draft="up_note" maxlength="300" placeholder="For example: December, date to be confirmed" value="'+dv('up_note')+'">'+
@@ -1052,7 +1054,7 @@ function upTab(c){
   it.forEach(function(x){
     var u=x.up,w=upWhen(u),done=u.status==='done',d=u.date?w.d:null,r7=!done&&d!==null&&d<=7&&d>3&&!u.r7,r3=!done&&d!==null&&d<=3&&d>=0&&!u.r3,due=r7?'r7':r3?'r3':'';
     h+='<tr'+(done?' style="opacity:.55"':'')+'><td>'+chip(u.type||'Other','')+' <b>'+esc(u.title)+'</b>'+(done?' '+chip('Done','ok'):'')+'</td><td>'+esc(w.txt)+(u.date&&u.note?'<br><small>'+esc(u.note)+'</small>':'')+'</td><td>'+(u.r7?chip('7-day sent','ok')+' ':'')+(u.r3?chip('3-day sent','ok')+' ':'')+(r7?chip('7-day due','gate'):'')+(r3?chip('3-day due','gate'):'')+(!u.date?'<small>needs a date</small>':'')+'</td><td>'+
-     (due?'<button class="btn sm" data-a="up-copy" data-id="'+esc(u.id)+'">Copy reminder</button> <button class="btn sm" data-a="up-set" data-id="'+esc(u.id)+'" data-st="'+due+'">Mark sent</button> ':'')+
+     (due?'<button class="btn sm" data-a="up-copy" data-id="'+esc(u.id)+'">Send reminder</button> ':'')+
      '<button class="btn sm ghost" data-a="up-set" data-id="'+esc(u.id)+'" data-st="'+(done?'open':'done')+'">'+(done?'Reopen':'Done')+'</button> <button class="btn sm ghost danger" data-a="up-set" data-id="'+esc(u.id)+'" data-st="removed">Remove</button></td></tr>';
   });
   return h+'</tbody></table></div></div>';
@@ -1584,6 +1586,11 @@ function msgAutoRead(cid,admin,ms){
   setTimeout(function(){
     Promise.resolve(db.collection('log').add({cid:cid,tid:'',ts:nowIso(),text:'',kind:'rd',by:side,role:admin?(S.staff||'admin'):'candidate',from:'',shared:false,upto:last})).then(function(){if(!admin)msgMarkSeen(cid)}).catch(function(){S.rdSent[cid+side]=''});
   },900);
+}
+function remindPanel(){
+  if(!S.remind)return '';
+  var rc=S.cands.find(function(x){return x.id===S.remind.cid}),nm=((rc&&rc.name)||'the candidate').split(' ')[0];
+  return '<div class="panel remindp"><div class="ph"><h3>Send reminder to '+esc(nm)+'</h3><button class="link" data-a="rem-cancel">Close</button></div><p class="small">Pressing Send posts this to '+esc(nm)+'\'s messages right away. You can edit it first.</p><label class="f" for="rembox">Message</label><textarea id="rembox" class="tall" rows="8" data-draft="rem">'+esc(S.draft.rem||'')+'</textarea><div class="addrow"><button class="btn pri" data-a="rem-send">Send to '+esc(nm)+'</button><button class="btn" data-a="rem-cancel">Cancel</button></div></div>';
 }
 function messagesPanel(c,admin){
   var ms=msgThread(c.id,admin),aw=awaitingReply(c.id),side=admin?'Admin':'Candidate',other=admin?'Candidate':'Admin';
@@ -2171,10 +2178,20 @@ document.addEventListener('click',async function(e){
       case 'tog':S.open[id]=!(S.open[id]===undefined?(id.indexOf('st')===0&&c&&id==='st'+c.id+(c.stage||0)):S.open[id]);break;
       case 'asCand':S.role='Candidate';S.openForm=false;break;
       case 'nudge':{var nt=S.tasks.find(function(x){return x.id===id});var nc=nt&&S.cands.find(function(x){return x.id===nt.cid});if(nt&&nc){var nd=daysUntil(nt.due),isArt=/^art\d/.test(nt.key||'');
-        S.copyText='Hello '+(nc.name||'').split(' ')[0]+',\n\nA quick reminder about "'+cxName(nt)+'", '+(nd<0?'which was due on '+fmtDate(nt.due)+'.':nd===0?'which is due today.':'which is due on '+fmtDate(nt.due)+'.')+
+        S.copyText=null;S.remind={tid:nt.id,cid:nc.id,dup:false};S.draft.rem='Hello '+(nc.name||'').split(' ')[0]+',\n\nA quick reminder about "'+cxName(nt)+'", '+(nd<0?'which was due on '+fmtDate(nt.due)+'.':nd===0?'which is due today.':'which is due on '+fmtDate(nt.due)+'.')+
           (isArt?'\n\nWe publish one article a month, so a delay here moves the dates after it by the same amount.':'')+
           '\n\nYou can open it from your page: '+location.href.split('#')[0]+'\n\nIf something is blocking you, reply here and we will help.\n\nThank you.';}
         break}
+      case 'rem-cancel':S.remind=null;S.draft.rem='';break;
+      case 'rem-send':{
+        if(S.locked||S.role==='Candidate'||!S.staff||!S.remind){say('Staff access required.','err');break}
+        var rm=S.remind,rtxt=(S.draft.rem||'').trim(),rcand=S.cands.find(function(x){return x.id===rm.cid});
+        if(!rcand||!rtxt){say('Write the reminder first.','err');break}
+        var recent=S.log.find(function(x){return x.remindTid===rm.tid&&Date.now()-Date.parse(x.ts)<43200000});
+        if(recent&&!rm.dup){rm.dup=true;say('A reminder for this step was already sent '+agoStr(recent.ts)+'. Press Send again to send another.','err');break}
+        await db.collection('log').add({cid:rcand.id,tid:'',ts:nowIso(),text:rtxt,kind:'note',by:'Admin',role:S.staff||'admin',from:((S.me&&(S.me.name||S.me.username))||''),shared:true,remindTid:rm.tid});
+        if(rm.upid){var uq=upItems(rcand.id).find(function(x){return x.up.id===rm.upid});if(uq){var nq=Object.assign({},uq.up);nq[rm.st]=nowIso();await db.collection('log').add({cid:rcand.id,tid:'',ts:nowIso(),kind:'up',by:'Admin',role:S.staff||'admin',shared:true,text:'Upcoming updated: '+nq.title,up:nq})}}
+        S.remind=null;S.draft.rem='';window.__ms=null;say('Reminder sent to '+(rcand.name||'the candidate').split(' ')[0]+' in their messages.','ok');break}
       case 'sync-tpl':{if(S.staff!=='admin'||!c)return;try{var tsx=tasksOf(c.id),hv={};tsx.forEach(function(t){hv[t.key]=t});var ms=TEMPLATE.filter(function(t){return !hv[t.k]}),st0=c.startDate||today();
         for(var mi=0;mi<ms.length;mi++){var mt=ms[mi],alld=(mt.deps||[]).every(function(k){return hv[k]&&isDone(hv[k].status)});
           await db.doc('tasks/'+c.id+'-'+mt.k).set({cid:c.id,key:mt.k,stage:mt.s,title:mt.t,detail:mt.d||'',owner:mt.o,kind:mt.kind||'task',form:mt.form||'',gate:mt.gate||'',deps:mt.deps||[],req:mt.req!==false,status:(mt.deps&&mt.deps.length&&!alld)?'Not started':'To do',due:addDays(st0,mt.off),source:'template',createdAt:nowIso()})}
@@ -2275,7 +2292,7 @@ document.addEventListener('click',async function(e){
         say('Saved.','ok');break}
       case 'up-copy':{
         var uc=upItems(c.id).find(function(x){return x.up.id===id});
-        if(uc){var u3=uc.up,d3=daysUntil(u3.date);S.copyText='Hello '+(c.name||'').split(' ')[0]+',\n\nA quick reminder: "'+u3.title+'" ('+String(u3.type||'item').toLowerCase()+') is '+(d3===0?'today':'on '+fmtDate(u3.date)+', '+d3+(d3===1?' day':' days')+' from now')+'.\n\nIf you need anything from us before then, just reply.\n\nThank you'}
+        if(uc){var u3=uc.up,d3=daysUntil(u3.date);S.copyText=null;S.remind={tid:'up:'+u3.id,cid:c.id,dup:false,upid:u3.id,st:(d3!==null&&d3<=3)?'r3':'r7'};S.draft.rem='Hello '+(c.name||'').split(' ')[0]+',\n\nA quick reminder: "'+u3.title+'" ('+String(u3.type||'item').toLowerCase()+') is '+(d3===0?'today':'on '+fmtDate(u3.date)+', '+d3+(d3===1?' day':' days')+' from now')+'.\n\nIf you need anything from us before then, just reply.\n\nThank you'}
         break}
       case 'foe-open':S.foeOpen=!S.foeOpen;break;
       case 'foe-share':case 'foe-unshare':{
